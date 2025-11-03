@@ -27,7 +27,7 @@ public class ForbiddenWordValidator<T extends Content> implements ValidationStep
 
     @Override
     public ValidationResult validate(T content) {
-        return null;
+        return ValidationResult.valid(content.getClass().getSimpleName(), content.getId(), content.getUserId());
     }
 
     @Override
