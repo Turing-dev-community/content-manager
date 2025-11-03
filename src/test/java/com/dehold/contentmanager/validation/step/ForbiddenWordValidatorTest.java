@@ -134,6 +134,7 @@ class ForbiddenWordValidatorTest {
 
         assertTrue(result.getErrors().getFirst().message().contains("badword1"));
         assertTrue(result.getErrors().getFirst().message().contains("badword2"));
+        assertTrue(result.getErrors().getFirst().message().contains("custombadword1"));
     }
 
     @Test
