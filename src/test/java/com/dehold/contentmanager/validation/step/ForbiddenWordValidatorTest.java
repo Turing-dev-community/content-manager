@@ -12,6 +12,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Function;
@@ -31,22 +33,15 @@ class ForbiddenWordValidatorTest {
     ForbiddenWordValidator<BlogPost> cut;
 
     ForbiddenWords defaultForbiddenWords = new ForbiddenWords(null, null, "Default Forbidden Words", "any", "any",
-            new java.util.LinkedHashSet<>(java.util.Arrays.asList("badword1", "badword2")));
+            new LinkedHashSet<>(Arrays.asList("badword1", "badword2")));
     ForbiddenWords customForbiddenWords = new ForbiddenWords(
             UUID.randomUUID(),
             UUID.randomUUID(),
             "Custom Forbidden Words",
             "blogpost",
             "content",
-            new java.util.LinkedHashSet<>(java.util.Arrays.asList("custombadword1", "custombadword2"))
+            new LinkedHashSet<>(Arrays.asList("custombadword1", "custombadword2"))
     );
-
-    @BeforeEach
-    void setup() {
-        List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
-        String contentType = BlogPost.class.getSimpleName().toLowerCase();
-        when(forbiddenWordsService.findByUserIdAndContentType(any(UUID.class), eq(contentType))).thenReturn(forbiddenWordsList);
-    }
 
     @Test
     void givenContentWithNoForbiddenWords_whenValidate_thenReturnValidResult() {
@@ -56,6 +51,10 @@ class ForbiddenWordValidatorTest {
         ValidationStepFactory factory = new ValidationStepFactory(forbiddenWordsService);
         String fieldThatShouldBeValidated = "content";
         cut = factory.createForbiddenWordValidator(getter, fieldThatShouldBeValidated, UUID.randomUUID());
+
+        List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
+        String contentType = BlogPost.class.getSimpleName().toLowerCase();
+        when(forbiddenWordsService.findByUserIdAndContentType(any(UUID.class), eq(contentType))).thenReturn(forbiddenWordsList);
 
         ValidationResult result = cut.validate(blogPost);
 
@@ -71,6 +70,10 @@ class ForbiddenWordValidatorTest {
         String fieldThatShouldBeValidated = "content";
         cut = factory.createForbiddenWordValidator(getter, fieldThatShouldBeValidated, UUID.randomUUID());
 
+        List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
+        String contentType = BlogPost.class.getSimpleName().toLowerCase();
+        when(forbiddenWordsService.findByUserIdAndContentType(any(UUID.class), eq(contentType))).thenReturn(forbiddenWordsList);
+
         ValidationResult result = cut.validate(blogPost);
 
         assertFalse(result.isValid());
@@ -85,6 +88,10 @@ class ForbiddenWordValidatorTest {
         String fieldThatShouldBeValidated = "content";
         cut = factory.createForbiddenWordValidator(getter, fieldThatShouldBeValidated, UUID.randomUUID());
 
+        List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
+        String contentType = BlogPost.class.getSimpleName().toLowerCase();
+        when(forbiddenWordsService.findByUserIdAndContentType(any(UUID.class), eq(contentType))).thenReturn(forbiddenWordsList);
+
         ValidationResult result = cut.validate(blogPost);
 
         assertEquals(1, result.getErrors().size());
@@ -98,6 +105,30 @@ class ForbiddenWordValidatorTest {
         ValidationStepFactory factory = new ValidationStepFactory(forbiddenWordsService);
         String fieldThatShouldBeValidated = "content";
         cut = factory.createForbiddenWordValidator(getter, fieldThatShouldBeValidated, UUID.randomUUID());
+
+        List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
+        String contentType = BlogPost.class.getSimpleName().toLowerCase();
+        when(forbiddenWordsService.findByUserIdAndContentType(any(UUID.class), eq(contentType))).thenReturn(forbiddenWordsList);
+
+        ValidationResult result = cut.validate(blogPost);
+
+        assertTrue(result.getErrors().getFirst().message().contains("badword1"));
+        assertTrue(result.getErrors().getFirst().message().contains("badword2"));
+    }
+
+    @Test
+    void givenContentWithMixOfDefaultAndCustomForbiddenWords_whenValidate_thenReturnErrorMessageWithAllWords() {
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(),"Some Title", "This content contains badword1 and badword2" +
+                " and custombadword1.",
+                Instant.now(), Instant.now(), UUID.randomUUID());
+        Function<BlogPost, String> getter = BlogPost::getContent;
+        ValidationStepFactory factory = new ValidationStepFactory(forbiddenWordsService);
+        String fieldThatShouldBeValidated = "content";
+        cut = factory.createForbiddenWordValidator(getter, fieldThatShouldBeValidated, UUID.randomUUID());
+
+        List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
+        String contentType = BlogPost.class.getSimpleName().toLowerCase();
+        when(forbiddenWordsService.findByUserIdAndContentType(any(UUID.class), eq(contentType))).thenReturn(forbiddenWordsList);
 
         ValidationResult result = cut.validate(blogPost);
 
@@ -115,6 +146,10 @@ class ForbiddenWordValidatorTest {
         String fieldThatShouldBeValidated = "content";
         cut = factory.createForbiddenWordValidator(getter, fieldThatShouldBeValidated, UUID.randomUUID());
 
+        List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
+        String contentType = BlogPost.class.getSimpleName().toLowerCase();
+        when(forbiddenWordsService.findByUserIdAndContentType(any(UUID.class), eq(contentType))).thenReturn(forbiddenWordsList);
+
         ValidationResult result = cut.validate(blogPost);
 
         assertFalse(result.isValid());
@@ -129,6 +164,10 @@ class ForbiddenWordValidatorTest {
         ValidationStepFactory factory = new ValidationStepFactory(forbiddenWordsService);
         String fieldThatShouldBeValidated = "content";
         cut = factory.createForbiddenWordValidator(getter, fieldThatShouldBeValidated, UUID.randomUUID());
+
+        List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
+        String contentType = BlogPost.class.getSimpleName().toLowerCase();
+        when(forbiddenWordsService.findByUserIdAndContentType(any(UUID.class), eq(contentType))).thenReturn(forbiddenWordsList);
 
         ValidationResult result = cut.validate(blogPost);
 
@@ -168,10 +207,15 @@ class ForbiddenWordValidatorTest {
         String fieldThatShouldBeValidated = "content";
         cut = factory.createForbiddenWordValidator(getter, fieldThatShouldBeValidated, UUID.randomUUID());
 
+        List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
+        String contentType = BlogPost.class.getSimpleName().toLowerCase();
+        when(forbiddenWordsService.findByUserIdAndContentType(any(UUID.class), eq(contentType))).thenReturn(forbiddenWordsList);
+
         ValidationResult result = cut.validate(blogPost);
 
         assertTrue(result.isValid());
     }
+
 
     @Test
     void givenContent_whenValidated_thenValidationResultContainsGenericInfos() {
@@ -182,6 +226,10 @@ class ForbiddenWordValidatorTest {
         ValidationStepFactory factory = new ValidationStepFactory(forbiddenWordsService);
         String fieldThatShouldBeValidated = "content";
         cut = factory.createForbiddenWordValidator(getter, fieldThatShouldBeValidated, UUID.randomUUID());
+
+        List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
+        String contentType = BlogPost.class.getSimpleName().toLowerCase();
+        when(forbiddenWordsService.findByUserIdAndContentType(any(UUID.class), eq(contentType))).thenReturn(forbiddenWordsList);
 
         ValidationResult result = cut.validate(blogPost);
 
