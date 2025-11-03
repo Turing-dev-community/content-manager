@@ -77,6 +77,35 @@ class ForbiddenWordValidatorTest {
     }
 
     @Test
+    void givenContentWithSeveralForbiddenWords_whenValidate_thenReturnOneErrorObject() {
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(),"Some Title", "This content contains badword1 and badword2.",
+                Instant.now(), Instant.now(), UUID.randomUUID());
+        Function<BlogPost, String> getter = BlogPost::getContent;
+        ValidationStepFactory factory = new ValidationStepFactory(forbiddenWordsService);
+        String fieldThatShouldBeValidated = "content";
+        cut = factory.createForbiddenWordValidator(getter, fieldThatShouldBeValidated, UUID.randomUUID());
+
+        ValidationResult result = cut.validate(blogPost);
+
+        assertEquals(1, result.getErrors().size());
+    }
+
+    @Test
+    void givenContentWithSeveralForbiddenWords_whenValidate_thenReturnErrorMessageWithAllWords() {
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(),"Some Title", "This content contains badword1 and badword2.",
+                Instant.now(), Instant.now(), UUID.randomUUID());
+        Function<BlogPost, String> getter = BlogPost::getContent;
+        ValidationStepFactory factory = new ValidationStepFactory(forbiddenWordsService);
+        String fieldThatShouldBeValidated = "content";
+        cut = factory.createForbiddenWordValidator(getter, fieldThatShouldBeValidated, UUID.randomUUID());
+
+        ValidationResult result = cut.validate(blogPost);
+
+        assertTrue(result.getErrors().getFirst().message().contains("badword1"));
+        assertTrue(result.getErrors().getFirst().message().contains("badword2"));
+    }
+
+    @Test
     void givenContentWithCustomForbiddenWord_whenValidate_thenReturnInvalidResult() {
         BlogPost blogPost = new BlogPost(UUID.randomUUID(),"Some Title", "This content contains custombadword1.",
                 Instant.now(), Instant.now(), UUID.randomUUID());
