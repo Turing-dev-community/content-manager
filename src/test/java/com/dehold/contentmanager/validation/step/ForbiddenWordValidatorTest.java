@@ -139,4 +139,21 @@ class ForbiddenWordValidatorTest {
 
         assertTrue(result.isValid());
     }
+
+    @Test
+    void givenContent_whenValidated_thenValidationResultContainsGenericInfos() {
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Some title", "Some content.",
+                Instant.now(), Instant.now(), UUID.randomUUID());
+
+        Function<BlogPost, String> getter = BlogPost::getContent;
+        ValidationStepFactory factory = new ValidationStepFactory(forbiddenWordsService);
+        String fieldThatShouldBeValidated = "content";
+        cut = factory.createForbiddenWordValidator(getter, fieldThatShouldBeValidated, UUID.randomUUID());
+
+        ValidationResult result = cut.validate(blogPost);
+
+        assertEquals(result.getContentType(), blogPost.getClass().getSimpleName());
+        assertEquals(result.getContentId(), blogPost.getId());
+        assertEquals(result.getUserId(), blogPost.getUserId());
+    }
 }
