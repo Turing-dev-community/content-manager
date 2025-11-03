@@ -43,7 +43,8 @@ class ForbiddenWordValidatorTest {
     @BeforeEach
     void setup() {
         Function<BlogPost, String> getter = BlogPost::getContent;
-        cut = new ForbiddenWordValidator<BlogPost>(forbiddenWordsService, getter, "content", UUID.randomUUID());
+        ValidationStepFactory factory = new ValidationStepFactory(forbiddenWordsService);
+        cut = factory.createForbiddenWordValidator(getter, "content", UUID.randomUUID());
         List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
         when(forbiddenWordsService.findByUserId(any(UUID.class))).thenReturn(forbiddenWordsList);
     }

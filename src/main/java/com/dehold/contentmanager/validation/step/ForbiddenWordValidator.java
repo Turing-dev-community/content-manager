@@ -12,7 +12,6 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-@Component
 public class ForbiddenWordValidator<T extends Content> implements ValidationStep<T> {
 
     private final ForbiddenWordsService service;
