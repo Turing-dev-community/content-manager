@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,8 +42,10 @@ class ForbiddenWordValidatorTest {
 
     @BeforeEach
     void setup() {
+        Function<BlogPost, String> getter = BlogPost::getContent;
+        cut = new ForbiddenWordValidator<BlogPost>(forbiddenWordsService, getter, "content", UUID.randomUUID());
         List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
-        //when(forbiddenWordsService.findByUserId(any(UUID.class))).thenReturn(forbiddenWordsList);
+        when(forbiddenWordsService.findByUserId(any(UUID.class))).thenReturn(forbiddenWordsList);
     }
 
     @Test
@@ -51,6 +54,22 @@ class ForbiddenWordValidatorTest {
                 Instant.now(), Instant.now(), UUID.randomUUID());
         ValidationResult result = cut.validate(blogPost);
         assertTrue(result.isValid());
+    }
+
+    @Test
+    void givenBlogPostWithDefaultForbiddenWord_whenValidate_thenReturnInvalidResult() {
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(),"Some Title", "This content contains badword1.",
+                Instant.now(), Instant.now(), UUID.randomUUID());
+        ValidationResult result = cut.validate(blogPost);
+        assertFalse(result.isValid());
+    }
+
+    @Test
+    void givenBlogPostWithCustomForbiddenWord_whenValidate_thenReturnInvalidResult() {
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(),"Some Title", "This content contains custombadword1.",
+                Instant.now(), Instant.now(), UUID.randomUUID());
+        ValidationResult result = cut.validate(blogPost);
+        assertFalse(result.isValid());
     }
 
 }
