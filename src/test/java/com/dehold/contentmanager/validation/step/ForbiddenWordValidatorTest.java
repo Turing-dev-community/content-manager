@@ -94,4 +94,13 @@ class ForbiddenWordValidatorTest {
         String actual = result.getErrors().getFirst().message();
         assertEquals(expected, actual);
     }
+
+    @Test
+    void givenFieldThatWasNotSpecifiedContainsForbiddenWords_whenValidate_thenReturnValidResult() {
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Title with a badword1", "But actually only the content " +
+                "is checked.",
+                Instant.now(), Instant.now(), UUID.randomUUID());
+        ValidationResult result = cut.validate(blogPost);
+        assertTrue(result.isValid());
+    }
 }
