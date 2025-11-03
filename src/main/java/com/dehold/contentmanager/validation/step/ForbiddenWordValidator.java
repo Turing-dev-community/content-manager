@@ -32,10 +32,25 @@ public class ForbiddenWordValidator<T extends Content> implements ValidationStep
 
     @Override
     public ValidationResult validate(T content) {
-        String contentType = content.getClass().getSimpleName().toLowerCase();
-        List<ForbiddenWords> forbiddenWordsList = service.findByUserIdAndContentType(content.getUserId(), contentType);
-        Set<String> forbiddenWords =
-                forbiddenWordsList.stream().map(ForbiddenWords::getWords).flatMap(Set::stream).collect(Collectors.toSet());
+        Set<String> forbiddenWords = fetchForbiddenWords(content);
+        List<String> foundViolations = findViolations(content, forbiddenWords);
+        if(!foundViolations.isEmpty()) {
+            return buildInvalidValidationResult(content, foundViolations);
+        }
+        return ValidationResult.valid(content.getClass().getSimpleName(), content.getId(), content.getUserId());
+    }
+
+    private ValidationResult buildInvalidValidationResult(T content, List<String> foundViolations) {
+        return ValidationResult.invalid(content.getClass().getSimpleName(),
+                content.getId(),
+                content.getUserId(),
+                List.of(new ValidationError(
+                        ERROR_CODE,
+                        errorMessage(fieldName, foundViolations)
+                )));
+    }
+
+    private List<String> findViolations(T content, Set<String> forbiddenWords) {
         String value = getter.apply(content);
         List<String> foundViolations = new ArrayList<>();
         for(String word : forbiddenWords) {
@@ -43,16 +58,15 @@ public class ForbiddenWordValidator<T extends Content> implements ValidationStep
                 foundViolations.add(word);
             }
         }
-        if(!foundViolations.isEmpty()) {
-            return ValidationResult.invalid(content.getClass().getSimpleName(),
-                    content.getId(),
-                    content.getUserId(),
-                    List.of(new ValidationError(
-                            ERROR_CODE,
-                            errorMessage(fieldName, foundViolations)
-                    )));
-        }
-        return ValidationResult.valid(content.getClass().getSimpleName(), content.getId(), content.getUserId());
+        return foundViolations;
+    }
+
+    private Set<String> fetchForbiddenWords(T content) {
+        String contentType = content.getClass().getSimpleName().toLowerCase();
+        List<ForbiddenWords> forbiddenWordsList = service.findByUserIdAndContentType(content.getUserId(), contentType);
+        Set<String> forbiddenWords =
+                forbiddenWordsList.stream().map(ForbiddenWords::getWords).flatMap(Set::stream).collect(Collectors.toSet());
+        return forbiddenWords;
     }
 
     public String errorMessage(String fieldName, List<String> forbiddenWords) {
