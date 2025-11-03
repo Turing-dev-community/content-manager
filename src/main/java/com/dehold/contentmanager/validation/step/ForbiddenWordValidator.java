@@ -6,6 +6,7 @@ import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.service.ForbiddenWordsService;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -36,22 +37,26 @@ public class ForbiddenWordValidator<T extends Content> implements ValidationStep
         Set<String> forbiddenWords =
                 forbiddenWordsList.stream().map(ForbiddenWords::getWords).flatMap(Set::stream).collect(Collectors.toSet());
         String value = getter.apply(content);
+        List<String> foundViolations = new ArrayList<>();
         for(String word : forbiddenWords) {
             if(value != null && value.contains(word)) {
-                return ValidationResult.invalid(content.getClass().getSimpleName(),
-                        content.getId(),
-                        content.getUserId(),
-                        List.of(new ValidationError(
-                                ERROR_CODE,
-                                errorMessage(fieldName, word)
-                        )));
+                foundViolations.add(word);
             }
+        }
+        if(!foundViolations.isEmpty()) {
+            return ValidationResult.invalid(content.getClass().getSimpleName(),
+                    content.getId(),
+                    content.getUserId(),
+                    List.of(new ValidationError(
+                            ERROR_CODE,
+                            errorMessage(fieldName, foundViolations)
+                    )));
         }
         return ValidationResult.valid(content.getClass().getSimpleName(), content.getId(), content.getUserId());
     }
 
-    public String errorMessage(String fieldName, String forbiddenWord) {
-        return "The field '" + fieldName + "' contains the forbidden word: '" + forbiddenWord + "'";
+    public String errorMessage(String fieldName, List<String> forbiddenWords) {
+        return "The field '" + fieldName + "' contains the forbidden words: " + String.join(", ", forbiddenWords);
     }
 
     @Override
