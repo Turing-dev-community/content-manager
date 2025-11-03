@@ -6,6 +6,7 @@ import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.service.ForbiddenWordsService;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -31,27 +32,45 @@ public class ForbiddenWordValidator<T extends Content> implements ValidationStep
 
     @Override
     public ValidationResult validate(T content) {
-        String contentType = content.getClass().getSimpleName().toLowerCase();
-        List<ForbiddenWords> forbiddenWordsList = service.findByUserIdAndContentType(content.getUserId(), contentType);
-        Set<String> forbiddenWords =
-                forbiddenWordsList.stream().map(ForbiddenWords::getWords).flatMap(Set::stream).collect(Collectors.toSet());
-        String value = getter.apply(content);
-        for(String word : forbiddenWords) {
-            if(value != null && value.contains(word)) {
-                return ValidationResult.invalid(content.getClass().getSimpleName(),
-                        content.getId(),
-                        content.getUserId(),
-                        List.of(new ValidationError(
-                                ERROR_CODE,
-                                errorMessage(fieldName, word)
-                        )));
-            }
+        Set<String> forbiddenWords = fetchForbiddenWords(content);
+        List<String> foundViolations = findViolations(content, forbiddenWords);
+        if(!foundViolations.isEmpty()) {
+            return buildInvalidValidationResult(content, foundViolations);
         }
         return ValidationResult.valid(content.getClass().getSimpleName(), content.getId(), content.getUserId());
     }
 
-    public String errorMessage(String fieldName, String forbiddenWord) {
-        return "The field '" + fieldName + "' contains the forbidden word: '" + forbiddenWord + "'";
+    private ValidationResult buildInvalidValidationResult(T content, List<String> foundViolations) {
+        return ValidationResult.invalid(content.getClass().getSimpleName(),
+                content.getId(),
+                content.getUserId(),
+                List.of(new ValidationError(
+                        ERROR_CODE,
+                        errorMessage(fieldName, foundViolations)
+                )));
+    }
+
+    private List<String> findViolations(T content, Set<String> forbiddenWords) {
+        String value = getter.apply(content);
+        List<String> foundViolations = new ArrayList<>();
+        for(String word : forbiddenWords) {
+            if(value != null && value.contains(word)) {
+                foundViolations.add(word);
+            }
+        }
+        return foundViolations;
+    }
+
+    private Set<String> fetchForbiddenWords(T content) {
+        String contentType = content.getClass().getSimpleName().toLowerCase();
+        List<ForbiddenWords> forbiddenWordsList = service.findByUserIdAndContentType(content.getUserId(), contentType);
+        Set<String> forbiddenWords =
+                forbiddenWordsList.stream().map(ForbiddenWords::getWords).flatMap(Set::stream).collect(Collectors.toSet());
+        return forbiddenWords;
+    }
+
+    public String errorMessage(String fieldName, List<String> forbiddenWords) {
+        return "The field '" + fieldName + "' contains the forbidden words: " + String.join(", ", forbiddenWords);
     }
 
     @Override
