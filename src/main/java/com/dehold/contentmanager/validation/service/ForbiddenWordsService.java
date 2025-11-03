@@ -43,7 +43,7 @@ public class ForbiddenWordsService implements IService<ForbiddenWords> {
     }
 
     public List<ForbiddenWords> findByUserIdAndContentType(UUID userId, String contentType) {
-        ForbiddenWords customForbiddenWords = repository.findByUserId(userId);
+        ForbiddenWords customForbiddenWords = repository.findByUserIdAndContentType(userId, contentType);
         return addDefaultForbiddenWords(List.of(customForbiddenWords));
     }
 
