@@ -80,7 +80,7 @@ class ForbiddenWordValidatorTest {
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Some Title", "This content contains badword1.",
                 Instant.now(), Instant.now(), UUID.randomUUID());
         ValidationResult result = cut.validate(blogPost);
-        String expected = cut.ERROR_CODE;
+        String expected = ForbiddenWordValidator.ERROR_CODE;
         String actual = result.getErrors().getFirst().code();
         assertEquals(expected, actual);
     }
