@@ -147,9 +147,13 @@ class ForbiddenWordValidatorTest {
         String fieldThatShouldBeValidated = "content";
         cut = factory.createForbiddenWordValidator(getter, fieldThatShouldBeValidated, UUID.randomUUID());
 
+        List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
+        String contentType = BlogPost.class.getSimpleName().toLowerCase();
+        when(forbiddenWordsService.findByUserIdAndContentType(any(UUID.class), eq(contentType))).thenReturn(forbiddenWordsList);
+
         ValidationResult result = cut.validate(blogPost);
 
-        String expected = cut.errorMessage("content", "badword1");
+        String expected = cut.errorMessage("content", List.of("badword1"));
         String actual = result.getErrors().getFirst().message();
         assertEquals(expected, actual);
     }
