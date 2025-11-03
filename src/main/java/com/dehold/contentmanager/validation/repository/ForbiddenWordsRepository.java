@@ -4,7 +4,6 @@ import com.dehold.contentmanager.validation.model.ForbiddenWords;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
-
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
@@ -14,7 +13,7 @@ public class ForbiddenWordsRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
-    private final ForbiddenWordsRowMapper FORBIDDEN_WORDS_ROW_MAPPER = new ForbiddenWordsRowMapper();
+    protected final ForbiddenWordsRowMapper FORBIDDEN_WORDS_ROW_MAPPER = new ForbiddenWordsRowMapper();
 
     public ForbiddenWordsRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -75,6 +74,12 @@ public class ForbiddenWordsRepository {
                 "DELETE FROM forbidden_words WHERE id = ?",
                 forbiddenWords.getId()
         );
+    }
+
+    public ForbiddenWords findByUserIdAndContentType(UUID userId, String contentType) {
+        String sql = "SELECT * FROM forbidden_words WHERE user_id = ? AND content_type = ?";
+        return jdbcTemplate.query(sql, FORBIDDEN_WORDS_ROW_MAPPER, userId, contentType).stream().findFirst()
+                .orElse(null);
     }
 
     private static class ForbiddenWordsRowMapper implements RowMapper<ForbiddenWords> {
