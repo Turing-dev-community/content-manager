@@ -18,6 +18,7 @@ import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,7 +47,8 @@ class ForbiddenWordValidatorTest {
         ValidationStepFactory factory = new ValidationStepFactory(forbiddenWordsService);
         cut = factory.createForbiddenWordValidator(getter, "content", UUID.randomUUID());
         List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
-        when(forbiddenWordsService.findByUserId(any(UUID.class))).thenReturn(forbiddenWordsList);
+        String contentType = BlogPost.class.getSimpleName().toLowerCase();
+        when(forbiddenWordsService.findByUserIdAndContentType(any(UUID.class), eq(contentType))).thenReturn(forbiddenWordsList);
     }
 
     @Test
@@ -71,6 +73,16 @@ class ForbiddenWordValidatorTest {
                 Instant.now(), Instant.now(), UUID.randomUUID());
         ValidationResult result = cut.validate(blogPost);
         assertFalse(result.isValid());
+    }
+
+    @Test
+    void givenContentWithForbiddenWords_whenValidate_thenErrorCodeIsCorrect() {
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Some Title", "This content contains badword1.",
+                Instant.now(), Instant.now(), UUID.randomUUID());
+        ValidationResult result = cut.validate(blogPost);
+        String expected = cut.ERROR_CODE;
+        String actual = result.getErrors().getFirst().code();
+        assertEquals(expected, actual);
     }
 
     @Test

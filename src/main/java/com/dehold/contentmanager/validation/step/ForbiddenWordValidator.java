@@ -5,7 +5,6 @@ import com.dehold.contentmanager.validation.model.ForbiddenWords;
 import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.service.ForbiddenWordsService;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Set;
@@ -32,7 +31,8 @@ public class ForbiddenWordValidator<T extends Content> implements ValidationStep
 
     @Override
     public ValidationResult validate(T content) {
-        List<ForbiddenWords> forbiddenWordsList = service.findByUserId(content.getUserId());
+        String contentType = content.getClass().getSimpleName().toLowerCase();
+        List<ForbiddenWords> forbiddenWordsList = service.findByUserIdAndContentType(content.getUserId(), contentType);
         Set<String> forbiddenWords =
                 forbiddenWordsList.stream().map(ForbiddenWords::getWords).flatMap(Set::stream).collect(Collectors.toSet());
         String value = getter.apply(content);
