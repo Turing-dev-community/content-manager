@@ -13,7 +13,7 @@ public class ForbiddenWordsRepository {
 
     private final JdbcTemplate jdbcTemplate;
 
-    private final ForbiddenWordsRowMapper FORBIDDEN_WORDS_ROW_MAPPER = new ForbiddenWordsRowMapper();
+    protected final ForbiddenWordsRowMapper FORBIDDEN_WORDS_ROW_MAPPER = new ForbiddenWordsRowMapper();
 
     public ForbiddenWordsRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
