@@ -50,7 +50,7 @@ class ForbiddenWordValidatorTest {
     }
 
     @Test
-    void givenBlogPostWithNoForbiddenWords_whenValidate_thenReturnValidResult() {
+    void givenContentWithNoForbiddenWords_whenValidate_thenReturnValidResult() {
         BlogPost blogPost = new BlogPost(UUID.randomUUID(),"Some Title", "This is a clean blog post content.",
                 Instant.now(), Instant.now(), UUID.randomUUID());
         ValidationResult result = cut.validate(blogPost);
@@ -58,7 +58,7 @@ class ForbiddenWordValidatorTest {
     }
 
     @Test
-    void givenBlogPostWithDefaultForbiddenWord_whenValidate_thenReturnInvalidResult() {
+    void givenContentWithDefaultForbiddenWord_whenValidate_thenReturnInvalidResult() {
         BlogPost blogPost = new BlogPost(UUID.randomUUID(),"Some Title", "This content contains badword1.",
                 Instant.now(), Instant.now(), UUID.randomUUID());
         ValidationResult result = cut.validate(blogPost);
@@ -66,11 +66,20 @@ class ForbiddenWordValidatorTest {
     }
 
     @Test
-    void givenBlogPostWithCustomForbiddenWord_whenValidate_thenReturnInvalidResult() {
+    void givenContentWithCustomForbiddenWord_whenValidate_thenReturnInvalidResult() {
         BlogPost blogPost = new BlogPost(UUID.randomUUID(),"Some Title", "This content contains custombadword1.",
                 Instant.now(), Instant.now(), UUID.randomUUID());
         ValidationResult result = cut.validate(blogPost);
         assertFalse(result.isValid());
     }
 
+    @Test
+    void givenContentWithForbiddenWords_whenValidate_thenErrorMessageIsCorrect() {
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Some Title", "This content contains badword1.",
+                Instant.now(), Instant.now(), UUID.randomUUID());
+        ValidationResult result = cut.validate(blogPost);
+        String expected = cut.errorMessage("content", "badword1");
+        String actual = result.getErrors().getFirst().message();
+        assertEquals(expected, actual);
+    }
 }

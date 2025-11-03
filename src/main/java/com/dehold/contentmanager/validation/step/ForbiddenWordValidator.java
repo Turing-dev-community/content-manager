@@ -2,6 +2,7 @@ package com.dehold.contentmanager.validation.step;
 
 import com.dehold.contentmanager.content.Content;
 import com.dehold.contentmanager.validation.model.ForbiddenWords;
+import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.service.ForbiddenWordsService;
 import org.springframework.stereotype.Component;
@@ -34,15 +35,15 @@ public class ForbiddenWordValidator<T extends Content> implements ValidationStep
         List<ForbiddenWords> forbiddenWordsList = service.findByUserId(content.getUserId());
         Set<String> forbiddenWords =
                 forbiddenWordsList.stream().map(ForbiddenWords::getWords).flatMap(Set::stream).collect(Collectors.toSet());
-        String field = getter.apply(content);
+        String value = getter.apply(content);
         for(String word : forbiddenWords) {
-            if(field != null && field.contains(word)) {
+            if(value != null && value.contains(word)) {
                 return ValidationResult.invalid(content.getClass().getSimpleName(),
                         content.getId(),
                         content.getUserId(),
-                        List.of(new com.dehold.contentmanager.validation.model.ValidationError(
+                        List.of(new ValidationError(
                                 ERROR_CODE,
-                                "The field '" + fieldName + "' contains a forbidden word: '" + word + "'"
+                                errorMessage(fieldName, word)
                         )));
             }
         }
