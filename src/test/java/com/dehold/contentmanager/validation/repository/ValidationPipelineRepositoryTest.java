@@ -231,16 +231,42 @@ class ValidationPipelineRepositoryTest {
     }
 
     @Test
-    void givenPipelineExists_whenFindByUserIdAndContentType_thenReturnsPipeline() {
+    void givenPipelineExists_whenFindByUserIdAndContentType_thenReturnsPipelineAndSteps() {
         UUID userId = UUID.randomUUID();
         String contentType = "blogpost";
+        UUID pipelineId = UUID.randomUUID();
+
+        Map<String, String> lengthParams = new HashMap<>();
+        lengthParams.put("minLength", "5");
+        lengthParams.put("maxLength", "200");
+
+        Map<String, String> forbiddenParams = new HashMap<>();
+        forbiddenParams.put("words", "test,example");
+
+        ValidationStepModel lengthStep = new ValidationStepModel(
+                UUID.randomUUID(),
+                pipelineId,
+                ValidationStepType.LENGTH_VALIDATION,
+                "title",
+                lengthParams,
+                true
+        );
+
+        ValidationStepModel forbiddenStep = new ValidationStepModel(
+                UUID.randomUUID(),
+                pipelineId,
+                ValidationStepType.FORBIDDEN_WORD_VALIDATION,
+                "content",
+                forbiddenParams,
+                true
+        );
 
         ValidationPipelineModel pipeline = new ValidationPipelineModel(
-                UUID.randomUUID(),
+                pipelineId,
                 userId,
                 "Test pipeline",
                 contentType,
-                new ArrayList<>(),
+                List.of(lengthStep, forbiddenStep),
                 Instant.now()
         );
         cut.save(pipeline);
@@ -248,7 +274,25 @@ class ValidationPipelineRepositoryTest {
         Optional<ValidationPipelineModel> result = cut.findByUserIdAndContentType(userId, contentType);
 
         assertTrue(result.isPresent());
-        assertEquals("Test pipeline", result.get().getDescription());
+        ValidationPipelineModel foundPipeline = result.get();
+        assertEquals("Test pipeline", foundPipeline.getDescription());
+        assertEquals(2, foundPipeline.getSteps().size());
+
+        ValidationStepModel foundLengthStep = foundPipeline.getSteps().stream()
+                .filter(s -> s.getStepType() == ValidationStepType.LENGTH_VALIDATION)
+                .findFirst()
+                .orElseThrow();
+        assertEquals("title", foundLengthStep.getFieldName());
+        assertEquals(lengthParams, foundLengthStep.getParameters());
+        assertTrue(foundLengthStep.isEnabled());
+
+        ValidationStepModel foundForbiddenStep = foundPipeline.getSteps().stream()
+                .filter(s -> s.getStepType() == ValidationStepType.FORBIDDEN_WORD_VALIDATION)
+                .findFirst()
+                .orElseThrow();
+        assertEquals("content", foundForbiddenStep.getFieldName());
+        assertEquals(forbiddenParams, foundForbiddenStep.getParameters());
+        assertTrue(foundForbiddenStep.isEnabled());
     }
 
     @Test
