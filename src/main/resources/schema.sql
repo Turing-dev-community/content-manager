@@ -70,7 +70,6 @@ CREATE TABLE validation_step (
     pipeline_id UUID,
     step_type VARCHAR(50) NOT NULL,
     field_name VARCHAR(100) NOT NULL,
-    step_order INTEGER NOT NULL,
     parameters JSON,
     is_enabled BOOLEAN DEFAULT true
 );
