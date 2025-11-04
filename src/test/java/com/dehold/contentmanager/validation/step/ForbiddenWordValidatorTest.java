@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.time.Instant;
 import java.util.Arrays;
@@ -197,7 +198,8 @@ class ForbiddenWordValidatorTest {
         Function<BlogPost, String> getter = BlogPost::getContent;
         ValidationStepFactory factory = new ValidationStepFactory(forbiddenWordsService);
         String fieldThatShouldBeValidated = "content";
-        cut = factory.createValidationStep(ValidationStepType.FORBIDDEN_WORD_VALIDATION, getter,
+        cut = factory.createValidationStep(ValidationStepType.FORBIDDEN_WORD_VALIDATION,
+                getter,
                 null, fieldThatShouldBeValidated, UUID.randomUUID());
 
         List<ForbiddenWords> forbiddenWordsList = List.of(defaultForbiddenWords, customForbiddenWords);
@@ -206,9 +208,10 @@ class ForbiddenWordValidatorTest {
 
         ValidationResult result = cut.validate(blogPost);
 
-/*        String expected = cut.errorMessage("content", List.of("badword1"));
+        ForbiddenWordValidator<BlogPost> castedCut = (ForbiddenWordValidator<BlogPost>) cut;
+        String expected = castedCut.errorMessage("content", List.of("badword1"));
         String actual = result.getErrors().getFirst().message();
-        assertEquals(expected, actual);*/
+        assertEquals(expected, actual);
     }
 
     @Test
