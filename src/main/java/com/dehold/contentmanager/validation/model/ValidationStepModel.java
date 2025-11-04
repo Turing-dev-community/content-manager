@@ -11,4 +11,67 @@ public class ValidationStepModel {
     private int stepOrder;
     private Map<String, String> parameters;
     private boolean isEnabled;
+
+
+    public ValidationStepModel(UUID id, UUID pipelineId, ValidationStepType stepType, String fieldName, int stepOrder, Map<String, String> parameters, boolean isEnabled) {
+        this.id = id;
+        this.pipelineId = pipelineId;
+        this.stepType = stepType;
+        this.fieldName = fieldName;
+        this.stepOrder = stepOrder;
+        this.parameters = parameters;
+        this.isEnabled = isEnabled;
+    }
+
+    public boolean isEnabled() {
+        return isEnabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        isEnabled = enabled;
+    }
+
+    public Map<String, String> getParameters() {
+        return parameters;
+    }
+
+    public void setParameters(Map<String, String> parameters) {
+        this.parameters = parameters;
+    }
+
+    public int getStepOrder() {
+        return stepOrder;
+    }
+
+    public void setStepOrder(int stepOrder) {
+        this.stepOrder = stepOrder;
+    }
+
+    public String getFieldName() {
+        return fieldName;
+    }
+
+    public void setFieldName(String fieldName) {
+        this.fieldName = fieldName;
+    }
+
+    public ValidationStepType getStepType() {
+        return stepType;
+    }
+
+    public void setStepType(ValidationStepType stepType) {
+        this.stepType = stepType;
+    }
+
+    public UUID getPipelineId() {
+        return pipelineId;
+    }
+
+    public void setPipelineId(UUID pipelineId) {
+        this.pipelineId = pipelineId;
+    }
+
+    public UUID getId() {
+        return id;
+    }
 }
