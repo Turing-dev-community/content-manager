@@ -7,16 +7,17 @@ import java.util.UUID;
 public class ValidationPipelineModel {
     private UUID id;
     private UUID userId;
+    private String description;
     private String contentType;
-    private boolean isActive;
     private List<ValidationStepModel> steps;
     private Instant createdAt;
 
-    public ValidationPipelineModel(UUID id, UUID userId, String contentType, boolean isActive, List<ValidationStepModel> steps, Instant createdAt) {
+    public ValidationPipelineModel(UUID id, UUID userId, String description, String contentType,
+                                   List<ValidationStepModel> steps, Instant createdAt) {
         this.id = id;
         this.userId = userId;
+        this.description = description;
         this.contentType = contentType;
-        this.isActive = isActive;
         this.steps = steps;
         this.createdAt = createdAt;
     }
@@ -41,12 +42,12 @@ public class ValidationPipelineModel {
         this.contentType = contentType;
     }
 
-    public boolean isActive() {
-        return isActive;
+    public String getDescription() {
+        return description;
     }
 
-    public void setActive(boolean active) {
-        isActive = active;
+    public void setDescription(String description) {
+        this.description = description;
     }
 
     public List<ValidationStepModel> getSteps() {
