@@ -189,4 +189,44 @@ class ValidationPipelineRepositoryTest {
         assertEquals(forbiddenParams, savedForbiddenStep.getParameters());
         assertFalse(savedForbiddenStep.isEnabled());
     }
+
+    @Test
+    void givenNoPipelines_whenFindAll_thenReturnsEmptyList() {
+        List<ValidationPipelineModel> result = cut.findAll();
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void givenMultiplePipelines_whenFindAll_thenReturnsAllPipelines() {
+        UUID userId1 = UUID.randomUUID();
+        UUID userId2 = UUID.randomUUID();
+
+        ValidationPipelineModel pipeline1 = new ValidationPipelineModel(
+                UUID.randomUUID(),
+                userId1,
+                "Pipeline 1",
+                "blogpost",
+                new ArrayList<>(),
+                Instant.now().minusSeconds(100)
+        );
+
+        ValidationPipelineModel pipeline2 = new ValidationPipelineModel(
+                UUID.randomUUID(),
+                userId2,
+                "Pipeline 2",
+                "supportrequest",
+                new ArrayList<>(),
+                Instant.now()
+        );
+
+        cut.save(pipeline1);
+        cut.save(pipeline2);
+
+        List<ValidationPipelineModel> result = cut.findAll();
+
+        assertEquals(2, result.size());
+        assertEquals("Pipeline 1", result.get(0).getDescription()); // Should be ordered by created_at
+        assertEquals("Pipeline 2", result.get(1).getDescription());
+    }
 }
