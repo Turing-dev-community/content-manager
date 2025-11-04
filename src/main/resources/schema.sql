@@ -55,3 +55,22 @@ CREATE TABLE IF NOT EXISTS forbidden_words (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE validation_pipeline (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    description VARCHAR(500),
+    content_type VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(user_id, content_type)
+);
+
+CREATE TABLE validation_step (
+    id UUID PRIMARY KEY,
+    pipeline_id UUID,
+    step_type VARCHAR(50) NOT NULL,
+    field_name VARCHAR(100) NOT NULL,
+    step_order INTEGER NOT NULL,
+    parameters JSON,
+    is_enabled BOOLEAN DEFAULT true
+);
