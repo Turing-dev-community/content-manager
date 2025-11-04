@@ -257,4 +257,45 @@ class ValidationPipelineRepositoryTest {
 
         assertFalse(result.isPresent());
     }
+
+    @Test
+    void givenPipelineExists_whenDeleteById_thenRemovesPipelineAndSteps() {
+        UUID pipelineId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Map<String, String> parameters = new HashMap<>();
+        parameters.put("minLength", "10");
+
+        ValidationStepModel step = new ValidationStepModel(
+                UUID.randomUUID(),
+                pipelineId,
+                ValidationStepType.LENGTH_VALIDATION,
+                "content",
+                parameters,
+                true
+        );
+
+        ValidationPipelineModel pipeline = new ValidationPipelineModel(
+                pipelineId,
+                userId,
+                "Test pipeline",
+                "blogpost",
+                List.of(step),
+                Instant.now()
+        );
+        cut.save(pipeline);
+
+        assertTrue(cut.findByUserIdAndContentType(userId, "blogpost").isPresent());
+
+        cut.deleteById(pipelineId);
+
+        assertFalse(cut.findByUserIdAndContentType(userId, "blogpost").isPresent());
+
+        int stepCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM validation_step WHERE pipeline_id = ?",
+                Integer.class,
+                pipelineId
+        );
+        assertEquals(0, stepCount);
+    }
 }
