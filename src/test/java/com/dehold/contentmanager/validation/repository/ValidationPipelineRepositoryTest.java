@@ -229,4 +229,32 @@ class ValidationPipelineRepositoryTest {
         assertEquals("Pipeline 1", result.get(0).getDescription()); // Should be ordered by created_at
         assertEquals("Pipeline 2", result.get(1).getDescription());
     }
+
+    @Test
+    void givenPipelineExists_whenFindByUserIdAndContentType_thenReturnsPipeline() {
+        UUID userId = UUID.randomUUID();
+        String contentType = "blogpost";
+
+        ValidationPipelineModel pipeline = new ValidationPipelineModel(
+                UUID.randomUUID(),
+                userId,
+                "Test pipeline",
+                contentType,
+                new ArrayList<>(),
+                Instant.now()
+        );
+        cut.save(pipeline);
+
+        Optional<ValidationPipelineModel> result = cut.findByUserIdAndContentType(userId, contentType);
+
+        assertTrue(result.isPresent());
+        assertEquals("Test pipeline", result.get().getDescription());
+    }
+
+    @Test
+    void givenPipelineDoesNotExist_whenFindByUserIdAndContentType_thenReturnsEmpty() {
+        Optional<ValidationPipelineModel> result = cut.findByUserIdAndContentType(UUID.randomUUID(), "nonexistent");
+
+        assertFalse(result.isPresent());
+    }
 }
