@@ -8,17 +8,15 @@ public class ValidationStepModel {
     private UUID pipelineId;
     private ValidationStepType stepType;
     private String fieldName;
-    private int stepOrder;
     private Map<String, String> parameters;
     private boolean isEnabled;
 
 
-    public ValidationStepModel(UUID id, UUID pipelineId, ValidationStepType stepType, String fieldName, int stepOrder, Map<String, String> parameters, boolean isEnabled) {
+    public ValidationStepModel(UUID id, UUID pipelineId, ValidationStepType stepType, String fieldName, Map<String, String> parameters, boolean isEnabled) {
         this.id = id;
         this.pipelineId = pipelineId;
         this.stepType = stepType;
         this.fieldName = fieldName;
-        this.stepOrder = stepOrder;
         this.parameters = parameters;
         this.isEnabled = isEnabled;
     }
@@ -37,14 +35,6 @@ public class ValidationStepModel {
 
     public void setParameters(Map<String, String> parameters) {
         this.parameters = parameters;
-    }
-
-    public int getStepOrder() {
-        return stepOrder;
-    }
-
-    public void setStepOrder(int stepOrder) {
-        this.stepOrder = stepOrder;
     }
 
     public String getFieldName() {
