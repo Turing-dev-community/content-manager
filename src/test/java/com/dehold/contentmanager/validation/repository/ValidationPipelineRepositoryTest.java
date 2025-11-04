@@ -121,6 +121,7 @@ class ValidationPipelineRepositoryTest {
         assertTrue(result.isPresent());
 
         ValidationPipelineModel savedPipeline = result.get();
+        assertEquals(pipelineId, savedPipeline.getId());
         assertEquals("Updated description", savedPipeline.getDescription());
         assertEquals(1, savedPipeline.getSteps().size());
         assertEquals("title", savedPipeline.getSteps().getFirst().getFieldName());
