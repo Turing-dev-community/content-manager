@@ -2,9 +2,11 @@ package com.dehold.contentmanager.validation.pipeline;
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.validation.model.ValidationResult;
+import com.dehold.contentmanager.validation.model.ValidationStepType;
 import com.dehold.contentmanager.validation.step.LengthValidator;
 import com.dehold.contentmanager.validation.step.PhoneNumberForbiddenValidator;
 import com.dehold.contentmanager.validation.step.ValidationStep;
+import com.dehold.contentmanager.validation.step.ValidationStepFactory;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -48,7 +50,8 @@ class ValidationPipelineTest {
         BlogPost post = new BlogPost(null, "Title", "Valid Content", null, null, null);
 
         ValidationStep<BlogPost> lengthValidator = new LengthValidator<>(BlogPost::getContent, "content", 5, 20);
-        ValidationStep<BlogPost> phoneNumberForbiddenValidator = new PhoneNumberForbiddenValidator<>(BlogPost::getContent, "content");
+        ValidationStepFactory factory = new ValidationStepFactory(null);
+        ValidationStep<BlogPost> phoneNumberForbiddenValidator = factory.createValidationStep(ValidationStepType.PHONE_NUMBER_FORBIDDEN_VALIDATION, BlogPost::getContent, null, "content", null);
 
         ValidationPipeline<BlogPost> pipeline = new ValidationPipelineBuilder<BlogPost>()
                 .addStep(lengthValidator)
@@ -66,7 +69,8 @@ class ValidationPipelineTest {
 
         String fieldName = "content";
         ValidationStep<BlogPost> lengthValidator = new LengthValidator<>(BlogPost::getContent, fieldName, 5, 50);
-        ValidationStep<BlogPost> phoneNumberForbiddenValidator = new PhoneNumberForbiddenValidator<>(BlogPost::getContent, fieldName);
+        ValidationStepFactory factory = new ValidationStepFactory(null);
+        ValidationStep<BlogPost> phoneNumberForbiddenValidator = factory.createValidationStep(ValidationStepType.PHONE_NUMBER_FORBIDDEN_VALIDATION, BlogPost::getContent, null, "content", null);
 
         ValidationPipeline<BlogPost> pipeline = new ValidationPipelineBuilder<BlogPost>()
                 .addStep(lengthValidator)

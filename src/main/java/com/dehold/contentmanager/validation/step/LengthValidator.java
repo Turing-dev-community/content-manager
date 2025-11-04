@@ -41,6 +41,11 @@ public class LengthValidator<T extends Content> implements ValidationStep<T> {
                 content.getId(), content.getUserId());
     }
 
+    @Override
+    public String getFieldName() {
+        return this.fieldName;
+    }
+
     public static String errorMessageTooShort(String fieldName) {
         return "The field '" + fieldName + "' is too short.";
     }
@@ -49,8 +54,11 @@ public class LengthValidator<T extends Content> implements ValidationStep<T> {
         return "The field '" + fieldName + "' is too long.";
     }
 
-    @Override
-    public String getFieldName() {
-        return this.fieldName;
+    public int getMinLength() {
+        return minLength;
+    }
+
+    public int getMaxLength() {
+        return maxLength;
     }
 }

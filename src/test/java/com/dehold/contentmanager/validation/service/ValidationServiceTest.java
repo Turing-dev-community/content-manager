@@ -56,7 +56,7 @@ class ValidationServiceTest {
     }
 
     @Test
-    void givenIContent_whenServiceValidates_thenValidationResultIsCreatedWithRightValues() {
+    void givenContent_whenServiceValidates_thenValidationResultIsCreatedWithRightValues() {
         BlogPostValidationRequest blogPostValidationRequest = new BlogPostValidationRequest(5, 100, 20, 500,
                 new BlogPost(UUID.randomUUID(), "Valid Title", "This is a valid content for the blog post.",
                         Instant.now(), Instant.now(), UUID.randomUUID()));
