@@ -1,7 +1,6 @@
 package com.dehold.contentmanager.validation.step;
 
 import com.dehold.contentmanager.content.Content;
-import com.dehold.contentmanager.validation.model.ValidationStepModel;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
 import com.dehold.contentmanager.validation.service.ForbiddenWordsService;
 import org.springframework.stereotype.Component;
