@@ -1,0 +1,192 @@
+package com.dehold.contentmanager.validation.repository;
+
+import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
+import com.dehold.contentmanager.validation.model.ValidationStepModel;
+import com.dehold.contentmanager.validation.model.ValidationStepType;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
+
+import java.time.Instant;
+import java.util.*;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+@SpringBootTest
+class ValidationPipelineRepositoryTest {
+
+    @Autowired
+    ValidationPipelineRepository cut;
+
+    @Autowired
+    JdbcTemplate jdbcTemplate;
+
+    @BeforeEach
+    void cleanUp() {
+        jdbcTemplate.update("DELETE FROM validation_step");
+        jdbcTemplate.update("DELETE FROM validation_pipeline");
+    }
+
+    @Test
+    void givenValidationPipelineDoesNotExist_whenSave_thenInsertsNewPipeline() {
+        UUID pipelineId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID stepId = UUID.randomUUID();
+        String contentType = "blogpost";
+        String description = "Test pipeline";
+
+        Map<String, String> parameters = new HashMap<>();
+        parameters.put("minLength", "10");
+        parameters.put("maxLength", "100");
+
+        ValidationStepModel step = new ValidationStepModel(
+                stepId,
+                pipelineId,
+                ValidationStepType.LENGTH_VALIDATION,
+                "content",
+                parameters,
+                true
+        );
+
+        ValidationPipelineModel pipeline = new ValidationPipelineModel(
+                pipelineId,
+                userId,
+                description,
+                contentType,
+                List.of(step),
+                Instant.now()
+        );
+
+        cut.save(pipeline);
+
+        Optional<ValidationPipelineModel> result = cut.findByUserIdAndContentType(userId, contentType);
+        assertTrue(result.isPresent());
+
+        ValidationPipelineModel savedPipeline = result.get();
+        assertEquals(pipelineId, savedPipeline.getId());
+        assertEquals(userId, savedPipeline.getUserId());
+        assertEquals(description, savedPipeline.getDescription());
+        assertEquals(contentType, savedPipeline.getContentType());
+        assertNotNull(savedPipeline.getCreatedAt());
+
+        assertEquals(1, savedPipeline.getSteps().size());
+        ValidationStepModel savedStep = savedPipeline.getSteps().getFirst();
+        assertEquals(ValidationStepType.LENGTH_VALIDATION, savedStep.getStepType());
+        assertEquals("content", savedStep.getFieldName());
+        assertEquals(parameters, savedStep.getParameters());
+        assertTrue(savedStep.isEnabled());
+    }
+
+    @Test
+    void givenPipelineExists_whenSave_thenUpdatesExistingPipeline() {
+        UUID pipelineId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        String contentType = "blogpost";
+
+        ValidationPipelineModel initialPipeline = new ValidationPipelineModel(
+                pipelineId,
+                userId,
+                "Initial description",
+                contentType,
+                new ArrayList<>(),
+                Instant.now()
+        );
+        cut.save(initialPipeline);
+
+        Map<String, String> parameters = new HashMap<>();
+        parameters.put("minLength", "5");
+
+        ValidationStepModel newStep = new ValidationStepModel(
+                UUID.randomUUID(),
+                pipelineId,
+                ValidationStepType.LENGTH_VALIDATION,
+                "title",
+                parameters,
+                true
+        );
+
+        ValidationPipelineModel updatedPipeline = new ValidationPipelineModel(
+                pipelineId,
+                userId,
+                "Updated description",
+                contentType,
+                List.of(newStep),
+                null // createdAt should be preserved
+        );
+        cut.save(updatedPipeline);
+
+        Optional<ValidationPipelineModel> result = cut.findByUserIdAndContentType(userId, contentType);
+        assertTrue(result.isPresent());
+
+        ValidationPipelineModel savedPipeline = result.get();
+        assertEquals("Updated description", savedPipeline.getDescription());
+        assertEquals(1, savedPipeline.getSteps().size());
+        assertEquals("title", savedPipeline.getSteps().getFirst().getFieldName());
+    }
+
+    @Test
+    void givenPipelineWithMultipleSteps_whenSave_thenSavesAllSteps() {
+        UUID pipelineId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Map<String, String> lengthParams = new HashMap<>();
+        lengthParams.put("minLength", "10");
+        lengthParams.put("maxLength", "100");
+
+        Map<String, String> forbiddenParams = new HashMap<>();
+        forbiddenParams.put("words", "spam,badword");
+
+        ValidationStepModel lengthStep = new ValidationStepModel(
+                UUID.randomUUID(),
+                pipelineId,
+                ValidationStepType.LENGTH_VALIDATION,
+                "content",
+                lengthParams,
+                true
+        );
+
+        ValidationStepModel forbiddenStep = new ValidationStepModel(
+                UUID.randomUUID(),
+                pipelineId,
+                ValidationStepType.FORBIDDEN_WORD_VALIDATION,
+                "title",
+                forbiddenParams,
+                false
+        );
+
+        ValidationPipelineModel pipeline = new ValidationPipelineModel(
+                pipelineId,
+                userId,
+                "Multi-step pipeline",
+                "blogpost",
+                List.of(lengthStep, forbiddenStep),
+                Instant.now()
+        );
+
+        cut.save(pipeline);
+
+        Optional<ValidationPipelineModel> result = cut.findByUserIdAndContentType(userId, "blogpost");
+        assertTrue(result.isPresent());
+
+        ValidationPipelineModel savedPipeline = result.get();
+        assertEquals(2, savedPipeline.getSteps().size());
+
+        ValidationStepModel savedLengthStep = savedPipeline.getSteps().stream()
+                .filter(s -> s.getStepType() == ValidationStepType.LENGTH_VALIDATION)
+                .findFirst()
+                .orElseThrow();
+        assertEquals("content", savedLengthStep.getFieldName());
+        assertEquals(lengthParams, savedLengthStep.getParameters());
+        assertTrue(savedLengthStep.isEnabled());
+
+        ValidationStepModel savedForbiddenStep = savedPipeline.getSteps().stream()
+                .filter(s -> s.getStepType() == ValidationStepType.FORBIDDEN_WORD_VALIDATION)
+                .findFirst()
+                .orElseThrow();
+        assertEquals("title", savedForbiddenStep.getFieldName());
+        assertEquals(forbiddenParams, savedForbiddenStep.getParameters());
+        assertFalse(savedForbiddenStep.isEnabled());
+    }
+}
