@@ -20,5 +20,15 @@ public class ValidationStepFactory {
             Function<T, String> getter, String fieldName, UUID userId) {
         return new ForbiddenWordValidator<>(forbiddenWordsService, getter, fieldName, userId);
     }
+
+    public <T extends Content> LengthValidator<T> createLengthValidator(
+            Function<T, String> getter, String fieldName, int minLength, int maxLength) {
+        return new LengthValidator<>(getter, fieldName, minLength, maxLength);
+    }
+
+    public <T extends Content> PhoneNumberForbiddenValidator<T> createPhoneNumberValidator(
+            Function<T, String> getter, String fieldName) {
+        return new PhoneNumberForbiddenValidator<>(getter, fieldName);
+    }
 }
 
