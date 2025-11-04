@@ -181,7 +181,9 @@ public class ValidationPipelineRepository {
                 Map<String, String> parameters = new HashMap<>();
 
                 if (parametersJson != null && !parametersJson.trim().isEmpty()) {
-                    parameters = objectMapper.readValue(parametersJson, new TypeReference<Map<String, String>>() {});
+                    String cleanJson = stripRedundantQuotes(parametersJson);
+                    parameters = objectMapper.readValue(cleanJson, new TypeReference<Map<String, String>>() {
+                    });
                 }
 
                 return new ValidationStepModel(
@@ -193,8 +195,17 @@ public class ValidationPipelineRepository {
                         rs.getBoolean("is_enabled")
                 );
             } catch (JsonProcessingException e) {
-                throw new SQLException("Failed to deserialize validation step parameters", e);
+                throw new SQLException("Failed to deserialize validation step parameters: " + e.getMessage(), e);
             }
+        }
+
+        private static String stripRedundantQuotes(String parametersJson) {
+            String cleanJson = parametersJson;
+            if (parametersJson.startsWith("\"") && parametersJson.endsWith("\"")) {
+                cleanJson = parametersJson.substring(1, parametersJson.length() - 1)
+                        .replace("\\\"", "\"");
+            }
+            return cleanJson;
         }
     }
 }
