@@ -22,7 +22,7 @@ public class ValidationPipelineCreateDto {
         if (model.getSteps() != null) {
             dto.setSteps(model.getSteps().stream()
                     .map(s ->
-                            new ValidationStepDto(s.getStepType(), s.getFieldName(), s.getParameters(),
+                            new ValidationStepDto(null, s.getStepType(), s.getFieldName(), s.getParameters(),
                                     s.isEnabled())).toList());
         }
         return dto;
