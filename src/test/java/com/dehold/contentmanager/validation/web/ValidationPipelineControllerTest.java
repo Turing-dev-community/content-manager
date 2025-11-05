@@ -154,6 +154,10 @@ class ValidationPipelineControllerTest {
         var fetchedPipeline = getResponse.getBody();
         assertNotNull(fetchedPipeline);
         assertEquals(createdPipeline.getId(), fetchedPipeline.getId());
+        assertEquals(createdPipeline.getUserId(), fetchedPipeline.getUserId());
+        assertEquals(createdPipeline.getContentType(), fetchedPipeline.getContentType());
+        assertEquals(createdPipeline.getSteps().size(), fetchedPipeline.getSteps().size());
+        assertEquals(createdPipeline.getCreatedAt(), fetchedPipeline.getCreatedAt());
     }
 
     @Test
