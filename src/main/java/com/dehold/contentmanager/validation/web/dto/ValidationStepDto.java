@@ -1,19 +1,29 @@
 package com.dehold.contentmanager.validation.web.dto;
 
+import com.dehold.contentmanager.validation.model.ValidationStepType;
+
 import java.util.Map;
 import java.util.UUID;
 
 public class ValidationStepDto {
-    private String stepType;
+    private ValidationStepType stepType;
     private String fieldName;
-    private Map<String, Object> parameters;
+    private Map<String, String> parameters;
     private boolean isEnabled;
 
-    public String getStepType() {
+    public ValidationStepDto(ValidationStepType stepType, String fieldName, Map<String, String> parameters,
+                             boolean isEnabled) {
+        this.stepType = stepType;
+        this.fieldName = fieldName;
+        this.parameters = parameters;
+        this.isEnabled = isEnabled;
+    }
+
+    public ValidationStepType getStepType() {
         return stepType;
     }
 
-    public void setStepType(String stepType) {
+    public void setStepType(ValidationStepType stepType) {
         this.stepType = stepType;
     }
 
@@ -25,11 +35,11 @@ public class ValidationStepDto {
         this.fieldName = fieldName;
     }
 
-    public Map<String, Object> getParameters() {
+    public Map<String, String> getParameters() {
         return parameters;
     }
 
-    public void setParameters(Map<String, Object> parameters) {
+    public void setParameters(Map<String, String> parameters) {
         this.parameters = parameters;
     }
 
