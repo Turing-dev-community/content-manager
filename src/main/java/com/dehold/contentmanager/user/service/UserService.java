@@ -3,6 +3,7 @@ package com.dehold.contentmanager.user.service;
 import com.dehold.contentmanager.user.model.User;
 import com.dehold.contentmanager.user.web.dto.CreateUserRequest;
 import com.dehold.contentmanager.user.web.dto.UpdateUserRequest;
+import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 
 import java.util.UUID;
 
@@ -15,4 +16,6 @@ public interface UserService {
     User updateUser(UUID id, UpdateUserRequest dto);
 
     void deleteUser(UUID id);
+
+    ValidationPipelineModel getValidationPipelineRepositoryByUserIdAndContentType(UUID userId, String contentType);
 }
