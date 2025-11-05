@@ -28,7 +28,7 @@ public class ValidationPipelineRepository {
         this.objectMapper = new ObjectMapper();
     }
 
-    public void save(ValidationPipelineModel pipeline) {
+    public ValidationPipelineModel save(ValidationPipelineModel pipeline) {
         Optional<ValidationPipelineModel> existing = findById(pipeline.getId());
         if (existing.isPresent()) {
             update(pipeline);
