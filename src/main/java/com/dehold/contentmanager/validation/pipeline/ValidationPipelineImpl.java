@@ -8,7 +8,7 @@ import com.dehold.contentmanager.validation.step.ValidationStep;
 import java.util.ArrayList;
 import java.util.List;
 
-final class ValidationPipelineImpl<T extends Content> implements ValidationPipeline<T> {
+public final class ValidationPipelineImpl<T extends Content> implements ValidationPipeline<T> {
     private final List<ValidationStep<T>> validationSteps;
 
     public ValidationPipelineImpl(List<ValidationStep<T>> validationSteps) {
