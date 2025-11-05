@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -30,11 +31,12 @@ public class ValidationPipelineController {
     }
 
     @GetMapping
-    public ResponseEntity<ValidationPipelineModel> getValidationPipelineByUserIdAndContentType(
+    public ResponseEntity<List<ValidationPipelineModel>> getValidationPipelineByUserIdAndContentType(
             @RequestParam UUID userId,
             @RequestParam String contentType) {
-        ValidationPipelineModel model = validationPipelineService.findByUserIdAndContentType(userId, contentType);
-        return new ResponseEntity<>(model, HttpStatus.OK);
+        List<ValidationPipelineModel> response = validationPipelineService.findByUserIdAndContentType(userId,
+                contentType);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
 

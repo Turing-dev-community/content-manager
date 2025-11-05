@@ -45,7 +45,7 @@ public class ValidationPipelineRepository {
             pipeline.setCreatedAt(Instant.now());
         }
 
-        jdbcTemplate.update(
+        int rowsAffected = jdbcTemplate.update(
                 "INSERT INTO validation_pipeline (id, user_id, description, content_type, created_at) VALUES (?, ?, ?, ?, ?)",
                 pipeline.getId(),
                 pipeline.getUserId(),
@@ -111,7 +111,7 @@ public class ValidationPipelineRepository {
         return pipelines;
     }
 
-    public Optional<ValidationPipelineModel> findByUserIdAndContentType(UUID userId, String contentType) {
+    public List<ValidationPipelineModel> findByUserIdAndContentType(UUID userId, String contentType) {
         List<ValidationPipelineModel> pipelines = jdbcTemplate.query(
                 "SELECT * FROM validation_pipeline WHERE user_id = ? AND content_type = ?",
                 VALIDATION_PIPELINE_ROW_MAPPER,
@@ -120,14 +120,20 @@ public class ValidationPipelineRepository {
         );
 
         if (pipelines.isEmpty()) {
-            return Optional.empty();
+            return List.of();
         }
 
-        ValidationPipelineModel pipeline = pipelines.getFirst();
-        List<ValidationStepModel> steps = loadStepsForPipeline(pipeline.getId());
-        pipeline.setSteps(steps);
+        pipelines = addValidationSteps(pipelines);
 
-        return Optional.of(pipeline);
+        return pipelines;
+    }
+
+    private List<ValidationPipelineModel> addValidationSteps(List<ValidationPipelineModel> pipelines) {
+        for(ValidationPipelineModel pipeline : pipelines) {
+            List<ValidationStepModel> steps = loadStepsForPipeline(pipeline.getId());
+            pipeline.setSteps(steps);
+        }
+        return pipelines;
     }
 
     public void deleteById(UUID id) {
