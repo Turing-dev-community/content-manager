@@ -201,6 +201,23 @@ class ValidationPipelineControllerTest {
     }
 
     @Test
+    void givenNoPipelineSatisfiesSearchCriteria_whenGetByUserIdAndContentType_thenReturnsEmptyList() {
+        var userId = UUID.randomUUID();
+        var contentType = "Article";
+
+        String url = String.format("http://localhost:%d/api/validation-pipelines?userId=%s&contentType=%s",
+                port, userId, contentType);
+        ResponseEntity<ValidationPipelineModel[]> getResponse = restTemplate.getForEntity(
+                url,
+                ValidationPipelineModel[].class);
+
+        assertEquals(200, getResponse.getStatusCode().value());
+        assertNotNull(getResponse.getBody());
+        var fetchedPipelines = getResponse.getBody();
+        assertEquals(0, fetchedPipelines.length);
+    }
+
+    @Test
     void givenPipelineDoesNotExist_whenGetByUserIdAndContentType_thenReturnsEmptyResult() {
         var userId = UUID.randomUUID();
         var contentType = "NonExistentContentType";
