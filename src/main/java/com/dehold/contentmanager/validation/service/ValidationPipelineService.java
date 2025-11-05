@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-public class ValidationPipelineService implements IService<ValidationPipelineModel> {
+public class ValidationPipelineService {
 
     @Autowired
     private final ValidationPipelineRepository repository;
@@ -20,33 +20,25 @@ public class ValidationPipelineService implements IService<ValidationPipelineMod
         this.repository = repository;
     }
 
-    @Override
     public ValidationPipelineModel create(ValidationPipelineModel entity) {
         repository.save(entity);
         return entity;
-    }
-
-    @Override
-    public ValidationPipelineModel findById(UUID id) {
-        return null; // Not needed
     }
 
     public ValidationPipelineModel findByUserIdAndContentType(UUID userId, String contentType) {
         return repository.findByUserIdAndContentType(userId, contentType).orElse(null);
     }
 
-    @Override
+
     public List<ValidationPipelineModel> findAll() {
         return repository.findAll();
     }
 
-    @Override
-    public ValidationPipelineModel update(UUID id, ValidationPipelineModel entity) {
+    public ValidationPipelineModel update(ValidationPipelineModel entity) {
         repository.save(entity);
         return entity;
     }
 
-    @Override
     public void delete(UUID id) {
         repository.deleteById(id);
     }

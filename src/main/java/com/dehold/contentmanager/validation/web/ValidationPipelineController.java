@@ -4,13 +4,13 @@ package com.dehold.contentmanager.validation.web;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.service.ValidationPipelineService;
 import com.dehold.contentmanager.validation.web.dto.ValidationPipelineCreateDto;
+import com.dehold.contentmanager.validation.web.dto.ValidationPipelineUpdateDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/validation-pipeline")
@@ -28,6 +28,13 @@ public class ValidationPipelineController {
     public ResponseEntity<ValidationPipelineModel> createValidationPipeline(@RequestBody ValidationPipelineCreateDto dto) {
         ValidationPipelineModel model = validationPipelineService.create(dto.toModel());
         return new ResponseEntity<>(model, HttpStatus.CREATED);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ValidationPipelineModel> updateValidationPipeline(@PathVariable UUID id,
+                                                                            @RequestBody ValidationPipelineUpdateDto dto) {
+        ValidationPipelineModel model = validationPipelineService.update(dto.toModel());
+        return new ResponseEntity<>(model, HttpStatus.OK);
     }
 
 }
