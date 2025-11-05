@@ -42,4 +42,9 @@ public class ValidationPipelineService {
     public void delete(UUID id) {
         repository.deleteById(id);
     }
+
+    public ValidationPipelineModel findById(UUID id) {
+        return repository.findById(id).orElseThrow(() -> EntityNotFoundException.of("ValidationPipeline",
+                id.toString()));
+    }
 }

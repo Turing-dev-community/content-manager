@@ -94,4 +94,33 @@ class ValidationPipelineControllerTest {
         assertEquals("content", updatedPipeline.getSteps().getFirst().getFieldName());
     }
 
+    @Test
+    void givenPipelineExists_whenDeletePipeline_thenPipelineIsDeleted() {
+        var createRequestDto = new ValidationPipelineCreateDto();
+        createRequestDto.setUserId(UUID.randomUUID());
+        createRequestDto.setContentType("BlogPost");
+        createRequestDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title", Map.of("minLength", "10",
+                        "maxLength", "500"), true)
+        ));
+
+        var createResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipeline",
+                createRequestDto, ValidationPipelineModel.class);
+        var createdPipeline = createResponse.getBody();
+        assertEquals(201, createResponse.getStatusCode().value());
+        assertNotNull(createdPipeline);
+
+        ResponseEntity<Void> deleteResponse = restTemplate.exchange(
+                "http://localhost:" + port + "/api/validation-pipeline/" + createdPipeline.getId(),
+                HttpMethod.DELETE, null, Void.class);
+
+        assertEquals(204, deleteResponse.getStatusCode().value());
+
+        ResponseEntity<ValidationPipelineModel> getResponse = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/validation-pipeline/" + createdPipeline.getId(),
+                ValidationPipelineModel.class);
+
+        assertEquals(404, getResponse.getStatusCode().value());
+    }
+
 }

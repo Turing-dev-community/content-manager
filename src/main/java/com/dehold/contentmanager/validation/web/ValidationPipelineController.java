@@ -23,6 +23,12 @@ public class ValidationPipelineController {
         this.validationPipelineService = validationPipelineService;
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ValidationPipelineModel> getValidationPipeline(@PathVariable UUID id) {
+        ValidationPipelineModel model = validationPipelineService.findById(id);
+        return new ResponseEntity<>(model, HttpStatus.OK);
+    }
+
 
     @PostMapping
     public ResponseEntity<ValidationPipelineModel> createValidationPipeline(@RequestBody ValidationPipelineCreateDto dto) {
@@ -35,6 +41,12 @@ public class ValidationPipelineController {
                                                                             @RequestBody ValidationPipelineUpdateDto dto) {
         ValidationPipelineModel model = validationPipelineService.update(dto.toModel());
         return new ResponseEntity<>(model, HttpStatus.OK);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteValidationPipeline(@PathVariable UUID id) {
+        validationPipelineService.delete(id);
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
 }
