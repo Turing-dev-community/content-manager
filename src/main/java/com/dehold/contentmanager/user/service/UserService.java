@@ -5,6 +5,7 @@ import com.dehold.contentmanager.user.web.dto.CreateUserRequest;
 import com.dehold.contentmanager.user.web.dto.UpdateUserRequest;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface UserService {
@@ -17,5 +18,5 @@ public interface UserService {
 
     void deleteUser(UUID id);
 
-    ValidationPipelineModel getValidationPipelineByUserIdAndContentType(UUID userId, String contentType);
+    List<ValidationPipelineModel> getValidationPipelineByUserIdAndContentType(UUID userId, String contentType);
 }

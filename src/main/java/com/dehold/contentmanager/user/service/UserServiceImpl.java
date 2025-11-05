@@ -10,6 +10,7 @@ import com.dehold.contentmanager.validation.service.ValidationPipelineService;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -62,8 +63,8 @@ public class UserServiceImpl implements UserService {
         userRepository.deleteUser(id);
     }
 
-    public ValidationPipelineModel getValidationPipelineByUserIdAndContentType(UUID userId,
-                                                                                       String contentType) {
+    public List<ValidationPipelineModel> getValidationPipelineByUserIdAndContentType(UUID userId,
+                                                                                     String contentType) {
         getUser(userId); // Ensure user exists
         return validationPipelineService.findByUserIdAndContentType(userId, contentType);
     }
