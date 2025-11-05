@@ -1,5 +1,6 @@
 package com.dehold.contentmanager.validation.web;
 
+import com.dehold.contentmanager.exception.CustomErrorResponse;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
 import com.dehold.contentmanager.validation.web.dto.ValidationPipelineCreateDto;
@@ -171,4 +172,19 @@ class ValidationPipelineControllerTest {
         assertNull(fetchedPipeline);
     }
 
+    @Test
+    void givenPipelineDoesNotExist_whenGetById_thenReturnsNotFound() {
+        var nonExistentId = UUID.randomUUID();
+
+        ResponseEntity<CustomErrorResponse> getResponse = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/validation-pipelines/" + nonExistentId,
+                CustomErrorResponse.class);
+
+        assertEquals(404, getResponse.getStatusCode().value());
+        assertNotNull(getResponse.getBody());
+        CustomErrorResponse errorResponse = getResponse.getBody();
+        assertTrue(errorResponse.getError().contains("The entity ValidationPipeline with id " + nonExistentId +
+                " does not exist"));
+        assertTrue(errorResponse.getPath().contains("/api/validation-pipelines/" + nonExistentId));
+    }
 }

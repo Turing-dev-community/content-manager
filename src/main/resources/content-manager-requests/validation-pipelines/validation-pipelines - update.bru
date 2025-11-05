@@ -1,0 +1,43 @@
+meta {
+  name: validation-pipelines - update
+  type: http
+  seq: 2
+}
+
+put {
+  url: {{baseUrl}}/api/validation-pipelines/:id
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: cfe786d4-1303-4cae-978f-df93b4b84a6b
+}
+
+body:json {
+  {
+    "id": "cfe786d4-1303-4cae-978f-df93b4b84a6b",
+    "userId": "123e4567-e89b-12d3-a456-426614174000",
+    "description": "THIS WAS UPDATED",
+    "contentType": "blogpost",
+    "steps": [
+      {
+        "id": "b348213f-a939-4f04-b1a7-9d01a952879f",
+        "pipelineId": "cfe786d4-1303-4cae-978f-df93b4b84a6b",
+        "stepType": "LENGTH_VALIDATION",
+        "fieldName": "title",
+        "parameters": {
+          "minLength": "10",
+          "maxLength": "50"
+        },
+        "enabled": true
+      }
+    ],
+    "createdAt": "2025-11-05T13:55:25.228943Z"
+  }
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
