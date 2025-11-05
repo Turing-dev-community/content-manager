@@ -1,5 +1,6 @@
 package com.dehold.contentmanager.validation.web;
 
+import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.service.ValidationService;
 import com.dehold.contentmanager.validation.web.dto.BlogPostValidationRequest;
 import com.dehold.contentmanager.validation.web.dto.ValidationResponse;
@@ -8,6 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -26,8 +28,8 @@ public class ValidationController {
     }
 
     @PostMapping("/validate-blogposts")
-    public ResponseEntity<Void> validateBlogPosts(@RequestParam UUID userId) {
-        validationService.runBlogPostValidation(userId);
-        return new ResponseEntity<>(HttpStatus.OK);
+    public ResponseEntity<List<ValidationResult>> validateBlogPosts(@RequestParam UUID userId) {
+        List<ValidationResult> results = validationService.runBlogPostValidation(userId);
+        return new ResponseEntity<>(results, HttpStatus.OK);
     }
 }
