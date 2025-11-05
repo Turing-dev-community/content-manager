@@ -25,8 +25,8 @@ public class ValidationPipelineService {
         return entity;
     }
 
-    public ValidationPipelineModel findByUserIdAndContentType(UUID userId, String contentType) {
-        return repository.findByUserIdAndContentType(userId, contentType).orElse(null);
+    public List<ValidationPipelineModel> findByUserIdAndContentType(UUID userId, String contentType) {
+        return repository.findByUserIdAndContentType(userId, contentType);
     }
 
 

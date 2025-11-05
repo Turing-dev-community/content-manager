@@ -111,7 +111,7 @@ public class ValidationPipelineRepository {
         return pipelines;
     }
 
-    public Optional<ValidationPipelineModel> findByUserIdAndContentType(UUID userId, String contentType) {
+    public List<ValidationPipelineModel> findByUserIdAndContentType(UUID userId, String contentType) {
         List<ValidationPipelineModel> pipelines = jdbcTemplate.query(
                 "SELECT * FROM validation_pipeline WHERE user_id = ? AND content_type = ?",
                 VALIDATION_PIPELINE_ROW_MAPPER,
@@ -120,14 +120,14 @@ public class ValidationPipelineRepository {
         );
 
         if (pipelines.isEmpty()) {
-            return Optional.empty();
+            return List.of();
         }
 
         ValidationPipelineModel pipeline = pipelines.getFirst();
         List<ValidationStepModel> steps = loadStepsForPipeline(pipeline.getId());
         pipeline.setSteps(steps);
 
-        return Optional.of(pipeline);
+        return List.of(pipeline);
     }
 
     public void deleteById(UUID id) {
