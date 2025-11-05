@@ -169,6 +169,7 @@ class ValidationPipelineControllerTest {
         var createRequestDto1 = new ValidationPipelineCreateDto();
         createRequestDto1.setUserId(userId);
         createRequestDto1.setContentType(contentType);
+        createRequestDto1.setDescription("First Pipeline");
         createRequestDto1.setSteps(List.of(
                 new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title", Map.of("minLength", "10",
                         "maxLength", "500"), true)
@@ -179,6 +180,7 @@ class ValidationPipelineControllerTest {
         var createRequestDto2 = new ValidationPipelineCreateDto();
         createRequestDto2.setUserId(userId);
         createRequestDto2.setContentType(contentType);
+        createRequestDto2.setDescription("Second Pipeline");
         createRequestDto2.setSteps(List.of(
                 new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content", Map.of("minLength", "10",
                         "maxLength", "500"), true)
