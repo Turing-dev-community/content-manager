@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/validate")
 public class ValidationController {
@@ -21,5 +23,11 @@ public class ValidationController {
     public ResponseEntity<ValidationResponse> validateBlogPost(@RequestBody BlogPostValidationRequest request) {
         ValidationResponse result = validationService.validateBlogPost(request);
         return ResponseEntity.ok(result);
+    }
+
+    @PostMapping("/validate-blogposts")
+    public ResponseEntity<Void> validateBlogPosts(@RequestParam UUID userId) {
+        validationService.runBlogPostValidation(userId);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 }

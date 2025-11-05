@@ -60,6 +60,7 @@ public class ValidationServiceImpl implements ValidationService {
         return new ValidationResponse(BlogPost.class.getSimpleName(), resultDto);
     }
 
+    @Override
     public void runBlogPostValidation(UUID userId) {
         List<BlogPost> blogPosts = blogPostService.getBlogPostsByUserId(userId);
         for(BlogPost blogPost : blogPosts) {
