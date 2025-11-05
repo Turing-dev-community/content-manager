@@ -1,0 +1,20 @@
+meta {
+  name: validation-pipelines - get
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/validation-pipelines/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: 70dd5102-bed0-4e57-8571-66d99d7ea851
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

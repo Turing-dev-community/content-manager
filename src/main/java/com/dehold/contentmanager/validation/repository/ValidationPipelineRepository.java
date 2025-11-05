@@ -56,6 +56,8 @@ public class ValidationPipelineRepository {
 
         if (pipeline.getSteps() != null) {
             for (ValidationStepModel step : pipeline.getSteps()) {
+                step.setId(UUID.randomUUID());
+                step.setPipelineId(pipeline.getId());
                 insertValidationStep(step, pipeline.getId());
             }
         }
@@ -133,7 +135,7 @@ public class ValidationPipelineRepository {
         jdbcTemplate.update("DELETE FROM validation_pipeline WHERE id = ?", id);
     }
 
-    private Optional<ValidationPipelineModel> findById(UUID id) {
+    public Optional<ValidationPipelineModel> findById(UUID id) {
         List<ValidationPipelineModel> pipelines = jdbcTemplate.query(
                 "SELECT * FROM validation_pipeline WHERE id = ?",
                 VALIDATION_PIPELINE_ROW_MAPPER,

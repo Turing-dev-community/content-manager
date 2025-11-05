@@ -1,0 +1,20 @@
+meta {
+  name: validation-pipelines - delete
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{baseUrl}}/api/validation-pipelines/:id
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: cfe786d4-1303-4cae-978f-df93b4b84a6b
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -1,0 +1,36 @@
+meta {
+  name: validation-pipelines-create
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/validation-pipelines
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "userId": "123e4567-e89b-12d3-a456-426614174000",
+    "description": "Sample validation pipeline",
+    "contentType": "blogpost",
+    "steps": [
+      {
+        "stepType": "LENGTH_VALIDATION",
+        "fieldName": "title",
+        "parameters": {
+          "minLength": "5",
+          "maxLength": "50"
+        },
+        "enabled": true
+      }
+    ]
+  }
+  
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -5,6 +5,8 @@ import com.dehold.contentmanager.user.model.User;
 import com.dehold.contentmanager.user.repository.UserRepository;
 import com.dehold.contentmanager.user.web.dto.CreateUserRequest;
 import com.dehold.contentmanager.user.web.dto.UpdateUserRequest;
+import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
+import com.dehold.contentmanager.validation.service.ValidationPipelineService;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -15,7 +17,10 @@ public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
 
-    public UserServiceImpl(UserRepository userRepository) {
+    private final ValidationPipelineService validationPipelineService;
+
+    public UserServiceImpl(UserRepository userRepository, ValidationPipelineService validationPipelineService) {
+        this.validationPipelineService = validationPipelineService;
         this.userRepository = userRepository;
     }
 
@@ -55,5 +60,11 @@ public class UserServiceImpl implements UserService {
     @Override
     public void deleteUser(UUID id) {
         userRepository.deleteUser(id);
+    }
+
+    public ValidationPipelineModel getValidationPipelineByUserIdAndContentType(UUID userId,
+                                                                                       String contentType) {
+        getUser(userId); // Ensure user exists
+        return validationPipelineService.findByUserIdAndContentType(userId, contentType);
     }
 }
