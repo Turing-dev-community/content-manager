@@ -259,4 +259,93 @@ class ValidationControllerIntegrationTest {
         ));
     }
 
+    @Test
+    void givenMultipleBlogPostsWithViolations_whenValidateBlogPosts_thenReturnsAllValidationResults() {
+        UUID userId = UUID.randomUUID();
+
+        // Violation in content
+        BlogPost blogPost1 = new BlogPost(UUID.randomUUID(), "Hi", "This is valid content for the first blog post", Instant.now(), Instant.now(), userId);
+        var createBlogPost1Response = restTemplate.postForEntity("http://localhost:" + port + "/api/blogposts",
+                blogPost1, BlogPost.class);
+        assertEquals(201, createBlogPost1Response.getStatusCode().value());
+        assertNotNull(createBlogPost1Response.getBody());
+
+        //Violation in title
+        BlogPost blogPost2 = new BlogPost(UUID.randomUUID(), "Valid Title Here", "Short", Instant.now(), Instant.now(), userId);
+        var createBlogPost2Response = restTemplate.postForEntity("http://localhost:" + port + "/api/blogposts",
+                blogPost2, BlogPost.class);
+        assertEquals(201, createBlogPost2Response.getStatusCode().value());
+        assertNotNull(createBlogPost2Response.getBody());
+
+        //Vioalation in both content and title
+        BlogPost blogPost3 = new BlogPost(UUID.randomUUID(), "Bad", "Bad", Instant.now(), Instant.now(), userId);
+        var createBlogPost3Response = restTemplate.postForEntity("http://localhost:" + port + "/api/blogposts",
+                blogPost3, BlogPost.class);
+        assertEquals(201, createBlogPost3Response.getStatusCode().value());
+        assertNotNull(createBlogPost3Response.getBody());
+
+        var createPipelineDto = new ValidationPipelineCreateDto();
+        createPipelineDto.setUserId(userId);
+        createPipelineDto.setContentType("blogpost");
+        createPipelineDto.setDescription("Test pipeline for multiple blog post validation");
+        createPipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content",
+                        Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+
+        var createPipelineResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                createPipelineDto, ValidationPipelineModel.class);
+        assertEquals(201, createPipelineResponse.getStatusCode().value());
+        assertNotNull(createPipelineResponse.getBody());
+
+        var response = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/validate-blogposts?userId=" + userId,
+                null, ValidationResponse[].class);
+
+        assertEquals(200, response.getStatusCode().value());
+        var results = response.getBody();
+        assertNotNull(results);
+        assertEquals(3, results.length);
+
+        for (ValidationResponse validationResponse : results) {
+            assertEquals("BlogPost", validationResponse.getContentType());
+            ValidationResultDto result = validationResponse.getValidationResult();
+            assertEquals("BlogPost", result.getContentType());
+            assertEquals(userId, result.getUserId());
+            assertFalse(result.isValid()); // All should be invalid
+        }
+
+        int titleErrors = 0;
+        int contentErrors = 0;
+        int bothErrors = 0;
+
+        for (ValidationResponse validationResponse : results) {
+            ValidationResultDto result = validationResponse.getValidationResult();
+            boolean hasTitleError = result.getErrors().stream().anyMatch(
+                    e -> e.code().equals(LengthValidator.ERROR_CODE) &&
+                            e.message().equals(LengthValidator.errorMessageTooShort("title"))
+            );
+            boolean hasContentError = result.getErrors().stream().anyMatch(
+                    e -> e.code().equals(LengthValidator.ERROR_CODE) &&
+                            e.message().equals(LengthValidator.errorMessageTooShort("content"))
+            );
+
+            if (hasTitleError && hasContentError) {
+                bothErrors++;
+                assertEquals(2, result.getErrors().size());
+            } else if (hasTitleError) {
+                titleErrors++;
+                assertEquals(1, result.getErrors().size());
+            } else if (hasContentError) {
+                contentErrors++;
+                assertEquals(1, result.getErrors().size());
+            }
+        }
+
+        assertEquals(1, titleErrors);
+        assertEquals(1, contentErrors);
+        assertEquals(1, bothErrors);
+    }
+
 }
