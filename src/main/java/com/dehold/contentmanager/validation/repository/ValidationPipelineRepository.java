@@ -28,7 +28,7 @@ public class ValidationPipelineRepository {
         this.objectMapper = new ObjectMapper();
     }
 
-    public ValidationPipelineModel save(ValidationPipelineModel pipeline) {
+    public void save(ValidationPipelineModel pipeline) {
         Optional<ValidationPipelineModel> existing = findById(pipeline.getId());
         if (existing.isPresent()) {
             update(pipeline);
@@ -107,6 +107,24 @@ public class ValidationPipelineRepository {
         }
 
         return pipelines;
+    }
+
+    public Optional<ValidationPipelineModel> findByUserId(UUID userId) {
+        List<ValidationPipelineModel> pipelines = jdbcTemplate.query(
+                "SELECT * FROM validation_pipeline WHERE user_id = ?",
+                VALIDATION_PIPELINE_ROW_MAPPER,
+                userId
+        );
+
+        if (pipelines.isEmpty()) {
+            return Optional.empty();
+        }
+
+        ValidationPipelineModel pipeline = pipelines.getFirst();
+        List<ValidationStepModel> steps = loadStepsForPipeline(pipeline.getId());
+        pipeline.setSteps(steps);
+
+        return Optional.of(pipeline);
     }
 
     public Optional<ValidationPipelineModel> findByUserIdAndContentType(UUID userId, String contentType) {
