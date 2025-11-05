@@ -61,10 +61,11 @@ class ValidationPipelineRepositoryTest {
 
         cut.save(pipeline);
 
-        Optional<ValidationPipelineModel> result = cut.findByUserIdAndContentType(userId, contentType);
-        assertTrue(result.isPresent());
+        List<ValidationPipelineModel> result = cut.findByUserIdAndContentType(userId, contentType);
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
 
-        ValidationPipelineModel savedPipeline = result.get();
+        ValidationPipelineModel savedPipeline = result.getFirst();
         assertEquals(pipelineId, savedPipeline.getId());
         assertEquals(userId, savedPipeline.getUserId());
         assertEquals(description, savedPipeline.getDescription());
@@ -117,10 +118,11 @@ class ValidationPipelineRepositoryTest {
         );
         cut.save(updatedPipeline);
 
-        Optional<ValidationPipelineModel> result = cut.findByUserIdAndContentType(userId, contentType);
-        assertTrue(result.isPresent());
+        List<ValidationPipelineModel> result = cut.findByUserIdAndContentType(userId, contentType);
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
 
-        ValidationPipelineModel savedPipeline = result.get();
+        ValidationPipelineModel savedPipeline = result.getFirst();
         assertEquals(pipelineId, savedPipeline.getId());
         assertEquals("Updated description", savedPipeline.getDescription());
         assertEquals(1, savedPipeline.getSteps().size());
@@ -168,10 +170,11 @@ class ValidationPipelineRepositoryTest {
 
         cut.save(pipeline);
 
-        Optional<ValidationPipelineModel> result = cut.findByUserIdAndContentType(userId, "blogpost");
-        assertTrue(result.isPresent());
+        List<ValidationPipelineModel> result = cut.findByUserIdAndContentType(userId, "blogpost");
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
 
-        ValidationPipelineModel savedPipeline = result.get();
+        ValidationPipelineModel savedPipeline = result.getFirst();
         assertEquals(2, savedPipeline.getSteps().size());
 
         ValidationStepModel savedLengthStep = savedPipeline.getSteps().stream()
@@ -272,10 +275,11 @@ class ValidationPipelineRepositoryTest {
         );
         cut.save(pipeline);
 
-        Optional<ValidationPipelineModel> result = cut.findByUserIdAndContentType(userId, contentType);
+        List<ValidationPipelineModel> result = cut.findByUserIdAndContentType(userId, contentType);
+        assertFalse(result.isEmpty());
+        assertEquals(1, result.size());
 
-        assertTrue(result.isPresent());
-        ValidationPipelineModel foundPipeline = result.get();
+        ValidationPipelineModel foundPipeline = result.getFirst();
         assertEquals("Test pipeline", foundPipeline.getDescription());
         assertEquals(2, foundPipeline.getSteps().size());
 
@@ -298,9 +302,9 @@ class ValidationPipelineRepositoryTest {
 
     @Test
     void givenPipelineDoesNotExist_whenFindByUserIdAndContentType_thenReturnsEmpty() {
-        Optional<ValidationPipelineModel> result = cut.findByUserIdAndContentType(UUID.randomUUID(), "nonexistent");
+        List<ValidationPipelineModel> result = cut.findByUserIdAndContentType(UUID.randomUUID(), "nonexistent");
 
-        assertFalse(result.isPresent());
+        assertTrue(result.isEmpty());
     }
 
     @Test
@@ -330,11 +334,11 @@ class ValidationPipelineRepositoryTest {
         );
         cut.save(pipeline);
 
-        assertTrue(cut.findByUserIdAndContentType(userId, "blogpost").isPresent());
+        assertEquals(1, cut.findByUserIdAndContentType(userId, "blogpost").size());
 
         cut.deleteById(pipelineId);
 
-        assertFalse(cut.findByUserIdAndContentType(userId, "blogpost").isPresent());
+        assertEquals(0, cut.findByUserIdAndContentType(userId, "blogpost").size());
 
         int stepCount = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM validation_step WHERE pipeline_id = ?",
