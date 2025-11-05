@@ -3,6 +3,7 @@ package com.dehold.contentmanager.validation.service;
 import com.dehold.contentmanager.exception.EntityNotFoundException;
 import com.dehold.contentmanager.service.IService;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
+import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.repository.ValidationPipelineRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -46,5 +47,11 @@ public class ValidationPipelineService {
     public ValidationPipelineModel findById(UUID id) {
         return repository.findById(id).orElseThrow(() -> EntityNotFoundException.of("ValidationPipeline",
                 id.toString()));
+    }
+
+    public ValidationResult runValidationPipelineForUserAndContentType(UUID userId, String contentType) {
+        List<ValidationPipelineModel> pipelines = repository.findByUserIdAndContentType(userId, contentType);
+        //TODO
+        return null;
     }
 }
