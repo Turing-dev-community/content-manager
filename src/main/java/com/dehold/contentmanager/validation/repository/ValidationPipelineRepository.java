@@ -123,11 +123,17 @@ public class ValidationPipelineRepository {
             return List.of();
         }
 
-        ValidationPipelineModel pipeline = pipelines.getFirst();
-        List<ValidationStepModel> steps = loadStepsForPipeline(pipeline.getId());
-        pipeline.setSteps(steps);
+        pipelines = addValidationSteps(pipelines);
 
-        return List.of(pipeline);
+        return pipelines;
+    }
+
+    private List<ValidationPipelineModel> addValidationSteps(List<ValidationPipelineModel> pipelines) {
+        for(ValidationPipelineModel pipeline : pipelines) {
+            List<ValidationStepModel> steps = loadStepsForPipeline(pipeline.getId());
+            pipeline.setSteps(steps);
+        }
+        return pipelines;
     }
 
     public void deleteById(UUID id) {
