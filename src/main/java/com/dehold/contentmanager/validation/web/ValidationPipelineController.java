@@ -29,6 +29,14 @@ public class ValidationPipelineController {
         return new ResponseEntity<>(model, HttpStatus.OK);
     }
 
+    @GetMapping
+    public ResponseEntity<ValidationPipelineModel> getValidationPipelineByUserIdAndContentType(
+            @RequestParam UUID userId,
+            @RequestParam String contentType) {
+        ValidationPipelineModel model = validationPipelineService.findByUserIdAndContentType(userId, contentType);
+        return new ResponseEntity<>(model, HttpStatus.OK);
+    }
+
 
     @PostMapping
     public ResponseEntity<ValidationPipelineModel> createValidationPipeline(@RequestBody ValidationPipelineCreateDto dto) {
