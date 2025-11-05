@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/validation-pipeline")
+@RequestMapping("/api/validation-pipelines")
 public class ValidationPipelineController {
 
     @Autowired

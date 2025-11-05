@@ -62,7 +62,7 @@ public class UserServiceImpl implements UserService {
         userRepository.deleteUser(id);
     }
 
-    public ValidationPipelineModel getValidationPipelineRepositoryByUserIdAndContentType(UUID userId,
+    public ValidationPipelineModel getValidationPipelineByUserIdAndContentType(UUID userId,
                                                                                        String contentType) {
         getUser(userId); // Ensure user exists
         return validationPipelineService.findByUserIdAndContentType(userId, contentType);

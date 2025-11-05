@@ -17,5 +17,5 @@ public interface UserService {
 
     void deleteUser(UUID id);
 
-    ValidationPipelineModel getValidationPipelineRepositoryByUserIdAndContentType(UUID userId, String contentType);
+    ValidationPipelineModel getValidationPipelineByUserIdAndContentType(UUID userId, String contentType);
 }

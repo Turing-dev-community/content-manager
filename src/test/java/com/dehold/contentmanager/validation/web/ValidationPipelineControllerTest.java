@@ -41,7 +41,7 @@ class ValidationPipelineControllerTest {
                         "maxLength", "500"), true)
         ));
 
-        var response = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipeline",
+        var response = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
                 requestDto, ValidationPipelineModel.class);
 
         assertEquals(201, response.getStatusCode().value());
@@ -63,7 +63,7 @@ class ValidationPipelineControllerTest {
                         "maxLength", "500"), true)
         ));
 
-        var createResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipeline",
+        var createResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
                 createRequestDto, ValidationPipelineModel.class);
         var createdPipeline = createResponse.getBody();
         assertEquals(201, createResponse.getStatusCode().value());
@@ -81,7 +81,7 @@ class ValidationPipelineControllerTest {
 
         HttpEntity<ValidationPipelineUpdateDto> requestEntity = new HttpEntity<>(updateRequestDto);
         ResponseEntity<ValidationPipelineModel> response =
-                restTemplate.exchange("http://localhost:" + port + "/api/validation-pipeline/" +
+                restTemplate.exchange("http://localhost:" + port + "/api/validation-pipelines/" +
                         createdPipeline.getId(), HttpMethod.PUT,
                         requestEntity, ValidationPipelineModel.class);
 
@@ -104,20 +104,20 @@ class ValidationPipelineControllerTest {
                         "maxLength", "500"), true)
         ));
 
-        var createResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipeline",
+        var createResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
                 createRequestDto, ValidationPipelineModel.class);
         var createdPipeline = createResponse.getBody();
         assertEquals(201, createResponse.getStatusCode().value());
         assertNotNull(createdPipeline);
 
         ResponseEntity<Void> deleteResponse = restTemplate.exchange(
-                "http://localhost:" + port + "/api/validation-pipeline/" + createdPipeline.getId(),
+                "http://localhost:" + port + "/api/validation-pipelines/" + createdPipeline.getId(),
                 HttpMethod.DELETE, null, Void.class);
 
         assertEquals(204, deleteResponse.getStatusCode().value());
 
         ResponseEntity<ValidationPipelineModel> getResponse = restTemplate.getForEntity(
-                "http://localhost:" + port + "/api/validation-pipeline/" + createdPipeline.getId(),
+                "http://localhost:" + port + "/api/validation-pipelines/" + createdPipeline.getId(),
                 ValidationPipelineModel.class);
 
         assertEquals(404, getResponse.getStatusCode().value());
