@@ -191,14 +191,16 @@ class ValidationControllerIntegrationTest {
         assertNotNull(createPipelineResponse.getBody());
 
         var response = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/validate-blogposts?userId=" + userId,
-                null, ValidationResult[].class);
+                null, ValidationResponse[].class);
 
         assertEquals(200, response.getStatusCode().value());
         var results = response.getBody();
         assertNotNull(results);
         assertEquals(1, results.length);
 
-        ValidationResult result = results[0];
+        ValidationResponse validationResponse = results[0];
+        assertEquals("BlogPost", validationResponse.getContentType());
+        ValidationResultDto result = validationResponse.getValidationResult();
         assertEquals("BlogPost", result.getContentType());
         assertEquals(userId, result.getUserId());
         assertTrue(result.isValid());
