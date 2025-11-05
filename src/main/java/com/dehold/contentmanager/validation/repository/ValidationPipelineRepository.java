@@ -54,9 +54,6 @@ public class ValidationPipelineRepository {
                 pipeline.getCreatedAt()
         );
 
-        System.out.println("Inserted pipeline with ID: " + pipeline.getId() + ", Rows affected: " + rowsAffected);
-
-
         if (pipeline.getSteps() != null) {
             for (ValidationStepModel step : pipeline.getSteps()) {
                 step.setId(UUID.randomUUID());
