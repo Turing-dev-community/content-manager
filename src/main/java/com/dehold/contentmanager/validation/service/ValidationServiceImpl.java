@@ -1,10 +1,15 @@
 package com.dehold.contentmanager.validation.service;
 
+import com.dehold.contentmanager.content.Content;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
+import com.dehold.contentmanager.content.blogpost.service.BlogPostService;
+import com.dehold.contentmanager.validation.model.ContentTypeRegistry;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
 import com.dehold.contentmanager.validation.pipeline.ValidationPipeline;
 import com.dehold.contentmanager.validation.pipeline.ValidationPipelineBuilder;
 import com.dehold.contentmanager.validation.model.ValidationResult;
+import com.dehold.contentmanager.validation.pipeline.ValidationPipelineFactory;
+import com.dehold.contentmanager.validation.pipeline.ValidationPipelineImpl;
 import com.dehold.contentmanager.validation.repository.ValidationResultRepository;
 import com.dehold.contentmanager.validation.step.LengthValidator;
 import com.dehold.contentmanager.validation.step.ValidationStep;
@@ -12,6 +17,7 @@ import com.dehold.contentmanager.validation.step.ValidationStepFactory;
 import com.dehold.contentmanager.validation.web.dto.BlogPostValidationRequest;
 import com.dehold.contentmanager.validation.web.dto.ValidationResponse;
 import com.dehold.contentmanager.validation.web.dto.ValidationResultDto;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -21,9 +27,19 @@ import java.util.UUID;
 @Service
 public class ValidationServiceImpl implements ValidationService {
 
+    @Autowired
+    private final ValidationPipelineFactory validationPipelineFactory;
+
+    @Autowired
     private final ValidationResultRepository validationResultRepository;
 
-    public ValidationServiceImpl(ValidationResultRepository validationResultRepository) {
+    @Autowired
+    private final BlogPostService blogPostService;
+
+    public ValidationServiceImpl(ValidationResultRepository validationResultRepository,
+                                 ValidationPipelineFactory validationPipelineFactory, BlogPostService blogPostService) {
+        this.blogPostService = blogPostService;
+        this.validationPipelineFactory = validationPipelineFactory;
         this.validationResultRepository = validationResultRepository;
     }
 
@@ -42,6 +58,22 @@ public class ValidationServiceImpl implements ValidationService {
 
         ValidationResultDto resultDto = ValidationResultDto.from(result);
         return new ValidationResponse(BlogPost.class.getSimpleName(), resultDto);
+    }
+
+    public void runBlogPostValidation(UUID userId) {
+        List<BlogPost> blogPosts = blogPostService.getBlogPostsByUserId(userId);
+        for(BlogPost blogPost : blogPosts) {
+            runValidationPipelinesForBlogPost(userId, blogPost);
+        }
+    }
+
+    private void runValidationPipelinesForBlogPost(UUID userId, BlogPost blogPost) {
+        List<ValidationPipeline<BlogPost>> pipelines =
+                validationPipelineFactory.createValidationPipelineForUserAndContentType(userId,
+                        "blogpost");
+        for(ValidationPipeline<BlogPost> pipeline : pipelines) {
+            ValidationResult result = pipeline.run(blogPost);
+        }
     }
 
     private static ValidationStep<BlogPost> getBlogPostLengthValidator(BlogPostValidationRequest request, ValidationStepFactory factory) {
