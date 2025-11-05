@@ -1,9 +1,11 @@
 package com.dehold.contentmanager.validation.web;
 
+import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.service.ValidationService;
 import com.dehold.contentmanager.validation.web.dto.BlogPostValidationRequest;
 import com.dehold.contentmanager.validation.web.dto.ValidationResponse;
+import com.dehold.contentmanager.validation.web.dto.ValidationResultDto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -28,8 +30,12 @@ public class ValidationController {
     }
 
     @PostMapping("/validate-blogposts")
-    public ResponseEntity<List<ValidationResult>> validateBlogPosts(@RequestParam UUID userId) {
+    public ResponseEntity<List<ValidationResponse>> validateBlogPosts(@RequestParam UUID userId) {
         List<ValidationResult> results = validationService.runBlogPostValidation(userId);
-        return new ResponseEntity<>(results, HttpStatus.OK);
+        List<ValidationResponse> response = results.stream()
+                .map(ValidationResultDto::from)
+                .map(dto -> new ValidationResponse(BlogPost.class.getSimpleName(), dto))
+                .toList();
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

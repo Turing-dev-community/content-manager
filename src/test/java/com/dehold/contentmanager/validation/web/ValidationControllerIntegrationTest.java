@@ -176,7 +176,7 @@ class ValidationControllerIntegrationTest {
 
         var createPipelineDto = new ValidationPipelineCreateDto();
         createPipelineDto.setUserId(userId);
-        createPipelineDto.setContentType("BlogPost");
+        createPipelineDto.setContentType("blogpost");
         createPipelineDto.setDescription("Test pipeline for blog post validation");
         createPipelineDto.setSteps(List.of(
                 new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
