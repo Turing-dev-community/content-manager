@@ -2,7 +2,6 @@ package com.dehold.contentmanager.validation.web;
 
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
-import com.dehold.contentmanager.exception.CustomErrorResponse;
 import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.model.ValidationResult;
