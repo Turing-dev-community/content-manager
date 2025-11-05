@@ -45,7 +45,7 @@ public class ValidationPipelineRepository {
             pipeline.setCreatedAt(Instant.now());
         }
 
-        jdbcTemplate.update(
+        int rowsAffected = jdbcTemplate.update(
                 "INSERT INTO validation_pipeline (id, user_id, description, content_type, created_at) VALUES (?, ?, ?, ?, ?)",
                 pipeline.getId(),
                 pipeline.getUserId(),
@@ -53,6 +53,9 @@ public class ValidationPipelineRepository {
                 pipeline.getContentType(),
                 pipeline.getCreatedAt()
         );
+
+        System.out.println("Inserted pipeline with ID: " + pipeline.getId() + ", Rows affected: " + rowsAffected);
+
 
         if (pipeline.getSteps() != null) {
             for (ValidationStepModel step : pipeline.getSteps()) {

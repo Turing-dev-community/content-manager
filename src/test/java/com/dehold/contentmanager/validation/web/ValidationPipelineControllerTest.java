@@ -3,6 +3,7 @@ package com.dehold.contentmanager.validation.web;
 import com.dehold.contentmanager.exception.CustomErrorResponse;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
+import com.dehold.contentmanager.validation.repository.ValidationPipelineRepository;
 import com.dehold.contentmanager.validation.web.dto.ValidationPipelineCreateDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationPipelineUpdateDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationStepDto;
@@ -30,6 +31,9 @@ class ValidationPipelineControllerTest {
 
     @Autowired
     private TestRestTemplate restTemplate;
+
+    @Autowired
+    private ValidationPipelineRepository repository;
 
     @Test
     void givenCreateValidationPipelineRequest_whenCreateValidationPipeline_thenReturnsCreatedPipeline() {
@@ -187,6 +191,8 @@ class ValidationPipelineControllerTest {
         ));
         restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
                 createRequestDto2, ValidationPipelineModel.class);
+
+        List<ValidationPipelineModel> allPipelines = repository.findAll();
 
         String url = String.format("http://localhost:%d/api/validation-pipelines?userId=%s&contentType=%s",
                 port, userId, contentType);

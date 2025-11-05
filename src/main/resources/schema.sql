@@ -61,8 +61,7 @@ CREATE TABLE validation_pipeline (
     user_id UUID NOT NULL,
     description VARCHAR(500),
     content_type VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(user_id, content_type)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE validation_step (
