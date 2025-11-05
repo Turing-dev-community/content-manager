@@ -162,6 +162,43 @@ class ValidationPipelineControllerTest {
     }
 
     @Test
+    void givenMultiplePipelinesExist_whenGetByUserIdAndContentType_thenReturnsAllPipelines() {
+        var userId = UUID.randomUUID();
+        var contentType = "BlogPost";
+
+        var createRequestDto1 = new ValidationPipelineCreateDto();
+        createRequestDto1.setUserId(userId);
+        createRequestDto1.setContentType(contentType);
+        createRequestDto1.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title", Map.of("minLength", "10",
+                        "maxLength", "500"), true)
+        ));
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                createRequestDto1, ValidationPipelineModel.class);
+
+        var createRequestDto2 = new ValidationPipelineCreateDto();
+        createRequestDto2.setUserId(userId);
+        createRequestDto2.setContentType(contentType);
+        createRequestDto2.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content", Map.of("minLength", "10",
+                        "maxLength", "500"), true)
+        ));
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                createRequestDto2, ValidationPipelineModel.class);
+
+        String url = String.format("http://localhost:%d/api/validation-pipelines?userId=%s&contentType=%s",
+                port, userId, contentType);
+        ResponseEntity<ValidationPipelineModel[]> getResponse = restTemplate.getForEntity(
+                url,
+                ValidationPipelineModel[].class);
+
+        assertEquals(200, getResponse.getStatusCode().value());
+        var response = getResponse.getBody();
+        assertNotNull(response);
+        assertEquals(2, response.length);
+    }
+
+    @Test
     void givenPipelineDoesNotExist_whenGetByUserIdAndContentType_thenReturnsEmptyResult() {
         var userId = UUID.randomUUID();
         var contentType = "NonExistentContentType";
