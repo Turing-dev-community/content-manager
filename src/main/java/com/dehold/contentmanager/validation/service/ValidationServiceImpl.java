@@ -20,6 +20,7 @@ import com.dehold.contentmanager.validation.web.dto.ValidationResultDto;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -61,20 +62,26 @@ public class ValidationServiceImpl implements ValidationService {
     }
 
     @Override
-    public void runBlogPostValidation(UUID userId) {
+    public List<ValidationResult> runBlogPostValidation(UUID userId) {
         List<BlogPost> blogPosts = blogPostService.getBlogPostsByUserId(userId);
+        List<ValidationResult> allResults = new LinkedList<>();
         for(BlogPost blogPost : blogPosts) {
-            runValidationPipelinesForBlogPost(userId, blogPost);
+            var results = runValidationPipelinesForBlogPost(userId, blogPost);
+            allResults.addAll(results);
         }
+        return allResults;
     }
 
-    private void runValidationPipelinesForBlogPost(UUID userId, BlogPost blogPost) {
+    private List<ValidationResult> runValidationPipelinesForBlogPost(UUID userId, BlogPost blogPost) {
         List<ValidationPipeline<BlogPost>> pipelines =
                 validationPipelineFactory.createValidationPipelineForUserAndContentType(userId,
                         "blogpost");
+        List<ValidationResult> results = new LinkedList<>();
         for(ValidationPipeline<BlogPost> pipeline : pipelines) {
             ValidationResult result = pipeline.run(blogPost);
+            results.add(result);
         }
+        return results;
     }
 
     private static ValidationStep<BlogPost> getBlogPostLengthValidator(BlogPostValidationRequest request, ValidationStepFactory factory) {

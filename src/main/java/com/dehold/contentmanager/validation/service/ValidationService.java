@@ -14,5 +14,5 @@ public interface ValidationService {
 
     List<ValidationResult> findByUserId(UUID id);
 
-    public void runBlogPostValidation(UUID userId);
+    public List<ValidationResult> runBlogPostValidation(UUID userId);
 }

@@ -159,4 +159,14 @@ class ValidationControllerIntegrationTest {
         assertEquals(expected.getValidationResult().getContentId(), actual.getValidationResult().getContentId());
     }
 
+    @Test
+    void givenOneBlogPost_whenRequestValidationRun_thenValidationResultsCreated() {
+        UUID userId = UUID.randomUUID();
+
+        var response = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/validate-blogposts?userId=" + userId,
+                null, Void.class);
+
+        assertEquals(200, response.getStatusCode().value());
+    }
+
 }
