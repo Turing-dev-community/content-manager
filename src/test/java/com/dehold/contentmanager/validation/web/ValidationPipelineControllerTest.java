@@ -123,4 +123,51 @@ class ValidationPipelineControllerTest {
         assertEquals(404, getResponse.getStatusCode().value());
     }
 
+    @Test
+    void givenPipelineExists_whenGetByUserIdAndContentType_thenReturnsPipeline() {
+        var userId = UUID.randomUUID();
+        var contentType = "BlogPost";
+
+        var createRequestDto = new ValidationPipelineCreateDto();
+        createRequestDto.setUserId(userId);
+        createRequestDto.setContentType(contentType);
+        createRequestDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title", Map.of("minLength", "10",
+                        "maxLength", "500"), true)
+        ));
+
+        var createResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                createRequestDto, ValidationPipelineModel.class);
+        var createdPipeline = createResponse.getBody();
+        assertEquals(201, createResponse.getStatusCode().value());
+        assertNotNull(createdPipeline);
+
+        String url = String.format("http://localhost:%d/api/validation-pipelines?userId=%s&contentType=%s",
+                port, userId, contentType);
+        ResponseEntity<ValidationPipelineModel> getResponse = restTemplate.getForEntity(
+                url,
+                ValidationPipelineModel.class);
+
+        assertEquals(200, getResponse.getStatusCode().value());
+        var fetchedPipeline = getResponse.getBody();
+        assertNotNull(fetchedPipeline);
+        assertEquals(createdPipeline.getId(), fetchedPipeline.getId());
+    }
+
+    @Test
+    void givenPipelineDoesNotExist_whenGetByUserIdAndContentType_thenReturnsEmptyResult() {
+        var userId = UUID.randomUUID();
+        var contentType = "NonExistentContentType";
+
+        String url = String.format("http://localhost:%d/api/validation-pipelines?userId=%s&contentType=%s",
+                port, userId, contentType);
+        ResponseEntity<ValidationPipelineModel> getResponse = restTemplate.getForEntity(
+                url,
+                ValidationPipelineModel.class);
+
+        assertEquals(200, getResponse.getStatusCode().value());
+        var fetchedPipeline = getResponse.getBody();
+        assertNull(fetchedPipeline);
+    }
+
 }
