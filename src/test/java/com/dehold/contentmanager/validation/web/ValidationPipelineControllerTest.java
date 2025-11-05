@@ -12,7 +12,6 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 
 import java.util.List;
@@ -47,10 +46,12 @@ class ValidationPipelineControllerTest {
         assertEquals(201, response.getStatusCode().value());
         var createdPipeline = response.getBody();
         assertNotNull(createdPipeline);
+        assertNotNull(createdPipeline.getId());
         assertEquals(requestDto.getUserId(), createdPipeline.getUserId());
         assertEquals(requestDto.getContentType(), createdPipeline.getContentType());
         assertEquals(1, createdPipeline.getSteps().size());
         assertEquals(ValidationStepType.LENGTH_VALIDATION, createdPipeline.getSteps().getFirst().getStepType());
+        assertEquals(createdPipeline.getId(), createdPipeline.getSteps().getFirst().getPipelineId());
     }
 
     @Test

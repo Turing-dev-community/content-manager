@@ -56,6 +56,8 @@ public class ValidationPipelineRepository {
 
         if (pipeline.getSteps() != null) {
             for (ValidationStepModel step : pipeline.getSteps()) {
+                step.setId(UUID.randomUUID());
+                step.setPipelineId(pipeline.getId());
                 insertValidationStep(step, pipeline.getId());
             }
         }
