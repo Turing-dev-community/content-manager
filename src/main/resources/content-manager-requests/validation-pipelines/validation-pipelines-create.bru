@@ -12,7 +12,7 @@ post {
 
 body:json {
   {
-    "userId": "123e4567-e89b-12d3-a456-426614174000",
+    "userId": "428c9403-b848-4c86-a29f-c4bc17959ad7",
     "description": "Sample validation pipeline",
     "contentType": "blogpost",
     "steps": [
@@ -20,8 +20,17 @@ body:json {
         "stepType": "LENGTH_VALIDATION",
         "fieldName": "title",
         "parameters": {
-          "minLength": "5",
+          "minLength": "11",
           "maxLength": "50"
+        },
+        "enabled": true
+      },
+      {
+        "stepType": "LENGTH_VALIDATION",
+        "fieldName": "content",
+        "parameters": {
+          "minLength": "11",
+          "maxLength": "500"
         },
         "enabled": true
       }

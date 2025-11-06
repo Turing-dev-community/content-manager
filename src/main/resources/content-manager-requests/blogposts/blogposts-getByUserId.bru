@@ -5,13 +5,29 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/blogposts?userId=f6ababfa-5aab-4086-b218-4a394f3efbd5
+  url: {{baseUrl}}/api/blogposts?userId={
+      "stepType": "LENGTH_VALIDATION",
+      "fieldName": "title",
+      "parameters": {
+        "minLength": "10",
+        "maxLength": "50"
+      },
+      "enabled": true
+   
   body: none
   auth: inherit
 }
 
 params:query {
-  userId: f6ababfa-5aab-4086-b218-4a394f3efbd5
+  userId: {
+        "stepType": "LENGTH_VALIDATION",
+        "fieldName": "title",
+        "parameters": {
+          "minLength": "10",
+          "maxLength": "50"
+        },
+        "enabled": true
+     
 }
 
 settings {

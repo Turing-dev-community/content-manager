@@ -12,6 +12,9 @@ public class ValidationStepDto {
     private Map<String, String> parameters;
     private boolean isEnabled;
 
+    public ValidationStepDto() {
+    }
+
     public ValidationStepDto(UUID id, ValidationStepType stepType, String fieldName, Map<String, String> parameters,
                              boolean isEnabled) {
         this.id = id;

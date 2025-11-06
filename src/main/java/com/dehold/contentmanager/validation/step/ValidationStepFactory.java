@@ -1,6 +1,8 @@
 package com.dehold.contentmanager.validation.step;
 
 import com.dehold.contentmanager.content.Content;
+import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
+import com.dehold.contentmanager.validation.model.ValidationStepModel;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
 import com.dehold.contentmanager.validation.service.ForbiddenWordsService;
 import org.springframework.stereotype.Component;
@@ -16,6 +18,12 @@ public class ValidationStepFactory {
 
     public ValidationStepFactory(ForbiddenWordsService forbiddenWordsService) {
         this.forbiddenWordsService = forbiddenWordsService;
+    }
+
+    public <T extends Content> ValidationStep<T> createValidationStepFromModel(ValidationStepModel model, Function<T,
+            String> fieldExtractor, UUID userId) {
+        return createValidationStep(model.getStepType(), fieldExtractor,
+                model.getParameters(), model.getFieldName(), userId);
     }
 
     public <T extends Content> ValidationStep<T> createValidationStep(ValidationStepType type,
