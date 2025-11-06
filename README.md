@@ -133,10 +133,10 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
 
 ### Validation
 
-| Method | Endpoint | Description                                                                                                                                                                                                     |
-|--------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| POST   | `/api/validate/blogpost` | Validate a blog post                                                                                                                                                                                            |
-| POST   | `/api/validate/validate-blogposts?userId={userId}` | Run validation on all blog posts for a specific user (This has an empty body as it validated blog posts that are stored to the db against validation pipelines that are stored in the db for that specific user |
+| Method | Endpoint | Description                                                                                                                                                                                                                                                            |
+|--------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| POST   | `/api/validate/blogpost` | Validate a blog post                                                                                                                                                                                                                                                   |
+| POST   | `/api/validate/validate-blogposts?userId={userId}` | Run validation on all blog posts for a specific user (This has an empty body as it validated blog posts that are stored to the db against validation pipelines that are stored in the db for that specific user). The response is listed under "Bulk Validation Response Example" |
 
 **Validation Request Model:**
 ```json
@@ -161,6 +161,9 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
 {
   "contentType": "string",
   "validationResult": {
+    "contentType": "string",
+    "contentId": "uuid",
+    "userId": "uuid",
     "valid": "boolean",
     "errors": [
       {
@@ -170,6 +173,52 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
     ]
   }
 }
+```
+
+**Bulk Validation Response Example:**
+```json
+[
+  {
+    "contentType": "string",
+    "validationResult": {
+      "contentType": "string",
+      "contentId": "uuid",
+      "userId": "uuid",
+      "valid": true,
+      "errors": []
+    }
+  },
+  {
+    "contentType": "string",
+    "validationResult": {
+      "contentType": "string",
+      "contentId": "uuid",
+      "userId": "uuid",
+      "valid": false,
+      "errors": [
+        {
+          "code": "string",
+          "message": "string"
+        }
+      ]
+    }
+  },
+  {
+    "contentType": "string",
+    "validationResult": {
+      "contentType": "string",
+      "contentId": "uuid",
+      "userId": "uuid",
+      "valid": false,
+      "errors": [
+        {
+          "code": "string",
+          "message": "string"
+        }
+      ]
+    }
+  }
+]
 ```
 
 ### Validation Pipelines
