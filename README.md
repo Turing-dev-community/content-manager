@@ -133,9 +133,10 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
 
 ### Validation
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST   | `/api/validate/blogpost` | Validate a blog post |
+| Method | Endpoint | Description                                                                                                                                                                                                     |
+|--------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| POST   | `/api/validate/blogpost` | Validate a blog post                                                                                                                                                                                            |
+| POST   | `/api/validate/validate-blogposts?userId={userId}` | Run validation on all blog posts for a specific user (This has an empty body as it validated blog posts that are stored to the db against validation pipelines that are stored in the db for that specific user |
 
 **Validation Request Model:**
 ```json
@@ -168,6 +169,90 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
       }
     ]
   }
+}
+```
+
+### Validation Pipelines
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/validation-pipelines/{id}` | Get validation pipeline by ID |
+| GET | `/api/validation-pipelines?userId={userId}&contentType={contentType}` | Get validation pipelines by user ID and content type |
+| POST | `/api/validation-pipelines` | Create new validation pipeline |
+| PUT | `/api/validation-pipelines/{id}` | Update existing validation pipeline |
+| DELETE | `/api/validation-pipelines/{id}` | Delete validation pipeline |
+
+**Validation Pipeline Model:**
+```json
+{
+  "id": "uuid",
+  "userId": "uuid",
+  "description": "string",
+  "contentType": "string",
+  "steps": [
+    {
+      "id": "uuid",
+      "stepType": "LENGTH_VALIDATION",
+      "fieldName": "string",
+      "parameters": {
+        "minLength": "string",
+        "maxLength": "string"
+      },
+      "enabled": "boolean"
+    }
+  ],
+  "createdAt": "timestamp"
+}
+```
+
+**Create Pipeline Request Example:**
+```json
+{
+  "userId": "123e4567-e89b-12d3-a456-426614174000",
+  "description": "Blog post validation pipeline",
+  "contentType": "blogpost",
+  "steps": [
+    {
+      "stepType": "LENGTH_VALIDATION",
+      "fieldName": "title",
+      "parameters": {
+        "minLength": "5",
+        "maxLength": "100"
+      },
+      "enabled": true
+    },
+    {
+      "stepType": "LENGTH_VALIDATION",
+      "fieldName": "content",
+      "parameters": {
+        "minLength": "10",
+        "maxLength": "1000"
+      },
+      "enabled": true
+    }
+  ]
+}
+```
+
+**Update Pipeline Request Example:**
+```json
+{
+  "id": "123e4567-e89b-12d3-a456-426614174001",
+  "userId": "123e4567-e89b-12d3-a456-426614174000",
+  "description": "Updated blog post validation pipeline",
+  "contentType": "blogpost",
+  "steps": [
+    {
+      "id": "123e4567-e89b-12d3-a456-426614174002",
+      "stepType": "LENGTH_VALIDATION",
+      "fieldName": "title",
+      "parameters": {
+        "minLength": "3",
+        "maxLength": "150"
+      },
+      "enabled": true
+    }
+  ]
 }
 ```
 
