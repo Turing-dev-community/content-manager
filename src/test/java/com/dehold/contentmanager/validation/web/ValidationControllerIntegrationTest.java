@@ -164,7 +164,7 @@ class ValidationControllerIntegrationTest {
     }
 
     @Test
-    void givenOneBlogPostAndValidationPipeline_whenRequestValidationRun_thenReturnValidationResult() {
+    void givenOneBlogPostAndPersistedValidationPipeline_whenRequestValidationRun_thenReturnValidationResult() {
         UUID userId = UUID.randomUUID();
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Test Blog Post Title", "This is test content for the blog post", Instant.now(), Instant.now(), userId);
 
@@ -207,7 +207,7 @@ class ValidationControllerIntegrationTest {
     }
 
     @Test
-    void givenInvalidBlogPostAndValidationPipeline_whenRequestValidationRun_thenReturnValidationResultWithErrors() {
+    void givenInvalidBlogPostAndPersistedValidationPipeline_whenRequestValidationRun_thenReturnValidationResultWithErrors() {
         UUID userId = UUID.randomUUID();
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Shrt", "Too short", Instant.now(), Instant.now(), userId);
 
@@ -259,7 +259,7 @@ class ValidationControllerIntegrationTest {
     }
 
     @Test
-    void givenMultipleBlogPostsWithViolations_whenValidateBlogPosts_thenReturnsAllValidationResults() {
+    void givenMultipleBlogPostsWithViolationsAndPersistedValidationPipeline_whenValidateBlogPosts_thenReturnsAllValidationResults() {
         UUID userId = UUID.randomUUID();
 
         // Violation in content
