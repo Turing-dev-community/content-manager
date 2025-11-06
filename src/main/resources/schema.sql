@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS blog_post (
     content TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
-    user_id UUID
+    user_id UUID,
+    CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES "user" (id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS support_response (

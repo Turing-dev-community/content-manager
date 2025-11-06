@@ -17,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
 import java.util.List;
@@ -33,6 +34,9 @@ class ValidationControllerIntegrationTest {
 
     @Autowired
     private TestRestTemplate restTemplate;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
     void givenValidBlogPost_whenValidate_thenReturnsSuccess() {
@@ -166,6 +170,9 @@ class ValidationControllerIntegrationTest {
     @Test
     void givenOneBlogPostAndPersistedValidationPipeline_whenRequestValidationRun_thenReturnValidationResult() {
         UUID userId = UUID.randomUUID();
+        String userMail = UUID.randomUUID() + "testuser1@example.com";
+        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                userId, "testuser", userMail);
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Test Blog Post Title", "This is test content for the blog post", Instant.now(), Instant.now(), userId);
 
         var createBlogPostResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/blogposts",
@@ -209,6 +216,9 @@ class ValidationControllerIntegrationTest {
     @Test
     void givenInvalidBlogPostAndPersistedValidationPipeline_whenRequestValidationRun_thenReturnValidationResultWithErrors() {
         UUID userId = UUID.randomUUID();
+        String userMail = UUID.randomUUID() + "testuser1@example.com";
+        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                userId, "testuser", userMail);
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Shrt", "Too short", Instant.now(), Instant.now(), userId);
 
         var createBlogPostResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/blogposts",
@@ -261,6 +271,9 @@ class ValidationControllerIntegrationTest {
     @Test
     void givenMultipleBlogPostsWithViolationsAndPersistedValidationPipeline_whenValidateBlogPosts_thenReturnsAllValidationResults() {
         UUID userId = UUID.randomUUID();
+        String userMail = UUID.randomUUID() + "testuser1@example.com";
+        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                userId, "testuser", userMail);
 
         // Violation in content
         BlogPost blogPost1 = new BlogPost(UUID.randomUUID(), "Hi", "This is valid content for the first blog post", Instant.now(), Instant.now(), userId);
