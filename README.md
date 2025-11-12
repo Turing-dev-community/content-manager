@@ -23,8 +23,8 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
 
 Please update for each new feature:
 
-| date | contributor email | feature or bug? |feature summary | feature description |
-|------|-------------------|-----------------|----------------|---------------------|
+| date | contributor email | feature summary |feature description | issue link |
+|------|-------------------|------------|----------------|---------------------|
 
 
 ### Overview
