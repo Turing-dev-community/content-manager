@@ -10,9 +10,9 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
    1. Add your feature to the feature list table below
    1. Merge the branch back to main: This will make sure that main always has the latest feature list
 1. Implement the feature:
-   2. Create a new branch for your feature named `feature/your-feature-name` or `fix/your-bug-fix`
-   3. Implement the feature or bug fix
-   4. Create a pull request to merge your changes back to main
+   1. Create a new branch for your feature named `feature/your-feature-name` or `fix/your-bug-fix`
+   1. Implement the feature or bug fix
+   1. Create a pull request to merge your changes back to main
 
 ## Features
 
