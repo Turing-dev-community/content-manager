@@ -77,12 +77,22 @@ public class ValidationServiceImpl implements ValidationService {
                 validationPipelineFactory.createValidationPipelineForUserAndContentType(userId,
                         "blogpost");
         List<ValidationResult> results = new LinkedList<>();
+        collectResults(blogPost, pipelines, results);
+        persistsResults(results);
+        return results;
+    }
+
+    private void collectResults(BlogPost blogPost, List<ValidationPipeline<BlogPost>> pipelines, List<ValidationResult> results) {
         for(ValidationPipeline<BlogPost> pipeline : pipelines) {
             ValidationResult result = pipeline.run(blogPost);
-            validationResultRepository.create(result);
             results.add(result);
         }
-        return results;
+    }
+
+    private void persistsResults(List<ValidationResult> results) {
+        for(ValidationResult result : results) {
+            this.createValidationResult(result);
+        }
     }
 
     private static ValidationStep<BlogPost> getBlogPostLengthValidator(BlogPostValidationRequest request, ValidationStepFactory factory) {
