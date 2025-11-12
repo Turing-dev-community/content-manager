@@ -98,6 +98,7 @@ By checking the `web` and `service` layers, you can get a good idea of the detai
 | PUT | `/api/users/{id}` | Update existing user |
 | DELETE | `/api/users/{id}` | Delete user |
 | GET | `/api/users/{id}/blogposts` | Retrieve blog posts owned by a specific user |
+| POST | `/api/users/{id}/validate-blogposts` | Run validations for all blog posts owned by the user and persist results |
 
 **User Model:**
 ```json
