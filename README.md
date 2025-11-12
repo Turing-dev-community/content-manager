@@ -9,6 +9,10 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
    1. Create a branch named `update-feature-list`
    1. Add your feature to the feature list table below
    1. Merge the branch back to main: This will make sure that main always has the latest feature list
+1. Create the issue:
+   1. Create a new issue with the feature details from the feature list.
+   1. **Use the following structure**: `Summary`, `Current Behavior`, `Expected Behavior`, `Additional Context` (see an 
+      example [here](https://github.com/Turing-dev-community/content-manager/issues/42))
 1. Implement the feature:
    1. Create a new branch for your feature named `feature/your-feature-name` or `fix/your-bug-fix`
    1. Implement the feature or bug fix
