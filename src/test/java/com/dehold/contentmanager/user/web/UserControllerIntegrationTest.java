@@ -7,10 +7,15 @@ import com.dehold.contentmanager.user.model.User;
 import com.dehold.contentmanager.user.repository.UserRepository;
 import com.dehold.contentmanager.user.web.dto.CreateUserRequest;
 import com.dehold.contentmanager.user.web.dto.UpdateUserRequest;
+import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.model.ValidationResult;
+import com.dehold.contentmanager.validation.model.ValidationStepType;
+import com.dehold.contentmanager.validation.step.LengthValidator;
 import com.dehold.contentmanager.validation.web.dto.BlogPostValidationRequest;
+import com.dehold.contentmanager.validation.web.dto.ValidationPipelineCreateDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationResponse;
 import com.dehold.contentmanager.validation.web.dto.ValidationResultDto;
+import com.dehold.contentmanager.validation.web.dto.ValidationStepDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,10 +26,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 
 import java.time.Instant;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -296,4 +298,175 @@ class UserControllerIntegrationTest {
         CustomErrorResponse errorResponse = response.getBody();
         assertEquals("The entity User with id " + nonExistentUserId + " does not exist", errorResponse.getError());
     }
+
+    @Test
+    void givenOneBlogPostAndPersistedValidationPipeline_validateBlogPostsForUser_shouldReturnValidationResult() {
+        User user = new User(UUID.randomUUID(), "Pipeline User", "pipelineuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        userRepository.createUser(user);
+
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Test Blog Post Title", "This is test content for the blog post", Instant.now(), Instant.now(), user.getId());
+        blogPostRepository.createBlogPost(blogPost);
+
+        var createPipelineDto = new ValidationPipelineCreateDto();
+        createPipelineDto.setUserId(user.getId());
+        createPipelineDto.setContentType("blogpost");
+        createPipelineDto.setDescription("Test pipeline for blog post validation");
+        createPipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content",
+                        Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+
+        var createPipelineResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                createPipelineDto, ValidationPipelineModel.class);
+        assertEquals(201, createPipelineResponse.getStatusCode().value());
+        assertNotNull(createPipelineResponse.getBody());
+
+        var response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-blogposts",
+                null, ValidationResponse[].class);
+
+        assertEquals(200, response.getStatusCode().value());
+        var results = response.getBody();
+        assertNotNull(results);
+        assertEquals(1, results.length);
+
+        ValidationResponse validationResponse = results[0];
+        assertEquals("BlogPost", validationResponse.getContentType());
+        ValidationResultDto result = validationResponse.getValidationResult();
+        assertEquals("BlogPost", result.getContentType());
+        assertEquals(user.getId(), result.getUserId());
+        assertTrue(result.isValid());
+    }
+
+    @Test
+    void givenInvalidBlogPostAndPersistedValidationPipeline_validateBlogPostsForUser_shouldReturnValidationResultWithErrors() {
+        User user = new User(UUID.randomUUID(), "Pipeline User", "pipelineuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        userRepository.createUser(user);
+
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Shrt", "Too short", Instant.now(), Instant.now(), user.getId());
+        blogPostRepository.createBlogPost(blogPost);
+
+        var createPipelineDto = new ValidationPipelineCreateDto();
+        createPipelineDto.setUserId(user.getId());
+        createPipelineDto.setContentType("blogpost");
+        createPipelineDto.setDescription("Test pipeline for blog post validation");
+        createPipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content",
+                        Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+
+        var createPipelineResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                createPipelineDto, ValidationPipelineModel.class);
+        assertEquals(201, createPipelineResponse.getStatusCode().value());
+        assertNotNull(createPipelineResponse.getBody());
+
+        var response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-blogposts",
+                null, ValidationResponse[].class);
+
+        assertEquals(200, response.getStatusCode().value());
+        var results = response.getBody();
+        assertNotNull(results);
+        assertEquals(1, results.length);
+
+        ValidationResponse validationResponse = results[0];
+        assertEquals("BlogPost", validationResponse.getContentType());
+        ValidationResultDto result = validationResponse.getValidationResult();
+        assertEquals("BlogPost", result.getContentType());
+        assertEquals(user.getId(), result.getUserId());
+        assertFalse(result.isValid());
+        assertEquals(2, result.getErrors().size());
+        assertTrue(result.getErrors().stream().anyMatch(
+                e -> e.code().equals(LengthValidator.ERROR_CODE) &&
+                        e.message().equals(LengthValidator.errorMessageTooShort("title"))
+        ));
+        assertTrue(result.getErrors().stream().anyMatch(
+                e -> e.code().equals(LengthValidator.ERROR_CODE) &&
+                        e.message().equals(LengthValidator.errorMessageTooShort("content"))
+        ));
+    }
+
+    @Test
+    void givenMultipleBlogPostsWithViolationsAndPersistedValidationPipeline_validateBlogPostsForUser_shouldReturnAllValidationResults() {
+        User user = new User(UUID.randomUUID(), "Pipeline User", "pipelineuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        userRepository.createUser(user);
+
+        BlogPost blogPost1 = new BlogPost(UUID.randomUUID(), "Hi", "This is valid content for the first blog post", Instant.now(), Instant.now(), user.getId());
+        blogPostRepository.createBlogPost(blogPost1);
+
+        BlogPost blogPost2 = new BlogPost(UUID.randomUUID(), "Valid Title Here", "Short", Instant.now(), Instant.now(), user.getId());
+        blogPostRepository.createBlogPost(blogPost2);
+
+        BlogPost blogPost3 = new BlogPost(UUID.randomUUID(), "Bad", "Bad", Instant.now(), Instant.now(), user.getId());
+        blogPostRepository.createBlogPost(blogPost3);
+
+        var createPipelineDto = new ValidationPipelineCreateDto();
+        createPipelineDto.setUserId(user.getId());
+        createPipelineDto.setContentType("blogpost");
+        createPipelineDto.setDescription("Test pipeline for multiple blog post validation");
+        createPipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content",
+                        Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+
+        var createPipelineResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                createPipelineDto, ValidationPipelineModel.class);
+        assertEquals(201, createPipelineResponse.getStatusCode().value());
+        assertNotNull(createPipelineResponse.getBody());
+
+        var response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-blogposts",
+                null, ValidationResponse[].class);
+
+        assertEquals(200, response.getStatusCode().value());
+        var results = response.getBody();
+        assertNotNull(results);
+        assertEquals(3, results.length);
+
+        for (ValidationResponse validationResponse : results) {
+            assertEquals("BlogPost", validationResponse.getContentType());
+            ValidationResultDto result = validationResponse.getValidationResult();
+            assertEquals("BlogPost", result.getContentType());
+            assertEquals(user.getId(), result.getUserId());
+            assertFalse(result.isValid());
+        }
+
+        int titleErrors = 0;
+        int contentErrors = 0;
+        int bothErrors = 0;
+
+        for (ValidationResponse validationResponse : results) {
+            ValidationResultDto result = validationResponse.getValidationResult();
+            boolean hasTitleError = result.getErrors().stream().anyMatch(
+                    e -> e.code().equals(LengthValidator.ERROR_CODE) &&
+                            e.message().equals(LengthValidator.errorMessageTooShort("title"))
+            );
+            boolean hasContentError = result.getErrors().stream().anyMatch(
+                    e -> e.code().equals(LengthValidator.ERROR_CODE) &&
+                            e.message().equals(LengthValidator.errorMessageTooShort("content"))
+            );
+
+            if (hasTitleError && hasContentError) {
+                bothErrors++;
+                assertEquals(2, result.getErrors().size());
+            } else if (hasTitleError) {
+                titleErrors++;
+                assertEquals(1, result.getErrors().size());
+            } else if (hasContentError) {
+                contentErrors++;
+                assertEquals(1, result.getErrors().size());
+            }
+        }
+
+        assertEquals(1, titleErrors);
+        assertEquals(1, contentErrors);
+        assertEquals(1, bothErrors);
+    }
+
 }
