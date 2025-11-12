@@ -16,6 +16,7 @@ import com.dehold.contentmanager.validation.web.dto.ValidationPipelineCreateDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationResponse;
 import com.dehold.contentmanager.validation.web.dto.ValidationResultDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationStepDto;
+import com.dehold.contentmanager.validation.repository.ValidationResultRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -44,6 +45,9 @@ class UserControllerIntegrationTest {
 
     @Autowired
     private BlogPostRepository blogPostRepository;
+
+    @Autowired
+    private ValidationResultRepository validationResultRepository;
 
     @Test
     void createUser_shouldReturnCreatedUser() {
@@ -467,6 +471,94 @@ class UserControllerIntegrationTest {
         assertEquals(1, titleErrors);
         assertEquals(1, contentErrors);
         assertEquals(1, bothErrors);
+    }
+
+    @Test
+    void givenOneBlogPostAndPipeline_whenValidateBlogPostsForUser_thenResultPersistedInDatabase() {
+        User user = new User(UUID.randomUUID(), "Persist User", "persistuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        userRepository.createUser(user);
+
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Valid Title", "This is sufficiently long content", Instant.now(), Instant.now(), user.getId());
+        blogPostRepository.createBlogPost(blogPost);
+
+        var createPipelineDto = new ValidationPipelineCreateDto();
+        createPipelineDto.setUserId(user.getId());
+        createPipelineDto.setContentType("blogpost");
+        createPipelineDto.setDescription("Persistence test pipeline");
+        createPipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title", Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content", Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+        var pipelineCreateResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", createPipelineDto, ValidationPipelineModel.class);
+        assertEquals(201, pipelineCreateResponse.getStatusCode().value());
+
+        var validateResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/users/" + user.getId() + "/validate-blogposts", null, ValidationResponse[].class);
+        assertEquals(200, validateResponse.getStatusCode().value());
+        assertNotNull(validateResponse.getBody());
+        assertEquals(1, validateResponse.getBody().length);
+
+        List<ValidationResult> persisted = validationResultRepository.findByUserId(user.getId());
+        assertEquals(1, persisted.size());
+        ValidationResult result = persisted.getFirst();
+        assertEquals(user.getId(), result.getUserId());
+        assertEquals(blogPost.getId(), result.getContentId());
+        assertTrue(result.isValid());
+        assertEquals(0, result.getErrors().size());
+    }
+
+    @Test
+    void givenMultipleBlogPostsAndPipeline_whenValidateBlogPostsForUser_thenAllResultsPersistedInDatabase() {
+        User user = new User(UUID.randomUUID(), "Persist Multi User", "persistmulti-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        userRepository.createUser(user);
+
+        BlogPost validPost = new BlogPost(UUID.randomUUID(), "Valid Title", "This content is definitely long enough", Instant.now(), Instant.now(), user.getId());
+        BlogPost shortTitlePost = new BlogPost(UUID.randomUUID(), "Bad", "Content that is long enough for validation", Instant.now(), Instant.now(), user.getId());
+        BlogPost shortContentPost = new BlogPost(UUID.randomUUID(), "Another Valid Title", "Short", Instant.now(), Instant.now(), user.getId());
+        BlogPost bothShortPost = new BlogPost(UUID.randomUUID(), "No", "Bad", Instant.now(), Instant.now(), user.getId());
+        blogPostRepository.createBlogPost(validPost);
+        blogPostRepository.createBlogPost(shortTitlePost);
+        blogPostRepository.createBlogPost(shortContentPost);
+        blogPostRepository.createBlogPost(bothShortPost);
+
+        var createPipelineDto = new ValidationPipelineCreateDto();
+        createPipelineDto.setUserId(user.getId());
+        createPipelineDto.setContentType("blogpost");
+        createPipelineDto.setDescription("Persistence multi pipeline");
+        createPipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title", Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content", Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+        var pipelineCreateResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", createPipelineDto, ValidationPipelineModel.class);
+        assertEquals(201, pipelineCreateResponse.getStatusCode().value());
+
+        var validateResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/users/" + user.getId() + "/validate-blogposts", null, ValidationResponse[].class);
+        assertEquals(200, validateResponse.getStatusCode().value());
+        assertNotNull(validateResponse.getBody());
+        assertEquals(4, validateResponse.getBody().length);
+
+        List<ValidationResult> persisted = validationResultRepository.findByUserId(user.getId());
+        assertEquals(4, persisted.size());
+
+        Map<UUID, ValidationResult> byContentId = new HashMap<>();
+        for(ValidationResult r : persisted) {
+            byContentId.put(r.getContentId(), r);
+        }
+        assertTrue(byContentId.get(validPost.getId()).isValid());
+        assertTrue(byContentId.get(validPost.getId()).getErrors().isEmpty());
+
+        ValidationResult titleResult = byContentId.get(shortTitlePost.getId());
+        assertFalse(titleResult.isValid());
+        assertTrue(titleResult.getErrors().stream().anyMatch(e -> e.code().equals(LengthValidator.ERROR_CODE) && e.message().equals(LengthValidator.errorMessageTooShort("title"))));
+
+        ValidationResult contentResult = byContentId.get(shortContentPost.getId());
+        assertFalse(contentResult.isValid());
+        assertTrue(contentResult.getErrors().stream().anyMatch(e -> e.code().equals(LengthValidator.ERROR_CODE) && e.message().equals(LengthValidator.errorMessageTooShort("content"))));
+
+        ValidationResult bothResult = byContentId.get(bothShortPost.getId());
+        assertFalse(bothResult.isValid());
+        assertEquals(2, bothResult.getErrors().size());
+        assertTrue(bothResult.getErrors().stream().anyMatch(e -> e.code().equals(LengthValidator.ERROR_CODE) && e.message().equals(LengthValidator.errorMessageTooShort("title"))));
+        assertTrue(bothResult.getErrors().stream().anyMatch(e -> e.code().equals(LengthValidator.ERROR_CODE) && e.message().equals(LengthValidator.errorMessageTooShort("content"))));
     }
 
 }
