@@ -1,6 +1,7 @@
 package com.dehold.contentmanager.content.blogpost.web;
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
+import com.dehold.contentmanager.content.blogpost.model.BlogPostHistory;
 import com.dehold.contentmanager.content.blogpost.service.BlogPostService;
 import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
@@ -50,5 +51,17 @@ public class BlogPostController {
     public ResponseEntity<Void> deleteBlogPost(@PathVariable UUID id) {
         blogPostService.deleteBlogPost(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<BlogPostHistory>> getBlogPostHistory(@PathVariable UUID id) {
+        List<BlogPostHistory> history = blogPostService.getHistory(id);
+        return ResponseEntity.ok(history);
+    }
+
+    @PostMapping("/{id}/restore/{version}")
+    public ResponseEntity<BlogPost> restoreBlogPostVersion(@PathVariable UUID id, @PathVariable int version) {
+        BlogPost restored = blogPostService.restoreVersion(id, version);
+        return ResponseEntity.ok(restored);
     }
 }
