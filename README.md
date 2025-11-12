@@ -13,6 +13,7 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
    1. Create a new branch for your feature named `feature/your-feature-name` or `fix/your-bug-fix`
    1. Implement the feature or bug fix
    1. Create a pull request to merge your changes back to main
+   1. Inform repository owner for review
 
 ## Features
 
