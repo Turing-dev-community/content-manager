@@ -1,10 +1,12 @@
 package com.dehold.contentmanager.content.blogpost.service;
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
+import com.dehold.contentmanager.content.blogpost.repository.BlogPostHistoryRepository;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
 import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.model.Page;
+import com.dehold.contentmanager.exception.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -28,6 +30,9 @@ class BlogPostServiceTest {
 
     @InjectMocks
     private BlogPostService blogPostService;
+
+    @Mock
+    private BlogPostHistoryRepository blogPostHistoryRepository;
 
     @BeforeEach
     void setUp() {
@@ -173,5 +178,86 @@ class BlogPostServiceTest {
         assertTrue(result.isLast());
         verify(blogPostRepository, times(1)).getPaginatedBlogPosts(eq(size), eq(0), eq(userId));
         verify(blogPostRepository, times(1)).countBlogPosts(eq(userId));
+    }
+    @Test
+    void updateBlogPostVersion_shouldSaveHistoryAndUpdateBlogPost() {
+        UUID blogPostId = UUID.randomUUID();
+        BlogPost existingBlogPost = new BlogPost(
+                blogPostId, "Old Title", "Old Content", Instant.now(), Instant.now(), UUID.randomUUID()
+        );
+
+        when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(existingBlogPost));
+        when(blogPostHistoryRepository.getNextVersionNumber(blogPostId)).thenReturn(1);
+        doNothing().when(blogPostHistoryRepository).saveHistory(any(BlogPost.class), anyInt());
+        doNothing().when(blogPostRepository).updateBlogPost(any(BlogPost.class));
+
+        BlogPost updated = blogPostService.updateBlogPostVersion(blogPostId, "New Title", "New Content");
+
+        assertNotNull(updated);
+        assertEquals("New Title", updated.getTitle());
+        assertEquals("New Content", updated.getContent());
+
+        verify(blogPostHistoryRepository, times(1)).saveHistory(any(BlogPost.class), eq(1));
+        verify(blogPostRepository, times(1)).updateBlogPost(any(BlogPost.class));
+    }
+
+    @Test
+    void updateBlogPostVersion_shouldIncrementVersionNumbersSequentially() {
+        UUID blogPostId = UUID.randomUUID();
+        BlogPost existingBlogPost = new BlogPost(
+                blogPostId, "Title", "Content", Instant.now(), Instant.now(), UUID.randomUUID()
+        );
+
+        when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(existingBlogPost));
+        when(blogPostHistoryRepository.getNextVersionNumber(blogPostId))
+                .thenReturn(1)
+                .thenReturn(2)
+                .thenReturn(3);
+        doNothing().when(blogPostHistoryRepository).saveHistory(any(BlogPost.class), anyInt());
+        doNothing().when(blogPostRepository).updateBlogPost(any(BlogPost.class));
+
+        blogPostService.updateBlogPostVersion(blogPostId, "v1", "c1");
+        blogPostService.updateBlogPostVersion(blogPostId, "v2", "c2");
+        blogPostService.updateBlogPostVersion(blogPostId, "v3", "c3");
+
+        verify(blogPostHistoryRepository, times(3)).saveHistory(any(BlogPost.class), anyInt());
+        verify(blogPostRepository, times(3)).updateBlogPost(any(BlogPost.class));
+    }
+
+    @Test
+    void updateBlogPostVersion_shouldThrowExceptionIfBlogPostNotFound() {
+        UUID missingId = UUID.randomUUID();
+        when(blogPostRepository.getBlogPost(missingId)).thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class, () ->
+                blogPostService.updateBlogPostVersion(missingId, "Title", "Content")
+        );
+
+        verify(blogPostHistoryRepository, never()).saveHistory(any(), anyInt());
+        verify(blogPostRepository, never()).updateBlogPost(any());
+    }
+
+    @Test
+    void updateBlogPostVersion_shouldUpdateTimestampsAndKeepCreatedAtSame() {
+        UUID blogPostId = UUID.randomUUID();
+        Instant originalCreatedAt = Instant.now().minusSeconds(60);
+        Instant originalUpdatedAt = Instant.now().minusSeconds(30);
+
+        BlogPost existingBlogPost = new BlogPost(
+                blogPostId, "Old Title", "Old Content", originalCreatedAt, originalUpdatedAt, UUID.randomUUID()
+        );
+
+        when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(existingBlogPost));
+        when(blogPostHistoryRepository.getNextVersionNumber(blogPostId)).thenReturn(1);
+        doNothing().when(blogPostHistoryRepository).saveHistory(any(BlogPost.class), anyInt());
+        doNothing().when(blogPostRepository).updateBlogPost(any(BlogPost.class));
+
+        BlogPost updated = blogPostService.updateBlogPostVersion(blogPostId, "New Title", "New Content");
+
+        assertEquals(originalCreatedAt, updated.getCreatedAt(), "CreatedAt should not change");
+        assertTrue(updated.getUpdatedAt().isAfter(originalUpdatedAt), "UpdatedAt should be newer");
+
+        verify(blogPostHistoryRepository).saveHistory(any(BlogPost.class), eq(1));
+        verify(blogPostRepository).updateBlogPost(any(BlogPost.class));
     }
 }
