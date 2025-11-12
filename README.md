@@ -2,12 +2,52 @@
 
 A Spring Boot service that helps create, manage, validate and moderate content. This service provides RESTful APIs for managing various types of content including users, blog posts, customer support requests, and support responses.
 
+## How to Contribute
+
+1. Check the list of features below to avoid duplicates
+1. Update the feature list:
+   1. Create a branch named `update-feature-list`
+   1. Add your feature to the feature list table below
+   1. Merge the branch back to main: This will make sure that main always has the latest feature list
+1. Implement the feature:
+   2. Create a new branch for your feature named `feature/your-feature-name` or `fix/your-bug-fix`
+   3. Implement the feature or bug fix
+   4. Create a pull request to merge your changes back to main
+
 ## Features
 
+### List of Features
+
+Please update for each new feature:
+
+| date | contributor email | feature or bug? |feature summary | feature description |
+|------|-------------------|-----------------|----------------|---------------------|
+
+
+### Overview
 - **Content Management**: Create, read, update, and delete various content types
 - **Validation Pipeline**: Configurable validation system with support for length checks and custom validators
 - **Database Support**: H2 for testing, MySQL for production
 - **Profile-based Configuration**: Separate configurations for test and production environments
+
+
+### How to Check Feature Details and Implementations
+
+You can find the details for the currently available features by checking the web and service layer of the app:
+Each domain(-entity) has its own package (e.g. [content](https://github.com/Turing-dev-community/content-manager/tree/main/src/main/java/com/dehold/contentmanager/content) that contains various content types, or [validation](https://github.com/Turing-dev-community/content-manager/tree/main/src/main/java/com/dehold/contentmanager/validation)
+that is responsible for content validation). Each of these packages has different layers:
+
+- `model`: db entities
+- `repository`: db operations
+- `service`: domain logic
+- `web`: controllers etc
+
+By checking the `web` and `service` layers, you can get a good idea of the details of each api.
+
+**Some high level design decisions:**
+- The layering should be the same across domains (mode, repository, service, web)
+- jdbcTemplate with SQL is used to have control over the queries
+- DTOs are used to map requests to the domain models
 
 ## Technology Stack
 
