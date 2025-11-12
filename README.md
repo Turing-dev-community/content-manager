@@ -5,10 +5,7 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
 ## How to Contribute
 
 1. Check the list of features below to avoid duplicates
-1. Update the feature list:
-   1. Create a branch named `update-feature-list`
-   1. Add your feature to the feature list table below
-   1. Merge the branch back to main: This will make sure that main always has the latest feature list
+1. Mention the feature in the Slack channel
 1. Create the issue:
    1. Create a new issue with the feature details from the feature list.
    1. **Use the following structure**: `Summary`, `Current Behavior`, `Expected Behavior`, `Additional Context` (see an 
@@ -16,6 +13,7 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
 1. Implement the feature:
    1. Create a new branch for your feature named `feature/your-feature-name` or `fix/your-bug-fix`
    1. Implement the feature or bug fix
+   1. **Update the feature list**
    1. Create a pull request to merge your changes back to main
    1. Inform repository owner for review
 
@@ -98,7 +96,6 @@ By checking the `web` and `service` layers, you can get a good idea of the detai
 | PUT | `/api/users/{id}` | Update existing user |
 | DELETE | `/api/users/{id}` | Delete user |
 | GET | `/api/users/{id}/blogposts` | Retrieve blog posts owned by a specific user |
-| POST | `/api/users/{id}/validate-blogposts` | Run validations for all blog posts owned by the user and persist results |
 
 **User Model:**
 ```json
