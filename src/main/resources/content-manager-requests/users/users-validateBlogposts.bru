@@ -1,0 +1,22 @@
+meta {
+  name: users-validateBlogposts
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/users/:id/validate-blogposts
+  body: json
+  auth: inherit
+}
+
+params:path {
+  id: 6a8acf9b-c16f-4e2d-9b2d-5f600d04a0b3
+}
+
+body:json {
+  {
+    "name": "Updated User Name",
+    "identifier": "updated-user-identifier"
+  }
+}
