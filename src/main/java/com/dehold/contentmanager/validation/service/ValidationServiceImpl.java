@@ -79,6 +79,7 @@ public class ValidationServiceImpl implements ValidationService {
         List<ValidationResult> results = new LinkedList<>();
         for(ValidationPipeline<BlogPost> pipeline : pipelines) {
             ValidationResult result = pipeline.run(blogPost);
+            validationResultRepository.create(result);
             results.add(result);
         }
         return results;
