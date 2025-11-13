@@ -123,5 +123,35 @@ class ValidationServiceTest {
         assertTrue(report.getErrorCodeToErrorCount().isEmpty());
     }
 
-}
+    @Test
+    void givenSeveralValidationResultsWithErrors_whenReport_thenShouldReturnRightErrors() {
+        UUID userId = UUID.randomUUID();
+        List<ValidationError> errors1 = List.of(
+                new ValidationError(LengthValidator.ERROR_CODE, LengthValidator.errorMessageTooShort("title")),
+                new ValidationError(ForbiddenWordValidator.ERROR_CODE, "Forbidden word 'spam'")
+        );
+        List<ValidationError> errors2 = List.of(
+                new ValidationError(LengthValidator.ERROR_CODE, LengthValidator.errorMessageTooShort("content"))
+        );
+        List<ValidationError> errors3 = List.of(
+                new ValidationError(LengthValidator.ERROR_CODE, LengthValidator.errorMessageTooShort("title")),
+                new ValidationError(LengthValidator.ERROR_CODE, LengthValidator.errorMessageTooShort("content")),
+                new ValidationError(ForbiddenWordValidator.ERROR_CODE, "Forbidden word 'ads'")
+        );
+        ValidationResult result1 = ValidationResult.invalid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId,
+                errors1);
+        ValidationResult result2 = ValidationResult.invalid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId, errors2);
+        ValidationResult result3 = ValidationResult.invalid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId, errors3);
+        when(repository.findByUserId(userId)).thenReturn(List.of(result1, result2, result3));
 
+        ValidationReportDto report = validationService.generateValidationReport(userId);
+        assertNotNull(report);
+        assertEquals(6, report.getTotalErrorCount());
+        assertEquals("4", report.getErrorCodeToErrorCount().get(LengthValidator.ERROR_CODE));
+        assertEquals("2", report.getErrorCodeToErrorCount().get(ForbiddenWordValidator.ERROR_CODE));
+        assertEquals(2, report.getErrorCodeToErrorCount().size());
+    }
+
+
+
+}
