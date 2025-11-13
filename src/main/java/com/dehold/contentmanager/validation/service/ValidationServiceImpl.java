@@ -11,6 +11,7 @@ import com.dehold.contentmanager.validation.repository.ValidationResultRepositor
 import com.dehold.contentmanager.validation.step.ValidationStep;
 import com.dehold.contentmanager.validation.step.ValidationStepFactory;
 import com.dehold.contentmanager.validation.web.dto.BlogPostValidationRequest;
+import com.dehold.contentmanager.validation.web.dto.ValidationReportDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationResponse;
 import com.dehold.contentmanager.validation.web.dto.ValidationResultDto;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.HashMap;
 
 @Service
 public class ValidationServiceImpl implements ValidationService {
@@ -66,6 +68,20 @@ public class ValidationServiceImpl implements ValidationService {
             allResults.addAll(results);
         }
         return allResults;
+    }
+
+    @Override
+    public ValidationReportDto generateValidationReport(UUID userId) {
+        List<ValidationResult> results = validationResultRepository.findByUserId(userId);
+        int totalErrorCount = 0;
+        Map<String, Integer> codeCounts = new HashMap<>();
+        for (ValidationResult result : results) {
+            totalErrorCount += result.getErrors().size();
+            result.getErrors().forEach(error -> codeCounts.merge(error.code(), 1, Integer::sum));
+        }
+        Map<String, String> errorCodeToErrorCount = new HashMap<>();
+        codeCounts.forEach((k, v) -> errorCodeToErrorCount.put(k, String.valueOf(v)));
+        return new ValidationReportDto(totalErrorCount, errorCodeToErrorCount);
     }
 
     private List<ValidationResult> runValidationPipelinesForBlogPost(UUID userId, BlogPost blogPost) {

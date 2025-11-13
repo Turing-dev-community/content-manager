@@ -11,8 +11,10 @@ import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
 import com.dehold.contentmanager.validation.step.LengthValidator;
+import com.dehold.contentmanager.validation.step.PhoneNumberForbiddenValidator;
 import com.dehold.contentmanager.validation.web.dto.BlogPostValidationRequest;
 import com.dehold.contentmanager.validation.web.dto.ValidationPipelineCreateDto;
+import com.dehold.contentmanager.validation.web.dto.ValidationReportDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationResponse;
 import com.dehold.contentmanager.validation.web.dto.ValidationResultDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationStepDto;
@@ -189,7 +191,6 @@ class UserControllerIntegrationTest {
         ValidationResponse validationResponse = restTemplate.postForEntity("http://localhost:" + port + "/api" +
                 "/validate/blogpost", request, ValidationResponse.class).getBody();
         assertNotNull(validationResponse);
-        ValidationResult validationResult = validationResponse.getValidationResult().toValidationResult();
 
         ResponseEntity<ValidationResultDto[]> response =
                 restTemplate.getForEntity("http://localhost:" + port + "/api/users/" +
@@ -322,7 +323,7 @@ class UserControllerIntegrationTest {
                         Map.of("minLength", "10", "maxLength", "1000"), true)
         ));
 
-        var createPipelineResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
                 createPipelineDto, ValidationPipelineModel.class);
 
         var response = restTemplate.postForEntity(
@@ -361,7 +362,7 @@ class UserControllerIntegrationTest {
                         Map.of("minLength", "10", "maxLength", "1000"), true)
         ));
 
-        var createPipelineResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
                 createPipelineDto, ValidationPipelineModel.class);
 
         var response = restTemplate.postForEntity(
@@ -415,7 +416,7 @@ class UserControllerIntegrationTest {
                         Map.of("minLength", "10", "maxLength", "1000"), true)
         ));
 
-        var createPipelineResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
                 createPipelineDto, ValidationPipelineModel.class);
 
         var response = restTemplate.postForEntity(
@@ -483,7 +484,7 @@ class UserControllerIntegrationTest {
                 new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title", Map.of("minLength", "5", "maxLength", "100"), true),
                 new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content", Map.of("minLength", "10", "maxLength", "1000"), true)
         ));
-        var pipelineCreateResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", createPipelineDto, ValidationPipelineModel.class);;
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", createPipelineDto, ValidationPipelineModel.class);;
 
         var validateResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/users/" + user.getId() + "/validate-blogposts", null, ValidationResponse[].class);
         assertEquals(200, validateResponse.getStatusCode().value());
@@ -551,6 +552,105 @@ class UserControllerIntegrationTest {
         assertEquals(2, bothResult.getErrors().size());
         assertTrue(bothResult.getErrors().stream().anyMatch(e -> e.code().equals(LengthValidator.ERROR_CODE) && e.message().equals(LengthValidator.errorMessageTooShort("title"))));
         assertTrue(bothResult.getErrors().stream().anyMatch(e -> e.code().equals(LengthValidator.ERROR_CODE) && e.message().equals(LengthValidator.errorMessageTooShort("content"))));
+    }
+
+    @Test
+    void givenMultipleValidationResults_whenGetValidationReport_thenReturnCorrectReport() {
+        User user = new User(UUID.randomUUID(), "Report User", "reportuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        userRepository.createUser(user);
+
+        BlogPost phoneNumberIncludedInPost = new BlogPost(UUID.randomUUID(), "Valid Title", "This content is sufficiently long, call +1 234 567 8901", Instant.now(), Instant.now(), user.getId());
+        BlogPost shortTitlePost = new BlogPost(UUID.randomUUID(), "Bad", "This content is sufficiently long", Instant.now(), Instant.now(), user.getId());
+        BlogPost shortContentPost = new BlogPost(UUID.randomUUID(), "Another Valid Title", "Short", Instant.now(), Instant.now(), user.getId());
+        blogPostRepository.createBlogPost(phoneNumberIncludedInPost);
+        blogPostRepository.createBlogPost(shortTitlePost);
+        blogPostRepository.createBlogPost(shortContentPost);
+
+        var createPipelineDto = new ValidationPipelineCreateDto();
+        createPipelineDto.setUserId(user.getId());
+        createPipelineDto.setContentType("blogpost");
+        createPipelineDto.setDescription("Report pipeline");
+        createPipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content",
+                        Map.of("minLength", "10", "maxLength", "1000"), true),
+                new ValidationStepDto(null, ValidationStepType.PHONE_NUMBER_FORBIDDEN_VALIDATION, "content",
+                        Map.of(), true)
+        ));
+
+        var pipelineResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                createPipelineDto, ValidationPipelineModel.class);
+        assertEquals(201, pipelineResponse.getStatusCode().value());
+        assertNotNull(pipelineResponse.getBody());
+
+        var validateResponse = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-blogposts",
+                null, ValidationResponse[].class);
+        assertEquals(200, validateResponse.getStatusCode().value());
+        assertNotNull(validateResponse.getBody());
+        assertEquals(3, validateResponse.getBody().length);
+
+        ResponseEntity<ValidationReportDto> reportResponse = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validation-report",
+                ValidationReportDto.class);
+        assertEquals(200, reportResponse.getStatusCode().value());
+        assertNotNull(reportResponse.getBody());
+        ValidationReportDto report = reportResponse.getBody();
+
+        assertEquals(3, report.getTotalErrorCount());
+        assertEquals("2", report.getErrorCodeToErrorCount().get(LengthValidator.ERROR_CODE));
+        assertEquals("1", report.getErrorCodeToErrorCount().get(PhoneNumberForbiddenValidator.ERROR_CODE));
+        assertEquals(2, report.getErrorCodeToErrorCount().size());
+    }
+
+    @Test
+    void givenValidationResultsForMultipleUsers_whenGetValidationReportForUser_thenReturnOnlyRequestedUsersCounts() {
+        User user1 = new User(UUID.randomUUID(), "Report User A", "reportA-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user2 = new User(UUID.randomUUID(), "Report User B", "reportB-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        userRepository.createUser(user1);
+        userRepository.createUser(user2);
+
+        BlogPost user1Valid = new BlogPost(UUID.randomUUID(), "Valid Title", "This content is sufficiently long", Instant.now(), Instant.now(), user1.getId());
+        BlogPost user1InvalidTitle = new BlogPost(UUID.randomUUID(), "Bad", "This content is sufficiently long", Instant.now(), Instant.now(), user1.getId());
+        BlogPost user2InvalidContent = new BlogPost(UUID.randomUUID(), "Another Valid Title", "Short", Instant.now(), Instant.now(), user2.getId());
+        blogPostRepository.createBlogPost(user1Valid);
+        blogPostRepository.createBlogPost(user1InvalidTitle);
+        blogPostRepository.createBlogPost(user2InvalidContent);
+
+        var pipelineDtoUser1 = new ValidationPipelineCreateDto();
+        pipelineDtoUser1.setUserId(user1.getId());
+        pipelineDtoUser1.setContentType("blogpost");
+        pipelineDtoUser1.setDescription("Report pipeline user1");
+        pipelineDtoUser1.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title", Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content", Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", pipelineDtoUser1, ValidationPipelineModel.class);
+
+        var pipelineDtoUser2 = new ValidationPipelineCreateDto();
+        pipelineDtoUser2.setUserId(user2.getId());
+        pipelineDtoUser2.setContentType("blogpost");
+        pipelineDtoUser2.setDescription("Report pipeline user2");
+        pipelineDtoUser2.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title", Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content", Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", pipelineDtoUser2, ValidationPipelineModel.class);
+
+        restTemplate.postForEntity("http://localhost:" + port + "/api/users/" + user1.getId() + "/validate-blogposts", null, ValidationResponse[].class);
+        restTemplate.postForEntity("http://localhost:" + port + "/api/users/" + user2.getId() + "/validate-blogposts", null, ValidationResponse[].class);
+
+        ResponseEntity<ValidationReportDto> reportResponse = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/users/" + user1.getId() + "/validation-report",
+                ValidationReportDto.class);
+        assertEquals(200, reportResponse.getStatusCode().value());
+        assertNotNull(reportResponse.getBody());
+        ValidationReportDto report = reportResponse.getBody();
+
+        assertEquals(1, report.getTotalErrorCount());
+        assertEquals("1", report.getErrorCodeToErrorCount().get(LengthValidator.ERROR_CODE));
+        assertEquals(1, report.getErrorCodeToErrorCount().size());
     }
 
 }

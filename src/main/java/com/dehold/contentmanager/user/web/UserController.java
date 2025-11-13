@@ -8,6 +8,7 @@ import com.dehold.contentmanager.user.web.dto.UserResponse;
 import com.dehold.contentmanager.user.web.dto.UpdateUserRequest;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.service.ValidationService;
+import com.dehold.contentmanager.validation.web.dto.ValidationReportDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationResponse;
 import com.dehold.contentmanager.validation.web.dto.ValidationResultDto;
 import org.springframework.http.HttpStatus;
@@ -72,6 +73,13 @@ public class UserController {
         List<ValidationResult> validationResults = validationService.findByUserId(id);
         List<ValidationResultDto> validationResultDtos = validationResults.stream().map(ValidationResultDto::from).toList();
         return ResponseEntity.ok(validationResultDtos);
+    }
+
+    @GetMapping("/{id}/validation-report")
+    public ResponseEntity<ValidationReportDto> getValidationReportByUserId(@PathVariable UUID id) {
+        userService.getUser(id); // Check for the user to be existent
+        ValidationReportDto report = validationService.generateValidationReport(id);
+        return ResponseEntity.ok(report);
     }
 
     @PutMapping("/{id}")
