@@ -1,8 +1,11 @@
 package com.dehold.contentmanager.validation.service;
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
+import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.repository.ValidationResultRepository;
+import com.dehold.contentmanager.validation.step.ForbiddenWordValidator;
+import com.dehold.contentmanager.validation.step.LengthValidator;
 import com.dehold.contentmanager.validation.web.dto.BlogPostValidationRequest;
 import com.dehold.contentmanager.validation.web.dto.ValidationReportDto;
 import org.junit.jupiter.api.BeforeEach;
@@ -85,6 +88,25 @@ class ValidationServiceTest {
         assertNotNull(report);
         assertEquals(0, report.getTotalErrorCount());
         assertTrue(report.getErrorCodeToErrorCount().isEmpty());
+    }
+
+    @Test
+    void givenOneValidationResultWithSeveralErrors_whenReport_thenShouldReturnRightErrors() {
+        UUID userId = UUID.randomUUID();
+        List<ValidationError> errors = List.of(
+                new ValidationError(LengthValidator.ERROR_CODE, LengthValidator.errorMessageTooShort("title")),
+                new ValidationError(LengthValidator.ERROR_CODE, LengthValidator.errorMessageTooShort("content")),
+                new ValidationError(ForbiddenWordValidator.ERROR_CODE, "Forbidden word 'spam'")
+        );
+        ValidationResult result = ValidationResult.invalid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId, errors);
+        when(repository.findByUserId(userId)).thenReturn(List.of(result));
+
+        ValidationReportDto report = validationService.generateValidationReport(userId);
+        assertNotNull(report);
+        assertEquals(3, report.getTotalErrorCount());
+        assertEquals("2", report.getErrorCodeToErrorCount().get(LengthValidator.ERROR_CODE));
+        assertEquals("1", report.getErrorCodeToErrorCount().get(ForbiddenWordValidator.ERROR_CODE));
+        assertEquals(2, report.getErrorCodeToErrorCount().size());
     }
 
 }
