@@ -111,4 +111,14 @@ public class UserController {
                 .toList();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
+
+    @PostMapping("/{id}/validate-supportrequests")
+    public ResponseEntity<List<ValidationResponse>> validateSupportRequests(@PathVariable UUID userId) {
+        List<ValidationResult> results = validationService.runSupportRequestValidation(userId);
+        List<ValidationResponse> responses = results.stream()
+                .map(result -> new ValidationResponse("SupportRequest", ValidationResultDto.from(result)))
+                .toList();
+        return ResponseEntity.ok(responses);
+    }
+
 }
