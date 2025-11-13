@@ -109,4 +109,19 @@ class ValidationServiceTest {
         assertEquals(2, report.getErrorCodeToErrorCount().size());
     }
 
+    @Test
+    void givenSeveralValidationResultsWithoutErrors_whenReport_thenShouldReturnZeroErrors() {
+        UUID userId = UUID.randomUUID();
+        ValidationResult result1 = ValidationResult.valid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId);
+        ValidationResult result2 = ValidationResult.valid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId);
+        ValidationResult result3 = ValidationResult.valid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId);
+        when(repository.findByUserId(userId)).thenReturn(List.of(result1, result2, result3));
+
+        ValidationReportDto report = validationService.generateValidationReport(userId);
+        assertNotNull(report);
+        assertEquals(0, report.getTotalErrorCount());
+        assertTrue(report.getErrorCodeToErrorCount().isEmpty());
+    }
+
 }
+
