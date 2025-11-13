@@ -19,5 +19,7 @@ public interface ValidationService {
 
     ValidationReportDto generateValidationReport(UUID userId);
 
+    List<ValidationResult> runSupportRequestValidation(UUID userId);
+
     List<ValidationResult> runSupportResponseValidation(UUID userId);
 }
