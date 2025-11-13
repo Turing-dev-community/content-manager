@@ -4,6 +4,7 @@ import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.repository.ValidationResultRepository;
 import com.dehold.contentmanager.validation.web.dto.BlogPostValidationRequest;
+import com.dehold.contentmanager.validation.web.dto.ValidationReportDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -13,12 +14,14 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class ValidationServiceTest {
 
@@ -70,6 +73,18 @@ class ValidationServiceTest {
         assertEquals(BlogPost.class.getSimpleName(), captureResult.getContentType());
         assertEquals(blogPostValidationRequest.getBlogPost().getId(), captureResult.getContentId());
         assertTrue(captureResult.isValid());
+    }
+
+    @Test
+    void givenOneValidationResultWithoutErrors_whenReport_thenShouldReturnNoErrors() {
+        UUID userId = UUID.randomUUID();
+        ValidationResult result = ValidationResult.valid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId);
+        when(repository.findByUserId(userId)).thenReturn(List.of(result));
+
+        ValidationReportDto report = validationService.generateValidationReport(userId);
+        assertNotNull(report);
+        assertEquals(0, report.getTotalErrorCount());
+        assertTrue(report.getErrorCodeToErrorCount().isEmpty());
     }
 
 }

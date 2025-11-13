@@ -553,4 +553,6 @@ class UserControllerIntegrationTest {
         assertTrue(bothResult.getErrors().stream().anyMatch(e -> e.code().equals(LengthValidator.ERROR_CODE) && e.message().equals(LengthValidator.errorMessageTooShort("content"))));
     }
 
+
+
 }
