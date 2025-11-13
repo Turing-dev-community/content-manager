@@ -1,0 +1,20 @@
+meta {
+  name: users-validation-report
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/users/:id/validation-report
+  body: none
+  auth: inherit
+}
+
+params:path {
+  id: cfae6bd8-0dd3-4d47-9ff1-da0d07b4d83f
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
