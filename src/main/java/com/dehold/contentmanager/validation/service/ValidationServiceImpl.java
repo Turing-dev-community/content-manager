@@ -37,16 +37,21 @@ public class ValidationServiceImpl implements ValidationService {
     @Autowired
     private final BlogPostService blogPostService;
 
+    @Autowired
+    private final ForbiddenWordsService forbiddenWordsService;
+
     public ValidationServiceImpl(ValidationResultRepository validationResultRepository,
-                                 ValidationPipelineFactory validationPipelineFactory, BlogPostService blogPostService) {
+                                 ValidationPipelineFactory validationPipelineFactory, BlogPostService blogPostService,
+                                 ForbiddenWordsService forbiddenWordsService) {
         this.blogPostService = blogPostService;
         this.validationPipelineFactory = validationPipelineFactory;
         this.validationResultRepository = validationResultRepository;
+        this.forbiddenWordsService = forbiddenWordsService;
     }
 
     @Override
     public ValidationResponse validateBlogPost(BlogPostValidationRequest request) {
-        ValidationStepFactory factory = new ValidationStepFactory(null);
+        ValidationStepFactory factory = new ValidationStepFactory(forbiddenWordsService);
         ValidationStep<BlogPost> titleLengthValidator = getTitleLengthValidator(request, factory);
         ValidationStep<BlogPost> contentLengthValidator = getBlogPostLengthValidator(request, factory);
         ValidationPipeline<BlogPost> pipeline = new ValidationPipelineBuilder<BlogPost>()
