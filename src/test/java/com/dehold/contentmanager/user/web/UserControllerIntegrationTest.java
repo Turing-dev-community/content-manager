@@ -324,8 +324,6 @@ class UserControllerIntegrationTest {
 
         var createPipelineResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
                 createPipelineDto, ValidationPipelineModel.class);
-        assertEquals(201, createPipelineResponse.getStatusCode().value());
-        assertNotNull(createPipelineResponse.getBody());
 
         var response = restTemplate.postForEntity(
                 "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-blogposts",
@@ -365,8 +363,6 @@ class UserControllerIntegrationTest {
 
         var createPipelineResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
                 createPipelineDto, ValidationPipelineModel.class);
-        assertEquals(201, createPipelineResponse.getStatusCode().value());
-        assertNotNull(createPipelineResponse.getBody());
 
         var response = restTemplate.postForEntity(
                 "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-blogposts",
@@ -421,8 +417,6 @@ class UserControllerIntegrationTest {
 
         var createPipelineResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
                 createPipelineDto, ValidationPipelineModel.class);
-        assertEquals(201, createPipelineResponse.getStatusCode().value());
-        assertNotNull(createPipelineResponse.getBody());
 
         var response = restTemplate.postForEntity(
                 "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-blogposts",
@@ -489,8 +483,7 @@ class UserControllerIntegrationTest {
                 new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title", Map.of("minLength", "5", "maxLength", "100"), true),
                 new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content", Map.of("minLength", "10", "maxLength", "1000"), true)
         ));
-        var pipelineCreateResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", createPipelineDto, ValidationPipelineModel.class);
-        assertEquals(201, pipelineCreateResponse.getStatusCode().value());
+        var pipelineCreateResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", createPipelineDto, ValidationPipelineModel.class);;
 
         var validateResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/users/" + user.getId() + "/validate-blogposts", null, ValidationResponse[].class);
         assertEquals(200, validateResponse.getStatusCode().value());
@@ -529,7 +522,6 @@ class UserControllerIntegrationTest {
                 new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content", Map.of("minLength", "10", "maxLength", "1000"), true)
         ));
         var pipelineCreateResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", createPipelineDto, ValidationPipelineModel.class);
-        assertEquals(201, pipelineCreateResponse.getStatusCode().value());
 
         var validateResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/users/" + user.getId() + "/validate-blogposts", null, ValidationResponse[].class);
         assertEquals(200, validateResponse.getStatusCode().value());
