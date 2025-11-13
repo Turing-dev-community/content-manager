@@ -92,4 +92,15 @@ public class UserController {
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{id}/validate-blogposts")
+    public ResponseEntity<List<ValidationResponse>> validateBlogPostsForUser(@PathVariable UUID id) {
+        userService.getUser(id); // Check for the user to be existent
+        List<ValidationResult> results = validationService.runBlogPostValidation(id);
+        List<ValidationResponse> response = results.stream()
+                .map(ValidationResultDto::from)
+                .map(dto -> new ValidationResponse(BlogPost.class.getSimpleName(), dto))
+                .toList();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
 }

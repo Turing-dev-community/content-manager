@@ -1,17 +1,13 @@
 package com.dehold.contentmanager.validation.service;
 
-import com.dehold.contentmanager.content.Content;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.service.BlogPostService;
-import com.dehold.contentmanager.validation.model.ContentTypeRegistry;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
 import com.dehold.contentmanager.validation.pipeline.ValidationPipeline;
 import com.dehold.contentmanager.validation.pipeline.ValidationPipelineBuilder;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.pipeline.ValidationPipelineFactory;
-import com.dehold.contentmanager.validation.pipeline.ValidationPipelineImpl;
 import com.dehold.contentmanager.validation.repository.ValidationResultRepository;
-import com.dehold.contentmanager.validation.step.LengthValidator;
 import com.dehold.contentmanager.validation.step.ValidationStep;
 import com.dehold.contentmanager.validation.step.ValidationStepFactory;
 import com.dehold.contentmanager.validation.web.dto.BlogPostValidationRequest;
@@ -77,11 +73,22 @@ public class ValidationServiceImpl implements ValidationService {
                 validationPipelineFactory.createValidationPipelineForUserAndContentType(userId,
                         "blogpost");
         List<ValidationResult> results = new LinkedList<>();
+        collectResults(blogPost, pipelines, results);
+        persistsResults(results);
+        return results;
+    }
+
+    private void collectResults(BlogPost blogPost, List<ValidationPipeline<BlogPost>> pipelines, List<ValidationResult> results) {
         for(ValidationPipeline<BlogPost> pipeline : pipelines) {
             ValidationResult result = pipeline.run(blogPost);
             results.add(result);
         }
-        return results;
+    }
+
+    private void persistsResults(List<ValidationResult> results) {
+        for(ValidationResult result : results) {
+            this.createValidationResult(result);
+        }
     }
 
     private static ValidationStep<BlogPost> getBlogPostLengthValidator(BlogPostValidationRequest request, ValidationStepFactory factory) {
