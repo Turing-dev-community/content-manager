@@ -604,4 +604,53 @@ class UserControllerIntegrationTest {
         assertEquals(2, report.getErrorCodeToErrorCount().size());
     }
 
+    @Test
+    void givenValidationResultsForMultipleUsers_whenGetValidationReportForUser_thenReturnOnlyRequestedUsersCounts() {
+        User user1 = new User(UUID.randomUUID(), "Report User A", "reportA-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user2 = new User(UUID.randomUUID(), "Report User B", "reportB-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        userRepository.createUser(user1);
+        userRepository.createUser(user2);
+
+        BlogPost user1Valid = new BlogPost(UUID.randomUUID(), "Valid Title", "This content is sufficiently long", Instant.now(), Instant.now(), user1.getId());
+        BlogPost user1InvalidTitle = new BlogPost(UUID.randomUUID(), "Bad", "This content is sufficiently long", Instant.now(), Instant.now(), user1.getId());
+        BlogPost user2InvalidContent = new BlogPost(UUID.randomUUID(), "Another Valid Title", "Short", Instant.now(), Instant.now(), user2.getId());
+        blogPostRepository.createBlogPost(user1Valid);
+        blogPostRepository.createBlogPost(user1InvalidTitle);
+        blogPostRepository.createBlogPost(user2InvalidContent);
+
+        var pipelineDtoUser1 = new ValidationPipelineCreateDto();
+        pipelineDtoUser1.setUserId(user1.getId());
+        pipelineDtoUser1.setContentType("blogpost");
+        pipelineDtoUser1.setDescription("Report pipeline user1");
+        pipelineDtoUser1.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title", Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content", Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", pipelineDtoUser1, ValidationPipelineModel.class);
+
+        var pipelineDtoUser2 = new ValidationPipelineCreateDto();
+        pipelineDtoUser2.setUserId(user2.getId());
+        pipelineDtoUser2.setContentType("blogpost");
+        pipelineDtoUser2.setDescription("Report pipeline user2");
+        pipelineDtoUser2.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title", Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content", Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", pipelineDtoUser2, ValidationPipelineModel.class);
+
+        restTemplate.postForEntity("http://localhost:" + port + "/api/users/" + user1.getId() + "/validate-blogposts", null, ValidationResponse[].class);
+        restTemplate.postForEntity("http://localhost:" + port + "/api/users/" + user2.getId() + "/validate-blogposts", null, ValidationResponse[].class);
+
+        ResponseEntity<ValidationReportDto> reportResponse = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/users/" + user1.getId() + "/validation-report",
+                ValidationReportDto.class);
+        assertEquals(200, reportResponse.getStatusCode().value());
+        assertNotNull(reportResponse.getBody());
+        ValidationReportDto report = reportResponse.getBody();
+
+        assertEquals(1, report.getTotalErrorCount());
+        assertEquals("1", report.getErrorCodeToErrorCount().get(LengthValidator.ERROR_CODE));
+        assertEquals(1, report.getErrorCodeToErrorCount().size());
+    }
+
 }
