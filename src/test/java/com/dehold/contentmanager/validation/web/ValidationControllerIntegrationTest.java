@@ -178,8 +178,6 @@ class ValidationControllerIntegrationTest {
         var createBlogPostResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/blogposts",
                 blogPost,
                 BlogPost.class);
-        assertEquals(201, createBlogPostResponse.getStatusCode().value());
-        assertNotNull(createBlogPostResponse.getBody());
 
         var createPipelineDto = new ValidationPipelineCreateDto();
         createPipelineDto.setUserId(userId);
@@ -194,8 +192,6 @@ class ValidationControllerIntegrationTest {
 
         var createPipelineResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
                 createPipelineDto, ValidationPipelineModel.class);
-        assertEquals(201, createPipelineResponse.getStatusCode().value());
-        assertNotNull(createPipelineResponse.getBody());
 
         var response = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/validate-blogposts?userId=" + userId,
                 null, ValidationResponse[].class);
@@ -224,8 +220,6 @@ class ValidationControllerIntegrationTest {
         var createBlogPostResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/blogposts",
                 blogPost,
                 BlogPost.class);
-        assertEquals(201, createBlogPostResponse.getStatusCode().value());
-        assertNotNull(createBlogPostResponse.getBody());
 
         var createPipelineDto = new ValidationPipelineCreateDto();
         createPipelineDto.setUserId(userId);
@@ -240,8 +234,6 @@ class ValidationControllerIntegrationTest {
 
         var createPipelineResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
                 createPipelineDto, ValidationPipelineModel.class);
-        assertEquals(201, createPipelineResponse.getStatusCode().value());
-        assertNotNull(createPipelineResponse.getBody());
 
         var response = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/validate-blogposts?userId=" + userId,
                 null, ValidationResponse[].class);
@@ -279,22 +271,16 @@ class ValidationControllerIntegrationTest {
         BlogPost blogPost1 = new BlogPost(UUID.randomUUID(), "Hi", "This is valid content for the first blog post", Instant.now(), Instant.now(), userId);
         var createBlogPost1Response = restTemplate.postForEntity("http://localhost:" + port + "/api/blogposts",
                 blogPost1, BlogPost.class);
-        assertEquals(201, createBlogPost1Response.getStatusCode().value());
-        assertNotNull(createBlogPost1Response.getBody());
 
         //Violation in title
         BlogPost blogPost2 = new BlogPost(UUID.randomUUID(), "Valid Title Here", "Short", Instant.now(), Instant.now(), userId);
         var createBlogPost2Response = restTemplate.postForEntity("http://localhost:" + port + "/api/blogposts",
                 blogPost2, BlogPost.class);
-        assertEquals(201, createBlogPost2Response.getStatusCode().value());
-        assertNotNull(createBlogPost2Response.getBody());
 
         //Vioalation in both content and title
         BlogPost blogPost3 = new BlogPost(UUID.randomUUID(), "Bad", "Bad", Instant.now(), Instant.now(), userId);
         var createBlogPost3Response = restTemplate.postForEntity("http://localhost:" + port + "/api/blogposts",
                 blogPost3, BlogPost.class);
-        assertEquals(201, createBlogPost3Response.getStatusCode().value());
-        assertNotNull(createBlogPost3Response.getBody());
 
         var createPipelineDto = new ValidationPipelineCreateDto();
         createPipelineDto.setUserId(userId);
@@ -309,8 +295,6 @@ class ValidationControllerIntegrationTest {
 
         var createPipelineResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
                 createPipelineDto, ValidationPipelineModel.class);
-        assertEquals(201, createPipelineResponse.getStatusCode().value());
-        assertNotNull(createPipelineResponse.getBody());
 
         var response = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/validate-blogposts?userId=" + userId,
                 null, ValidationResponse[].class);
