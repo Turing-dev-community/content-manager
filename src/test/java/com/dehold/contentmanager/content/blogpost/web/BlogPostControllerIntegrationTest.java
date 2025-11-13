@@ -46,11 +46,11 @@ class BlogPostControllerIntegrationTest {
 
     @BeforeAll
     static void setup(@Autowired JdbcTemplate jdbcTemplate) {
-        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-                user1Id, "testuser1", "testuser1@example.com");
+        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                user1Id, "testuser1", "testuser1@example.com", "TestUser-" + UUID.randomUUID(), "TestPassword-" + UUID.randomUUID());
 
-        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-                user2Id, "testuser2", "testuser2@example.com");
+        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, true,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                user2Id, "testuser2", "testuser2@example.com", "TestUser-" + UUID.randomUUID(), "TestPassword-" + UUID.randomUUID());
     }
 
     @Test
