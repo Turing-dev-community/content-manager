@@ -114,8 +114,9 @@ public class GenericModelRepository {
     private Map<String, ContentFieldValue> deserializeFields(String json) {
         try {
             if (json == null || json.isEmpty()) return Map.of();
+            String cleanJson = stripRedundantQuotes(json);
             Map<String, Map<String, Object>> envelope = objectMapper.readValue(
-                    json,
+                    cleanJson,
                     new TypeReference<Map<String, Map<String, Object>>>() {}
             );
             Map<String, ContentFieldValue> result = new HashMap<>();
@@ -132,6 +133,14 @@ public class GenericModelRepository {
         } catch (Exception e) {
             throw new RuntimeException("Failed to deserialize fields", e);
         }
+    }
+
+    private static String stripRedundantQuotes(String json) {
+        String clean = json;
+        if (json.startsWith("\"") && json.endsWith("\"")) {
+            clean = json.substring(1, json.length() - 1).replace("\\\"", "\"");
+        }
+        return clean;
     }
 
     private Object coerce(Object raw, ValueType vt) {
