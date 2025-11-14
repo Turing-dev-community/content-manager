@@ -7,6 +7,7 @@ import com.dehold.contentmanager.user.model.User;
 import com.dehold.contentmanager.user.repository.UserRepository;
 import com.dehold.contentmanager.user.web.dto.CreateUserRequest;
 import com.dehold.contentmanager.user.web.dto.UpdateUserRequest;
+import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
@@ -18,7 +19,12 @@ import com.dehold.contentmanager.validation.web.dto.ValidationReportDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationResponse;
 import com.dehold.contentmanager.validation.web.dto.ValidationResultDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationStepDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.dehold.contentmanager.validation.repository.ValidationResultRepository;
+import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
+import com.dehold.contentmanager.content.customersupport.model.SupportResponse;
+import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
+import com.dehold.contentmanager.content.customersupport.repository.SupportResponseRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -26,7 +32,12 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JsonMappingException;
 
 import java.time.Instant;
 import java.util.*;
@@ -50,6 +61,12 @@ class UserControllerIntegrationTest {
 
     @Autowired
     private ValidationResultRepository validationResultRepository;
+
+    @Autowired
+    private SupportRequestRepository supportRequestRepository;
+
+    @Autowired
+    private SupportResponseRepository supportResponseRepository;
 
     @Test
     void createUser_shouldReturnCreatedUser() {
@@ -651,6 +668,275 @@ class UserControllerIntegrationTest {
         assertEquals(1, report.getTotalErrorCount());
         assertEquals("1", report.getErrorCodeToErrorCount().get(LengthValidator.ERROR_CODE));
         assertEquals(1, report.getErrorCodeToErrorCount().size());
+    }
+
+    @Test
+    void givenOneSupportResponseAndPersistedValidationPipeline_validateSupportResponsesForUser_shouldReturnValidationResult() {
+        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        userRepository.createUser(user);
+
+        SupportRequest supportRequest = new SupportRequest(UUID.randomUUID(), user.getId(), "Help needed", null, user.getId(), Instant.now(), Instant.now());
+        supportRequestRepository.create(supportRequest);
+
+        SupportResponse supportResponse = new SupportResponse(UUID.randomUUID(), user.getId(), "We have resolved your issue. Thank you.", supportRequest.getId(), Instant.now(), Instant.now());
+        supportResponseRepository.create(supportResponse);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("supportresponse");
+        pipelineDto.setDescription("Test pipeline for support response validation");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "text",
+                Map.of("minLength", "10", "maxLength", "500"), true)
+        ));
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", pipelineDto, ValidationPipelineModel.class);
+
+        ResponseEntity<ValidationResponse[]> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportresponses",
+                null, ValidationResponse[].class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        ValidationResponse[] results = response.getBody();
+        assertNotNull(results);
+        assertEquals(1, results.length);
+
+        ValidationResponse validationResponse = results[0];
+        assertEquals("SupportResponse", validationResponse.getContentType());
+
+        ValidationResultDto result = validationResponse.getValidationResult();
+        assertEquals("SupportResponse", result.getContentType());
+        assertEquals(user.getId(), result.getUserId());
+        assertTrue(result.isValid());
+    }
+    
+    @Test
+    void givenInvalidSupportResponseAndPersistedValidationPipeline_validateSupportResponsesForUser_shouldReturnValidationResultWithErrors() {
+        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        userRepository.createUser(user);
+
+        SupportRequest supportRequest = new SupportRequest(UUID.randomUUID(), user.getId(), "Help", null, user.getId(), Instant.now(), Instant.now());
+        supportRequestRepository.create(supportRequest);
+
+        SupportResponse supportResponse = new SupportResponse(UUID.randomUUID(), user.getId(), "Hi", supportRequest.getId(), Instant.now(), Instant.now());
+        supportResponseRepository.create(supportResponse);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("supportresponse");
+        pipelineDto.setDescription("Test pipeline for support response validation");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "text",
+                Map.of("minLength", "10", "maxLength", "500"), true)
+        ));
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", pipelineDto, ValidationPipelineModel.class);
+
+        ResponseEntity<ValidationResponse[]> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportresponses",
+                null, ValidationResponse[].class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        ValidationResponse[] results = response.getBody();
+        assertNotNull(results);
+        assertEquals(1, results.length);
+
+        ValidationResponse validationResponse = results[0];
+        assertEquals("SupportResponse", validationResponse.getContentType());
+
+        ValidationResultDto result = validationResponse.getValidationResult();
+        assertEquals("SupportResponse", result.getContentType());
+        assertEquals(user.getId(), result.getUserId());
+        assertFalse(result.isValid());
+        assertEquals(1, result.getErrors().size());
+
+        assertTrue(result.getErrors().stream().anyMatch(
+                e -> e.code().equals(LengthValidator.ERROR_CODE) &&
+                e.message().equals(LengthValidator.errorMessageTooShort("text"))
+        ));
+    }
+
+    @Test
+    void givenOneSupportResponseAndPipeline_whenValidateSupportResponsesForUser_thenResultPersistedInDatabase() {
+        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        userRepository.createUser(user);
+
+        SupportRequest supportRequest = new SupportRequest(UUID.randomUUID(), user.getId(), "Help", null, user.getId(), Instant.now(), Instant.now());
+        supportRequestRepository.create(supportRequest);
+
+        SupportResponse supportResponse = new SupportResponse(UUID.randomUUID(), user.getId(), "Valid response text", supportRequest.getId(), Instant.now(), Instant.now());
+        supportResponseRepository.create(supportResponse);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("supportresponse");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "text",
+                Map.of("minLength", "5", "maxLength", "500"), true)
+        ));
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", pipelineDto, ValidationPipelineModel.class);
+
+        restTemplate.postForEntity("http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportresponses", null, ValidationResponse[].class);
+
+        List<ValidationResult> persisted = validationResultRepository.findByUserId(user.getId());
+        assertEquals(1, persisted.size());
+        ValidationResult result = persisted.get(0);
+        assertEquals(user.getId(), result.getUserId());
+        assertEquals(supportResponse.getId(), result.getContentId());
+        assertTrue(result.isValid());
+    }
+
+    @Test
+    void givenMultipleSupportResponsesAndPipeline_whenValidateSupportResponsesForUser_thenAllResultsPersistedInDatabase() {
+        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        userRepository.createUser(user);
+
+        SupportRequest request1 = new SupportRequest(UUID.randomUUID(), user.getId(), "Issue 1", null, user.getId(), Instant.now(), Instant.now());
+        SupportRequest request2 = new SupportRequest(UUID.randomUUID(), user.getId(), "Issue 2", null, user.getId(), Instant.now(), Instant.now());
+        supportRequestRepository.create(request1);
+        supportRequestRepository.create(request2);
+
+        SupportResponse response1 = new SupportResponse(UUID.randomUUID(), user.getId(), "Valid response", request1.getId(), Instant.now(), Instant.now());
+        SupportResponse response2 = new SupportResponse(UUID.randomUUID(), user.getId(), "Short", request2.getId(), Instant.now(), Instant.now());
+        supportResponseRepository.create(response1);
+        supportResponseRepository.create(response2);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("supportresponse");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "text",
+                Map.of("minLength", "10", "maxLength", "500"), true)
+        ));
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", pipelineDto, ValidationPipelineModel.class);
+
+        restTemplate.postForEntity("http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportresponses", null, ValidationResponse[].class);
+
+        List<ValidationResult> persisted = validationResultRepository.findByUserId(user.getId());
+        assertEquals(2, persisted.size());
+
+        Map<UUID, ValidationResult> byContentId = new HashMap<>();
+        for (ValidationResult r : persisted) {
+                byContentId.put(r.getContentId(), r);
+        }
+
+        assertTrue(byContentId.get(response1.getId()).isValid());
+        assertFalse(byContentId.get(response2.getId()).isValid());
+    }
+
+    @Test
+    void givenMultipleSupportResponsesWithViolationsAndPersistedValidationPipeline_validateSupportResponsesForUser_shouldReturnAllValidationResults() throws JsonMappingException, JsonProcessingException {
+        // ---------- Arrange ----------
+        User user = new User(UUID.randomUUID(),
+                "Support User",
+                "support-" + UUID.randomUUID() + "@example.com",
+                Instant.now(), Instant.now());
+        userRepository.createUser(user);
+
+        SupportRequest r1 = new SupportRequest(UUID.randomUUID(), user.getId(), "Issue 1", null, user.getId(), Instant.now(), Instant.now());
+        SupportRequest r2 = new SupportRequest(UUID.randomUUID(), user.getId(), "Issue 2", null, user.getId(), Instant.now(), Instant.now());
+        SupportRequest r3 = new SupportRequest(UUID.randomUUID(), user.getId(), "Issue 3", null, user.getId(), Instant.now(), Instant.now());
+        supportRequestRepository.create(r1);
+        supportRequestRepository.create(r2);
+        supportRequestRepository.create(r3);
+
+        // Valid (30 chars)
+        SupportResponse valid = new SupportResponse(UUID.randomUUID(), user.getId(),
+                "This is a valid response text.", r1.getId(), Instant.now(), Instant.now());
+        // Too short (2 chars)
+        SupportResponse short1 = new SupportResponse(UUID.randomUUID(), user.getId(),
+                "Hi", r2.getId(), Instant.now(), Instant.now());
+        // Too short (1 char)
+        SupportResponse short2 = new SupportResponse(UUID.randomUUID(), user.getId(),
+                "A", r3.getId(), Instant.now(), Instant.now());
+
+        supportResponseRepository.create(valid);
+        supportResponseRepository.create(short1);
+        supportResponseRepository.create(short2);
+
+        // Pipeline – step **id is required**
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("supportresponse");
+        pipelineDto.setDescription("Min length validation");
+        Map<String, String> lengthParams = new HashMap<>();
+        lengthParams.put("minLength", "10");
+        lengthParams.put("maxLength", "1000"); 
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(UUID.randomUUID(),   // ← dummy UUID (required)
+                        ValidationStepType.LENGTH_VALIDATION,
+                        "text",
+                        lengthParams,   // ← only minLength is checked
+                        true)
+        ));
+        
+        // ----------------------------------------------------
+        // FIX 1: Assert pipeline creation status to catch 400s during setup
+        // ----------------------------------------------------
+        ResponseEntity<ValidationPipelineModel> pipelineResponse = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto,
+                ValidationPipelineModel.class);
+                
+        // Assert that the pipeline was created successfully (usually 201 CREATED)
+        assertEquals(HttpStatus.CREATED, pipelineResponse.getStatusCode(), 
+            "Pipeline creation failed during setup. Check server logs for validation errors on pipelineDto."); 
+        // ----------------------------------------------------
+
+        // ---------- Act ----------
+        // Fetch raw JSON response to handle manual deserialization
+        ResponseEntity<String> response = restTemplate.exchange(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportresponses",
+                HttpMethod.POST,
+                null,
+                String.class
+        );
+    
+        // ---------- Assert ----------
+        // Assert the HTTP status of the final validation call
+        assertEquals(HttpStatus.OK, response.getStatusCode(), 
+            "Validation API call failed. Check server logs for the 400 BAD_REQUEST root cause.");
+            
+        String jsonBody = response.getBody();
+        assertNotNull(jsonBody);
+
+        // ----------------------------------------------------
+        // FIX 2: Manual deserialization using ObjectMapper to resolve Jackson/Record issues
+        // ----------------------------------------------------
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.findAndRegisterModules(); // Helps with Java 8 types like Records and Instant
+
+        // Define the correct type reference for manual deserialization
+        JavaType type = mapper.getTypeFactory().constructCollectionType(List.class, ValidationResponse.class);
+
+        // Manually deserialize the JSON string
+        List<ValidationResponse> results = mapper.readValue(jsonBody, type);
+        // ----------------------------------------------------
+
+        assertNotNull(results);
+        assertEquals(3, results.size());
+    
+        int validCount = 0;
+        int shortCount = 0;
+    
+        for (ValidationResponse vr : results) {
+            ValidationResultDto dto = vr.getValidationResult();
+            assertEquals("SupportResponse", dto.getContentType());
+            assertEquals(user.getId(), dto.getUserId());
+    
+            if (dto.isValid()) {
+                validCount++;
+            } else {
+                assertEquals(1, dto.getErrors().size());
+                ValidationError err = dto.getErrors().get(0);
+                assertEquals(LengthValidator.ERROR_CODE, err.code());
+                assertEquals(LengthValidator.errorMessageTooShort("text"), err.message());
+                shortCount++;
+            }
+        }
+    
+        assertEquals(1, validCount);   // only the first response
+        assertEquals(2, shortCount);   // two short responses
     }
 
 }
