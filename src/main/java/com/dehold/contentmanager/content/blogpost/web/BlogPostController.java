@@ -4,7 +4,11 @@ import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.service.BlogPostService;
 import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -50,5 +54,14 @@ public class BlogPostController {
     public ResponseEntity<Void> deleteBlogPost(@PathVariable UUID id) {
         blogPostService.deleteBlogPost(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Downloadable JSON export: returns application/json with
+     * Content-Disposition: attachment; filename="export-<userId>.json"
+     */
+    @GetMapping("/download/{userId}")
+    public ResponseEntity<byte[]> downloadExport(@PathVariable UUID userId) throws Exception {
+        return blogPostService.getBlogPostsByUserIdAndContentType(userId);
     }
 }

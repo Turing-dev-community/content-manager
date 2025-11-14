@@ -4,6 +4,7 @@ import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
 import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,12 +12,15 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -35,6 +39,9 @@ class BlogPostControllerIntegrationTest {
 
     @Autowired
     private BlogPostRepository blogPostRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @BeforeAll
     static void setup(@Autowired JdbcTemplate jdbcTemplate) {
@@ -138,5 +145,36 @@ class BlogPostControllerIntegrationTest {
         assertEquals(2, response.getBody().length);
         assertEquals(blogPost1.getId(), response.getBody()[0].getId());
         assertEquals(blogPost2.getId(), response.getBody()[1].getId());
+    }
+
+
+    @Test
+    void downloadExport_shouldReturnAttachmentWithJson() throws Exception {
+
+        BlogPost bp = new BlogPost(UUID.randomUUID(), "DL Title", "DL Body", Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(bp);
+
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user1Id.toString();
+
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        HttpHeaders headers = response.getHeaders();
+        assertTrue(headers.containsKey(HttpHeaders.CONTENT_DISPOSITION));
+        String cd = headers.getFirst(HttpHeaders.CONTENT_DISPOSITION);
+        assertNotNull(cd);
+        assertTrue(cd.contains("attachment"));
+        assertTrue(cd.contains("export-" + user1Id + ".json"));
+
+        assertEquals(MediaType.APPLICATION_JSON, headers.getContentType());
+        byte[] body = response.getBody();
+        assertNotNull(body);
+        assertTrue(body.length > 0);
+
+        // parse JSON and verify structure
+        List blogPosts = objectMapper.readValue(body, List.class);
+        //one blog post present
+        assertNotNull(blogPosts);
+        assertTrue(blogPosts.size() > 0);
     }
 }
