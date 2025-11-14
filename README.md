@@ -29,6 +29,7 @@ Please update for each new feature:
 | 2025-11-13      |denis.h@turing.com | Validation Reports | Added new endpoint `/api/users/:id/validation-report` that provides a summary report of validation results for all content owned by a user. | [#53](https://github.com/Turing-dev-community/content-manager/issues/57) |
 | 2025-11-14      |denis.h@turing.com | Introduce a Generic Content Model | More flexible content creation by providing a generic content model that allows custom content types and fields | [#61](https://github.com/Turing-dev-community/content-manager/issues/61) |
 
+
 ### Overview
 - **Content Management**: Create, read, update, and delete various content types
 - **Validation Pipeline**: Configurable validation system with support for length checks and custom validators
