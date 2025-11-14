@@ -1,6 +1,6 @@
 # Content Manager Service
 
-A Spring Boot service that helps create, manage, validate and moderate content. This service provides RESTful APIs for managing various types of content including users, blog posts, customer support requests, and support responses.
+A Spring Boot service that helps to create, manage, validate and moderate content. This service provides RESTful APIs for managing various types of content including users, blog posts, customer support requests, and support responses.
 
 ## How to Contribute
 
