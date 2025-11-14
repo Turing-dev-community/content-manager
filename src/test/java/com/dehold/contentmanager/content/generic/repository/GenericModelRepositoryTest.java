@@ -101,6 +101,20 @@ class GenericModelRepositoryTest {
         assertTrue(fieldsJson.contains("published"));
         assertTrue(fieldsJson.contains("true"));
         assertTrue(fieldsJson.contains("BOOLEAN"));
+
+        String created_at = jdbcTemplate.queryForObject(
+                "SELECT created_at FROM generic_content WHERE id = ?",
+                String.class,
+                id
+        );
+        assertNotNull(created_at);
+
+        String updated_at = jdbcTemplate.queryForObject(
+                "SELECT updated_at FROM generic_content WHERE id = ?",
+                String.class,
+                id
+        );
+        assertNotNull(updated_at);
     }
 
     @Test
