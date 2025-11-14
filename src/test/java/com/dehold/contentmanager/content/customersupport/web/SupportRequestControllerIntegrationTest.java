@@ -175,6 +175,63 @@ class SupportRequestControllerIntegrationTest {
     }
 
     @Test
+    void getCustomerRequest_shouldIncludeSubscribers() {
+        SupportRequest request = new SupportRequest(
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "Test text",
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            Instant.now(),
+            Instant.now()
+        );
+        repository.create(request);
+
+        java.util.UUID userId = UUID.randomUUID();
+        SubscribeRequestDto body = new SubscribeRequestDto();
+        body.setUserId(userId);
+
+        // subscribe via API
+        ResponseEntity<Void> subscribeResp = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/customer-requests/" + request.getId() + "/subscribe",
+            body,
+            Void.class
+        );
+        assertEquals(200, subscribeResp.getStatusCode().value());
+
+        // get via API and check subscribers included
+        ResponseEntity<CustomerRequestDto> getResp = restTemplate.getForEntity(
+            "http://localhost:" + port + "/api/customer-requests/" + request.getId(),
+            CustomerRequestDto.class
+        );
+        assertEquals(200, getResp.getStatusCode().value());
+        assertNotNull(getResp.getBody());
+        assertNotNull(getResp.getBody().getSubscribers());
+        assertTrue(getResp.getBody().getSubscribers().contains(userId));
+    }
+
+    @Test
+    void subscribeUnsubscribe_nonExistentRequest_shouldReturnNotFound() {
+        UUID nonExistentId = UUID.randomUUID();
+        SubscribeRequestDto body = new SubscribeRequestDto();
+        body.setUserId(UUID.randomUUID());
+
+        ResponseEntity<String> subscribeResp = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/customer-requests/" + nonExistentId + "/subscribe",
+            body,
+            String.class
+        );
+        assertEquals(404, subscribeResp.getStatusCode().value());
+
+        ResponseEntity<String> unsubscribeResp = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/customer-requests/" + nonExistentId + "/unsubscribe",
+            body,
+            String.class
+        );
+        assertEquals(404, unsubscribeResp.getStatusCode().value());
+    }
+
+    @Test
     void getCustomerRequest_shouldReturnNotFound() {
         UUID nonExistentId = UUID.randomUUID();
 
