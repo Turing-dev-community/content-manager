@@ -72,3 +72,15 @@ CREATE TABLE validation_step (
     parameters JSON,
     is_enabled BOOLEAN DEFAULT true
 );
+
+CREATE TABLE generic_content (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    fields JSON,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    parent_id UUID,
+    CONSTRAINT fk_generic_user FOREIGN KEY (user_id) REFERENCES "user" (id) ON DELETE CASCADE,
+    CONSTRAINT fk_generic_parent FOREIGN KEY (parent_id) REFERENCES generic_content (id) ON DELETE SET NULL
+);
