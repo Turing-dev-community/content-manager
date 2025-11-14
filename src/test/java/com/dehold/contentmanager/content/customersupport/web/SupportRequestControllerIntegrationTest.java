@@ -3,6 +3,7 @@ package com.dehold.contentmanager.content.customersupport.web;
 import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
 import com.dehold.contentmanager.content.customersupport.web.dto.CustomerRequestDto;
+import com.dehold.contentmanager.content.customersupport.web.dto.SubscribeRequestDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -146,7 +147,7 @@ class SupportRequestControllerIntegrationTest {
         repository.create(request);
 
         java.util.UUID userId = UUID.randomUUID();
-        com.dehold.contentmanager.content.customersupport.web.dto.SubscribeRequestDto body = new com.dehold.contentmanager.content.customersupport.web.dto.SubscribeRequestDto();
+    SubscribeRequestDto body = new SubscribeRequestDto();
         body.setUserId(userId);
 
         // subscribe
