@@ -92,4 +92,64 @@ class GenericModelRepositoryTest {
         assertTrue(fieldsJson.contains("published"));
         assertTrue(fieldsJson.contains("true"));
     }
+
+    @Test
+    void givenGenericContentExists_whenSave_thenUpdatesExistingContent() throws InterruptedException {
+        UUID id = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        insertUser(userId);
+        Map<String, ContentFieldValue> fields = new HashMap<>();
+        fields.put("title", new ContentFieldValue("title", ValueType.STRING, "Initial"));
+        GenericContentModel model = new GenericContentModel(
+                id,
+                userId,
+                "blogpost",
+                fields,
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        cut.save(model);
+
+        String initialFieldsJson = jdbcTemplate.queryForObject(
+                "SELECT fields FROM generic_content WHERE id = ?",
+                String.class,
+                id
+        );
+        assertNotNull(initialFieldsJson);
+        assertTrue(initialFieldsJson.contains("Initial"));
+
+        Map<String, ContentFieldValue> updatedFields = new HashMap<>();
+        updatedFields.put("title", new ContentFieldValue("title", ValueType.STRING, "Updated"));
+        updatedFields.put("rating", new ContentFieldValue("rating", ValueType.DECIMAL, 4.5));
+
+        GenericContentModel updated = new GenericContentModel(
+                id,
+                userId,
+                "blogpost",
+                updatedFields,
+                model.getCreatedAt(),
+                null,
+                null
+        );
+
+        Thread.sleep(5);
+        cut.save(updated);
+
+        String fieldsJson = jdbcTemplate.queryForObject(
+                "SELECT fields FROM generic_content WHERE id = ?",
+                String.class,
+                id
+        );
+        assertNotNull(fieldsJson);
+        assertTrue(fieldsJson.contains("Updated"));
+        assertTrue(fieldsJson.contains("rating"));
+
+        Instant updatedAt = jdbcTemplate.queryForObject(
+                "SELECT updated_at FROM generic_content WHERE id = ?",
+                Instant.class,
+                id
+        );
+        assertNotNull(updatedAt);
+    }
 }
