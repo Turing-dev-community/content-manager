@@ -5,6 +5,7 @@ import com.dehold.contentmanager.content.blogpost.repository.BlogPostHistoryRepo
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
 import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
+import com.dehold.contentmanager.content.blogpost.model.Page;
 import com.dehold.contentmanager.exception.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,10 +14,13 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class BlogPostServiceTest {
@@ -122,6 +126,58 @@ class BlogPostServiceTest {
         blogPostService.deleteBlogPost(blogPostId);
 
         verify(blogPostRepository, times(1)).deleteBlogPost(blogPostId);
+    }
+
+    @Test
+    void findPaginated_shouldReturnPageWithDefaults() {
+        int page = 0;
+        int size = 20;
+        UUID userId = null;
+        List<BlogPost> posts = List.of(new BlogPost(UUID.randomUUID(), "Post 1", "Content 1", Instant.now(), Instant.now(), UUID.randomUUID()));
+        when(blogPostRepository.getPaginatedBlogPosts(eq(size), eq(page * size), eq(userId))).thenReturn(posts);
+        when(blogPostRepository.countBlogPosts(eq(userId))).thenReturn(1L);
+
+        Page<BlogPost> result = blogPostService.findPaginated(page, size, userId);
+
+        assertEquals(posts, result.getContent());
+        assertEquals(page, result.getPage());
+        assertEquals(size, result.getSize());
+        assertEquals(1L, result.getTotalElements());
+        assertEquals(1, result.getTotalPages());
+        assertTrue(result.isLast());
+        verify(blogPostRepository, times(1)).getPaginatedBlogPosts(eq(size), eq(0), eq(userId));
+        verify(blogPostRepository, times(1)).countBlogPosts(eq(userId));
+    }
+
+    @Test
+    void findPaginated_shouldThrowForInvalidSize() {
+        assertThrows(IllegalArgumentException.class, () -> blogPostService.findPaginated(0, 0, null));
+        assertThrows(IllegalArgumentException.class, () -> blogPostService.findPaginated(0, 101, null));
+        verifyNoInteractions(blogPostRepository);  // No calls if validation fails
+    }
+
+    @Test
+    void findPaginated_shouldThrowForInvalidPage() {
+        assertThrows(IllegalArgumentException.class, () -> blogPostService.findPaginated(-1, 20, null));
+        verifyNoInteractions(blogPostRepository);
+    }
+
+    @Test
+    void findPaginated_shouldReturnFilteredPageWithUserId() {
+        int page = 0;
+        int size = 20;
+        UUID userId = UUID.randomUUID();
+        List<BlogPost> posts = List.of(new BlogPost(UUID.randomUUID(), "Post 1", "Content 1", Instant.now(), Instant.now(), userId));
+        when(blogPostRepository.getPaginatedBlogPosts(eq(size), eq(page * size), eq(userId))).thenReturn(posts);
+        when(blogPostRepository.countBlogPosts(eq(userId))).thenReturn(1L);
+
+        Page<BlogPost> result = blogPostService.findPaginated(page, size, userId);
+
+        assertEquals(posts, result.getContent());
+        assertEquals(1L, result.getTotalElements());
+        assertTrue(result.isLast());
+        verify(blogPostRepository, times(1)).getPaginatedBlogPosts(eq(size), eq(0), eq(userId));
+        verify(blogPostRepository, times(1)).countBlogPosts(eq(userId));
     }
 
     @Test

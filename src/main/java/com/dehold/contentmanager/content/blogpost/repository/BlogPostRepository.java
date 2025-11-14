@@ -75,4 +75,28 @@ public class BlogPostRepository {
                 UUID.fromString(rs.getString("user_id"))
         );
     }
+
+    public List<BlogPost> getPaginatedBlogPosts(int limit, int offset, UUID userId) {
+        if (userId == null) {
+            return jdbcTemplate.query(
+                "SELECT * FROM blog_post LIMIT ? OFFSET ?",
+                this::mapRowToBlogPost,
+                limit, offset
+            );
+        } else {
+            return jdbcTemplate.query(
+                "SELECT * FROM blog_post WHERE user_id = ? LIMIT ? OFFSET ?",
+                this::mapRowToBlogPost,
+                userId, limit, offset
+            );
+        }
+    }
+
+    public long countBlogPosts(UUID userId) {
+        if (userId == null) {
+            return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM blog_post", Long.class);
+        } else {
+            return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM blog_post WHERE user_id = ?", Long.class, userId);
+        }
+    }
 }
