@@ -54,7 +54,7 @@ public class GenericModelRepository {
         jdbcTemplate.update("DELETE FROM generic_content WHERE id = ?", id);
     }
 
-    private Optional<GenericContentModel> findById(UUID id) {
+    public Optional<GenericContentModel> findById(UUID id) {
         var list = jdbcTemplate.query(
                 "SELECT * FROM generic_content WHERE id = ?",
                 ROW_MAPPER,
