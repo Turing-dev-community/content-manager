@@ -23,10 +23,11 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
 
 Please update for each new feature:
 
-| date (YY-MM-DD) | contributor email | feature summary | feature description                                                                                                           | issue link |
-|-----------------|-------------------|------------|-------------------------------------------------------------------------------------------------------------------------------|------------|
-| 2025-11-12      |denis.h@turing.com | Add ednpoint to run validations against all blog posts | Endpoint `api/users/:id/validate-blogposts` that runs validations against all blog posts owned by the user and persists them. | [#52](https://github.com/Turing-dev-community/content-manager/issues/52)|
-| 2025-11-13      |denis.h@turing.com | Validation Reports | Added new endpoint `/api/users/:id/validation-report` that provides a summary report of validation results for all content owned by a user. | [#53](https://github.com/Turing-dev-community/content-manager/issues/57)|
+| date (YY-MM-DD) | contributor email | feature summary | feature description                                                                                                           | issue link                                                               |
+|-----------------|-------------------|------------|-------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------|
+| 2025-11-12      |denis.h@turing.com | Add ednpoint to run validations against all blog posts | Endpoint `api/users/:id/validate-blogposts` that runs validations against all blog posts owned by the user and persists them. | [#52](https://github.com/Turing-dev-community/content-manager/issues/52) |
+| 2025-11-13      |denis.h@turing.com | Validation Reports | Added new endpoint `/api/users/:id/validation-report` that provides a summary report of validation results for all content owned by a user. | [#53](https://github.com/Turing-dev-community/content-manager/issues/57) |
+| 2025-11-14      |denis.h@turing.com | Introduce a Generic Content Model | More flexible content creation by providing a generic content model that allows custom content types and fields | [#61](https://github.com/Turing-dev-community/content-manager/issues/61) |
 
 ### Overview
 - **Content Management**: Create, read, update, and delete various content types
