@@ -43,7 +43,7 @@ class GenericModelRepositoryTest {
     }
 
     @Test
-    void givenGenericContentDoesNotExist_whenSave_thenInsertsNewContent() {
+    void givenGenericContentDoesNotExist_whenSave_thenInsert() {
         UUID id = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         insertUser(userId);
@@ -72,6 +72,13 @@ class GenericModelRepositoryTest {
         assertNotNull(count);
         assertEquals(1, count);
 
+        String actualUserId = jdbcTemplate.queryForObject(
+                "SELECT user_id FROM generic_content WHERE id = ?",
+                String.class,
+                id
+        );
+        assertEquals(actualUserId, userId.toString());
+
         String type = jdbcTemplate.queryForObject(
                 "SELECT type FROM generic_content WHERE id = ?",
                 String.class,
@@ -87,14 +94,17 @@ class GenericModelRepositoryTest {
         assertNotNull(fieldsJson);
         assertTrue(fieldsJson.contains("title"));
         assertTrue(fieldsJson.contains("Hello"));
+        assertTrue(fieldsJson.contains("STRING"));
         assertTrue(fieldsJson.contains("views"));
+        assertTrue(fieldsJson.contains("INTEGER"));
         assertTrue(fieldsJson.contains("42"));
         assertTrue(fieldsJson.contains("published"));
         assertTrue(fieldsJson.contains("true"));
+        assertTrue(fieldsJson.contains("BOOLEAN"));
     }
 
     @Test
-    void givenGenericContentExists_whenSave_thenUpdatesExistingContent() throws InterruptedException {
+    void givenGenericContentExists_whenSave_thenUpdate() throws InterruptedException {
         UUID id = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         insertUser(userId);
