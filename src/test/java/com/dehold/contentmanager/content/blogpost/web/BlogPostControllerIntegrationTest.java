@@ -1,15 +1,18 @@
 package com.dehold.contentmanager.content.blogpost.web;
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
+import com.dehold.contentmanager.content.blogpost.model.Page;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
 import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -35,6 +38,11 @@ class BlogPostControllerIntegrationTest {
 
     @Autowired
     private BlogPostRepository blogPostRepository;
+
+    @BeforeEach
+    void cleanDatabase(@Autowired JdbcTemplate jdbcTemplate) {
+        jdbcTemplate.update("DELETE FROM blog_post");
+    }
 
     @BeforeAll
     static void setup(@Autowired JdbcTemplate jdbcTemplate) {
@@ -130,13 +138,147 @@ class BlogPostControllerIntegrationTest {
         blogPostRepository.createBlogPost(blogPost1);
         blogPostRepository.createBlogPost(blogPost2);
 
-        ResponseEntity<BlogPost[]> response = restTemplate.getForEntity("http://localhost:" + port + "/api/blogposts" +
-                "?userId=" + user1Id, BlogPost[].class);
+        ResponseEntity<Page<BlogPost>> response = restTemplate.exchange(
+            "http://localhost:" + port + "/api/blogposts?userId=" + user1Id,
+            HttpMethod.GET,
+            null,
+            new ParameterizedTypeReference<Page<BlogPost>>() {}
+        );
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(2, response.getBody().length);
-        assertEquals(blogPost1.getId(), response.getBody()[0].getId());
-        assertEquals(blogPost2.getId(), response.getBody()[1].getId());
+        assertEquals(2, response.getBody().getContent().size());
+        assertEquals(blogPost1.getId(), response.getBody().getContent().get(0).getId());
+        assertEquals(blogPost2.getId(), response.getBody().getContent().get(1).getId());
+    }
+
+    @Test
+    void getBlogPostsPaginated_shouldReturnFirstPageWithDefaults() {
+        // Arrange: Create 25 blog posts for user1 to test multiple pages
+        for (int i = 1; i <= 25; i++) {
+            BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Post " + i, "Content " + i, Instant.now(), Instant.now(), user1Id);
+            blogPostRepository.createBlogPost(blogPost);
+        }
+
+        ResponseEntity<Page<BlogPost>> response = restTemplate.exchange(
+            "http://localhost:" + port + "/api/blogposts?userId=" + user1Id,
+            HttpMethod.GET,
+            null,
+            new ParameterizedTypeReference<Page<BlogPost>>() {}
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(20, response.getBody().getContent().size());  // Default size
+        assertEquals(0, response.getBody().getPage());
+        assertEquals(25, response.getBody().getTotalElements());
+        assertEquals(2, response.getBody().getTotalPages());  // 25 / 20 = 2 pages
+        assertFalse(response.getBody().isLast());
+    }
+
+    @Test
+    void getBlogPostsPaginated_shouldRejectInvalidParams() {
+        // Test invalid size > 100
+        ResponseEntity<String> responseSize = restTemplate.exchange(
+            "http://localhost:" + port + "/api/blogposts?page=0&size=200",
+            HttpMethod.GET,
+            null,
+            String.class
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, responseSize.getStatusCode());
+        assertTrue(responseSize.getBody().contains("Size must be between 1 and 100"));
+
+        // Test invalid page < 0
+        ResponseEntity<String> responsePage = restTemplate.exchange(
+            "http://localhost:" + port + "/api/blogposts?page=-1&size=20",
+            HttpMethod.GET,
+            null,
+            String.class
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, responsePage.getStatusCode());
+        assertTrue(responsePage.getBody().contains("Page must be non-negative"));
+    }
+
+    @Test
+    void getBlogPostsPaginated_shouldReturnLastPage() {
+        // Arrange: Create 25 blog posts for user1
+        for (int i = 1; i <= 25; i++) {
+            BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Post " + i, "Content " + i, Instant.now(), Instant.now(), user1Id);
+            blogPostRepository.createBlogPost(blogPost);
+        }
+
+        ResponseEntity<Page<BlogPost>> response = restTemplate.exchange(
+            "http://localhost:" + port + "/api/blogposts?page=2&size=10",
+            HttpMethod.GET,
+            null,
+            new ParameterizedTypeReference<Page<BlogPost>>() {}
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(5, response.getBody().getContent().size());  // Last page has 5 items (25 % 10 = 5)
+        assertEquals(2, response.getBody().getPage());
+        assertEquals(10, response.getBody().getSize());
+        assertEquals(25, response.getBody().getTotalElements());
+        assertEquals(3, response.getBody().getTotalPages());
+        assertTrue(response.getBody().isLast());
+    }
+
+    @Test
+    void getBlogPostsPaginated_shouldFilterByUserIdAndPaginate() {
+        // Arrange: Create 15 blog posts for user1, 10 for user2
+        for (int i = 1; i <= 15; i++) {
+            BlogPost blogPost = new BlogPost(UUID.randomUUID(), "User1 Post " + i, "Content " + i, Instant.now(), Instant.now(), user1Id);
+            blogPostRepository.createBlogPost(blogPost);
+        }
+        for (int i = 1; i <= 10; i++) {
+            BlogPost blogPost = new BlogPost(UUID.randomUUID(), "User2 Post " + i, "Content " + i, Instant.now(), Instant.now(), user2Id);
+            blogPostRepository.createBlogPost(blogPost);
+        }
+
+        ResponseEntity<Page<BlogPost>> response = restTemplate.exchange(
+            "http://localhost:" + port + "/api/blogposts?userId=" + user1Id + "&page=0&size=10",
+            HttpMethod.GET,
+            null,
+            new ParameterizedTypeReference<Page<BlogPost>>() {}
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(10, response.getBody().getContent().size());
+        assertEquals(15, response.getBody().getTotalElements());
+        assertEquals(2, response.getBody().getTotalPages());    
+        assertFalse(response.getBody().isLast());
+        // Check all posts belong to user1
+        for (BlogPost post : response.getBody().getContent()) {
+            assertEquals(user1Id, post.getUserId());
+        }
+    }
+
+    @Test
+    void getBlogPostsPaginated_shouldReturnSecondPageWithCustomSize() {
+        // Arrange: Create 25 blog posts for user1 to test multiple pages
+        for (int i = 1; i <= 25; i++) {
+            BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Post " + i, "Content " + i, Instant.now(), Instant.now(), user1Id);
+            blogPostRepository.createBlogPost(blogPost);
+        }
+
+        ResponseEntity<Page<BlogPost>> response = restTemplate.exchange(
+            "http://localhost:" + port + "/api/blogposts?page=1&size=10",
+            HttpMethod.GET,
+            null,
+            new ParameterizedTypeReference<Page<BlogPost>>() {}
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(10, response.getBody().getContent().size());
+        assertEquals(1, response.getBody().getPage());
+        assertEquals(10, response.getBody().getSize());
+        assertEquals(25, response.getBody().getTotalElements());
+        assertEquals(3, response.getBody().getTotalPages());  // 25 / 10 = 3 pages
+        assertFalse(response.getBody().isLast());
     }
 }
