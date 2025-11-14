@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS customer_request (
     text TEXT NOT NULL,
     support_response UUID NOT NULL,
     customer_id UUID NOT NULL,
+    subscribers TEXT,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL
 );

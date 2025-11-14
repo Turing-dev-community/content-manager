@@ -13,6 +13,7 @@ public class SupportRequest implements Content {
     private UUID customerId;
     private Instant createdAt;
     private Instant updatedAt;
+    private java.util.List<java.util.UUID> subscribers;
 
     public SupportRequest() {}
 
@@ -25,6 +26,15 @@ public class SupportRequest implements Content {
         this.customerId = customerId;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+    }
+
+    // subscribers is optional; kept separate to avoid breaking existing constructor usages
+    public java.util.List<java.util.UUID> getSubscribers() {
+        return subscribers;
+    }
+
+    public void setSubscribers(java.util.List<java.util.UUID> subscribers) {
+        this.subscribers = subscribers;
     }
 
     @Override

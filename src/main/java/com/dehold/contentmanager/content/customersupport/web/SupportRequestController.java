@@ -71,6 +71,18 @@ public class SupportRequestController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/subscribe")
+    public ResponseEntity<Void> subscribe(@PathVariable UUID id, @RequestBody com.dehold.contentmanager.content.customersupport.web.dto.SubscribeRequestDto body) {
+        service.addSubscriber(id, body.getUserId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/unsubscribe")
+    public ResponseEntity<Void> unsubscribe(@PathVariable UUID id, @RequestBody com.dehold.contentmanager.content.customersupport.web.dto.SubscribeRequestDto body) {
+        service.removeSubscriber(id, body.getUserId());
+        return ResponseEntity.ok().build();
+    }
+
     private CustomerRequestDto toDto(SupportRequest entity) {
         CustomerRequestDto dto = new CustomerRequestDto();
         dto.setId(entity.getId());
@@ -79,6 +91,7 @@ public class SupportRequestController {
         dto.setCustomerId(entity.getCustomerId());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
+        dto.setSubscribers(entity.getSubscribers());
         return dto;
     }
 }

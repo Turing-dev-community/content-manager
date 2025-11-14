@@ -133,6 +133,47 @@ class SupportRequestControllerIntegrationTest {
     }
 
     @Test
+    void subscribeAndUnsubscribe_shouldModifySubscribers() {
+        SupportRequest request = new SupportRequest(
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "Test text",
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            Instant.now(),
+            Instant.now()
+        );
+        repository.create(request);
+
+        java.util.UUID userId = UUID.randomUUID();
+        com.dehold.contentmanager.content.customersupport.web.dto.SubscribeRequestDto body = new com.dehold.contentmanager.content.customersupport.web.dto.SubscribeRequestDto();
+        body.setUserId(userId);
+
+        // subscribe
+        ResponseEntity<Void> subscribeResp = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/customer-requests/" + request.getId() + "/subscribe",
+            body,
+            Void.class
+        );
+        assertEquals(200, subscribeResp.getStatusCode().value());
+
+        SupportRequest updated = repository.getById(request.getId()).orElseThrow();
+        assertNotNull(updated.getSubscribers());
+        assertTrue(updated.getSubscribers().contains(userId));
+
+        // unsubscribe
+        ResponseEntity<Void> unsubscribeResp = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/customer-requests/" + request.getId() + "/unsubscribe",
+            body,
+            Void.class
+        );
+        assertEquals(200, unsubscribeResp.getStatusCode().value());
+
+        SupportRequest afterUnsubscribe = repository.getById(request.getId()).orElseThrow();
+        assertTrue(afterUnsubscribe.getSubscribers() == null || !afterUnsubscribe.getSubscribers().contains(userId));
+    }
+
+    @Test
     void getCustomerRequest_shouldReturnNotFound() {
         UUID nonExistentId = UUID.randomUUID();
 

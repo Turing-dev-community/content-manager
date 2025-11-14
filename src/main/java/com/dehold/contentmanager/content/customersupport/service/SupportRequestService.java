@@ -46,4 +46,27 @@ public class SupportRequestService {
     public void deleteById(UUID id) {
         repository.deleteById(id);
     }
+
+    public void addSubscriber(UUID requestId, UUID userId) {
+        SupportRequest req = findById(requestId);
+        java.util.List<UUID> subs = req.getSubscribers();
+        if (subs == null) {
+            subs = new java.util.ArrayList<>();
+        }
+        if (!subs.contains(userId)) {
+            subs.add(userId);
+            req.setSubscribers(subs);
+            repository.update(req);
+        }
+    }
+
+    public void removeSubscriber(UUID requestId, UUID userId) {
+        SupportRequest req = findById(requestId);
+        java.util.List<UUID> subs = req.getSubscribers();
+        if (subs == null) return;
+        if (subs.remove(userId)) {
+            req.setSubscribers(subs);
+            repository.update(req);
+        }
+    }
 }
