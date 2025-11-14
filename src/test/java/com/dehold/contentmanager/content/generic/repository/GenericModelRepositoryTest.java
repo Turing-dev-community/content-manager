@@ -203,4 +203,36 @@ class GenericModelRepositoryTest {
         assertFalse(cut.existsById(id));
     }
 
+    @Test
+    void givenGenericContentExists_whenFindById_thenReturnsModelWithMappedFields() {
+        UUID id = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        insertUser(userId);
+        Map<String, ContentFieldValue> fields = new HashMap<>();
+        fields.put("title", new ContentFieldValue("title", ValueType.STRING, "FindMe"));
+        fields.put("views", new ContentFieldValue("views", ValueType.INTEGER, 7));
+        fields.put("flag", new ContentFieldValue("flag", ValueType.BOOLEAN, true));
+        GenericContentModel model = new GenericContentModel(
+                id, userId, "blogpost", fields, Instant.now(), Instant.now(), null
+        );
+        cut.save(model);
+
+        var foundOpt = cut.findById(id);
+        assertTrue(foundOpt.isPresent());
+        GenericContentModel found = foundOpt.get();
+        assertEquals(id, found.getId());
+        assertEquals(userId, found.getUserId());
+        assertEquals("blogpost", found.getType());
+        assertNotNull(found.getFieldNameToValue());
+        assertEquals("FindMe", found.getFieldNameToValue().get("title").asString());
+        assertEquals(7, found.getFieldNameToValue().get("views").asInteger());
+        assertTrue(found.getFieldNameToValue().get("flag").asBoolean());
+    }
+
+    @Test
+    void givenGenericContentDoesNotExist_whenFindById_thenReturnsEmpty() {
+        var result = cut.findById(UUID.randomUUID());
+        assertTrue(result.isEmpty());
+    }
+
 }
