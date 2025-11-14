@@ -152,4 +152,29 @@ class GenericModelRepositoryTest {
         );
         assertNotNull(updatedAt);
     }
+
+    @Test
+    void givenGenericContentId_whenExistsById_thenReturnsFalseBeforeAndTrueAfterSave() {
+        UUID id = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        insertUser(userId);
+        Map<String, ContentFieldValue> fields = new HashMap<>();
+        fields.put("title", new ContentFieldValue("title", ValueType.STRING, "Title"));
+
+        GenericContentModel model = new GenericContentModel(
+                id,
+                userId,
+                "blogpost",
+                fields,
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+
+        assertFalse(cut.existsById(id));
+        cut.save(model);
+        assertTrue(cut.existsById(id));
+        assertFalse(cut.existsById(UUID.randomUUID()));
+    }
+
 }
