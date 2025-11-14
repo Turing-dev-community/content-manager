@@ -5,7 +5,7 @@ import com.dehold.contentmanager.content.customersupport.repository.SupportRespo
 import com.dehold.contentmanager.exception.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -35,5 +35,10 @@ public class SupportResponseServiceImpl implements SupportResponseService {
     @Override
     public void deleteSupportResponse(UUID id) {
         repository.delete(id);
+    }
+
+    @Override
+    public List<SupportResponse> getSupportResponsesByUserId(UUID userId) {
+        return repository.getSupportResponsesByUserId(userId);
     }
 }
