@@ -177,4 +177,30 @@ class GenericModelRepositoryTest {
         assertFalse(cut.existsById(UUID.randomUUID()));
     }
 
+    @Test
+    void givenGenericContentExists_whenDeleteById_thenDeleted() {
+        UUID id = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        insertUser(userId);
+        Map<String, ContentFieldValue> fields = new HashMap<>();
+        fields.put("title", new ContentFieldValue("title", ValueType.STRING, "ToDelete"));
+
+        GenericContentModel model = new GenericContentModel(
+                id,
+                userId,
+                "blogpost",
+                fields,
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        cut.save(model);
+
+        assertTrue(cut.existsById(id));
+
+        cut.deleteById(id);
+
+        assertFalse(cut.existsById(id));
+    }
+
 }
