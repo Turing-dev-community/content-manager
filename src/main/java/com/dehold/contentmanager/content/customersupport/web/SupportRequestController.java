@@ -3,6 +3,7 @@ package com.dehold.contentmanager.content.customersupport.web;
 import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.service.SupportRequestService;
 import com.dehold.contentmanager.content.customersupport.web.dto.CustomerRequestDto;
+import com.dehold.contentmanager.content.customersupport.web.dto.SubscribeRequestDto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -72,13 +73,13 @@ public class SupportRequestController {
     }
 
     @PostMapping("/{id}/subscribe")
-    public ResponseEntity<Void> subscribe(@PathVariable UUID id, @RequestBody com.dehold.contentmanager.content.customersupport.web.dto.SubscribeRequestDto body) {
+    public ResponseEntity<Void> subscribe(@PathVariable UUID id, @RequestBody SubscribeRequestDto body) {
         service.addSubscriber(id, body.getUserId());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{id}/unsubscribe")
-    public ResponseEntity<Void> unsubscribe(@PathVariable UUID id, @RequestBody com.dehold.contentmanager.content.customersupport.web.dto.SubscribeRequestDto body) {
+    public ResponseEntity<Void> unsubscribe(@PathVariable UUID id, @RequestBody SubscribeRequestDto body) {
         service.removeSubscriber(id, body.getUserId());
         return ResponseEntity.ok().build();
     }

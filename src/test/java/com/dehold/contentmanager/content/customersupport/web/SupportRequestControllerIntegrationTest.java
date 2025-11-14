@@ -146,7 +146,7 @@ class SupportRequestControllerIntegrationTest {
         );
         repository.create(request);
 
-        java.util.UUID userId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
     SubscribeRequestDto body = new SubscribeRequestDto();
         body.setUserId(userId);
 
@@ -187,7 +187,7 @@ class SupportRequestControllerIntegrationTest {
         );
         repository.create(request);
 
-        java.util.UUID userId = UUID.randomUUID();
+    UUID userId = UUID.randomUUID();
         SubscribeRequestDto body = new SubscribeRequestDto();
         body.setUserId(userId);
 

@@ -10,6 +10,8 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 @Repository
 public class SupportRequestRepository {
@@ -38,7 +40,7 @@ public class SupportRequestRepository {
                 // column might not exist in older schemas
             }
             if (subs != null && !subs.isBlank()) {
-                java.util.List<UUID> list = new java.util.ArrayList<>();
+                List<UUID> list = new ArrayList<>();
                 String[] parts = subs.split(",");
                 for (String p : parts) {
                     if (!p.isBlank()) {
@@ -56,7 +58,7 @@ public class SupportRequestRepository {
         "updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     String subs = null;
     if (request.getSubscribers() != null && !request.getSubscribers().isEmpty()) {
-        subs = request.getSubscribers().stream().map(UUID::toString).collect(java.util.stream.Collectors.joining(","));
+        subs = request.getSubscribers().stream().map(UUID::toString).collect(Collectors.joining(","));
     }
     jdbcTemplate.update(sql, request.getId(), request.getUserId(), request.getText(), request.getSupportResponse(),
         request.getCustomerId(), subs, request.getCreatedAt(), request.getUpdatedAt());
@@ -67,7 +69,7 @@ public class SupportRequestRepository {
                 "?, updated_at = ? WHERE id = ?";
         String subs = null;
         if (request.getSubscribers() != null && !request.getSubscribers().isEmpty()) {
-            subs = request.getSubscribers().stream().map(UUID::toString).collect(java.util.stream.Collectors.joining(","));
+            subs = request.getSubscribers().stream().map(UUID::toString).collect(Collectors.joining(","));
         }
         jdbcTemplate.update(sql, request.getText(), request.getSupportResponse(), request.getCustomerId(), subs, request.getCreatedAt(), request.getUpdatedAt(), request.getId());
     }

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.ArrayList;
 
 @Service
 public class SupportRequestService {
@@ -49,9 +50,9 @@ public class SupportRequestService {
 
     public void addSubscriber(UUID requestId, UUID userId) {
         SupportRequest req = findById(requestId);
-        java.util.List<UUID> subs = req.getSubscribers();
+        List<UUID> subs = req.getSubscribers();
         if (subs == null) {
-            subs = new java.util.ArrayList<>();
+            subs = new ArrayList<>();
         }
         if (!subs.contains(userId)) {
             subs.add(userId);
@@ -62,7 +63,7 @@ public class SupportRequestService {
 
     public void removeSubscriber(UUID requestId, UUID userId) {
         SupportRequest req = findById(requestId);
-        java.util.List<UUID> subs = req.getSubscribers();
+        List<UUID> subs = req.getSubscribers();
         if (subs == null) return;
         if (subs.remove(userId)) {
             req.setSubscribers(subs);
