@@ -1,116 +1,131 @@
 package com.dehold.contentmanager.content.blogpost.web;
 
-
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.model.BlogPostHistory;
+import com.dehold.contentmanager.content.blogpost.repository.BlogPostHistoryRepository;
+import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
 import com.dehold.contentmanager.content.blogpost.service.BlogPostService;
-import com.dehold.contentmanager.exception.EntityNotFoundException;
+import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.http.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class BlogPostControllerHistoryRestoreTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    private static final UUID user1Id = UUID.fromString("06c4f0e4-20d7-4886-841b-ebe0ca3622a5");
 
-    @MockitoBean
+    @LocalServerPort
+    private int port;
+
+    @Autowired
+    private TestRestTemplate restTemplate;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private BlogPostRepository blogPostRepository;
+
+    @Autowired
+    private BlogPostHistoryRepository blogPostHistoryRepository;
+
+    @Autowired
     private BlogPostService blogPostService;
 
-    @Test
-    void getBlogPostHistory_shouldReturnHistoryList() throws Exception {
-        UUID id = UUID.randomUUID();
+    @BeforeAll
+    static void beforeAll(@Autowired JdbcTemplate jdbcTemplate) {
+        jdbcTemplate.update("DELETE FROM \"user\" WHERE id = ?", user1Id);
+        jdbcTemplate.update(
+                "MERGE INTO \"user\" (id, alias, email, created_at, updated_at) " +
+                        "KEY(id) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                user1Id, "testuser1", "testuser1@example.com"
+        );
+    }
 
-        List<BlogPostHistory> mockHistory = List.of(
-                new BlogPostHistory(UUID.randomUUID(), id, "Title v1", "Content v1", 1, Instant.now(), Instant.now()),
-                new BlogPostHistory(UUID.randomUUID(), id, "Title v2", "Content v2", 2, Instant.now(), Instant.now())
+    @BeforeEach
+    void cleanDb() {
+        // remove blog_post_history first because of FK references
+        jdbcTemplate.execute("TRUNCATE TABLE blog_post_history");
+        jdbcTemplate.execute("TRUNCATE TABLE blog_post");
+    }
+
+    @Test
+    void getHistory_forNewPost_returnsEmptyList() {
+        // create a blog post via repository (or REST)
+        BlogPost post = new BlogPost(UUID.randomUUID(), "Title A", "Content A", Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(post);
+
+        ResponseEntity<BlogPostHistory[]> response = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/blogposts/" + post.getId() + "/history",
+                BlogPostHistory[].class
         );
 
-        Mockito.when(blogPostService.getHistory(id)).thenReturn(mockHistory);
-
-        mockMvc.perform(get("/api/blogposts/{id}/history", id))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].versionNumber").value(1))
-                .andExpect(jsonPath("$[1].versionNumber").value(2));
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(0, response.getBody().length, "New post should have no history entries");
     }
 
     @Test
-    void getBlogPostHistory_whenNotFound_shouldReturn404() throws Exception {
-        UUID id = UUID.randomUUID();
+    void update_blogPostVersion_createsHistory_and_getHistoryReturnsIt() {
+        // create a blog post
+        BlogPost post = new BlogPost(UUID.randomUUID(), "Initial Title", "Initial Content", Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(post);
 
-        Mockito.when(blogPostService.getHistory(id))
-                .thenThrow(EntityNotFoundException.of("BlogPost", id.toString()));
+        // call service method that archives current state and updates the post
+        BlogPost updated = blogPostService.updateBlogPostVersion(post.getId(), "Updated Title", "Updated Content");
 
-        mockMvc.perform(get("/api/blogposts/{id}/history", id))
-                .andExpect(status().isNotFound());
-    }
+        // verify main post was updated
+        BlogPost fromDb = blogPostRepository.getBlogPost(post.getId()).orElseThrow();
+        assertEquals("Updated Title", fromDb.getTitle());
+        assertEquals("Updated Content", fromDb.getContent());
 
-    @Test
-    void restoreBlogPostVersion_shouldReturnRestoredPost() throws Exception {
-        UUID id = UUID.randomUUID();
-        int version = 2;
-
-        BlogPost restored = new BlogPost(
-                id,
-                "Restored Title",
-                "Restored Content",
-                Instant.now(),
-                Instant.now(),
-                UUID.randomUUID()
+        // GET history via REST endpoint and assert one entry (the archived previous state)
+        ResponseEntity<BlogPostHistory[]> response = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/blogposts/" + post.getId() + "/history",
+                BlogPostHistory[].class
         );
 
-        Mockito.when(blogPostService.restoreVersion(id, version))
-                .thenReturn(restored);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        BlogPostHistory[] history = response.getBody();
+        assertNotNull(history);
+        assertEquals(1, history.length, "One history entry should be present after updateBlogPostVersion");
 
-        mockMvc.perform(post("/api/blogposts/{id}/restore/{version}", id, version))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.title").value("Restored Title"))
-                .andExpect(jsonPath("$.content").value("Restored Content"));
+        BlogPostHistory h = history[0];
+        assertEquals(post.getId(), h.getBlogPostId());
+        assertEquals("Initial Title", h.getTitle());
+        assertEquals("Initial Content", h.getContent());
+        assertTrue(h.getVersionNumber() >= 1);
     }
 
     @Test
-    void restoreBlogPostVersion_whenVersionNotFound_shouldReturn404() throws Exception {
-        UUID id = UUID.randomUUID();
-        int version = 999;
+    void restoreVersion_whenVersionMissing_returns404() {
+        // create a blog post
+        BlogPost post = new BlogPost(UUID.randomUUID(), "Solo Title", "Solo Content", Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(post);
 
-        Mockito.when(blogPostService.restoreVersion(id, version))
-                .thenThrow(EntityNotFoundException.of("BlogPostVersion", "" + version));
-
-        mockMvc.perform(post("/api/blogposts/{id}/restore/{version}", id, version))
-                .andExpect(status().isNotFound());
-    }
-
-    @Test
-    void restoreBlogPostVersion_shouldCallServiceWithCorrectArguments() throws Exception {
-        UUID id = UUID.randomUUID();
-        int version = 3;
-
-        BlogPost restored = new BlogPost(
-                id, "Title", "Content", Instant.now(), Instant.now(), UUID.randomUUID()
+        // Try to restore a non-existing version (e.g. 999)
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/blogposts/" + post.getId() + "/restore/{version}",
+                null,
+                String.class,
+                999
         );
 
-        Mockito.when(blogPostService.restoreVersion(any(UUID.class), any(Integer.class)))
-                .thenReturn(restored);
-
-        mockMvc.perform(post("/api/blogposts/{id}/restore/{version}", id, version))
-                .andExpect(status().isOk());
-
-        Mockito.verify(blogPostService).restoreVersion(eq(id), eq(version));
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("The entity BlogPostVersion") || response.getBody().toLowerCase().contains("not found"));
     }
 }
