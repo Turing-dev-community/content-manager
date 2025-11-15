@@ -114,6 +114,7 @@ public class UserController {
 
     @PostMapping("/{id}/validate-supportrequests")
     public ResponseEntity<List<ValidationResponse>> validateSupportRequests(@PathVariable UUID id) {
+        userService.getUser(id);
         List<ValidationResult> results = validationService.runSupportRequestValidation(id);
         List<ValidationResponse> responses = results.stream()
                 .map(result -> new ValidationResponse("SupportRequest", ValidationResultDto.from(result)))

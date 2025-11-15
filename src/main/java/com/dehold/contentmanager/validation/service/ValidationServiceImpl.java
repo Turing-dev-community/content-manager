@@ -147,9 +147,9 @@ public class ValidationServiceImpl implements ValidationService {
             for (ValidationPipeline<SupportRequest> pipeline : pipelines) {
                 ValidationResult result = pipeline.run(supportRequest);
                 allResults.add(result);
-                this.createValidationResult(result); // persist each result
             }
         }
+        persistsResults(allResults);
         return allResults;
     }
 }
