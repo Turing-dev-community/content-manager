@@ -106,6 +106,7 @@ class UserServiceTest {
         verify(userRepository, times(1)).deleteUser(userId);
     }
 
+    // Password should be encoded before saving
     @Test
     void createUser_shouldEncodePasswordBeforeSaving() {
         CreateUserRequest request = new CreateUserRequest();
@@ -163,17 +164,37 @@ class UserServiceTest {
         request.setUsername("newUsername");
         request.setPassword("newPassword123");
 
-        userService.updateUser(userId, request);
+        User user = userService.updateUser(userId, request);
 
         ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
         verify(userRepository, times(1)).updateUser(userCaptor.capture());
-        User updatedUser = userCaptor.getValue();
 
-        assertEquals("New Alias", updatedUser.getAlias());
-        assertEquals("new@example.com", updatedUser.getEmail());
-        assertEquals("newUsername", updatedUser.getUsername());
-        assertEquals("newPassword123", updatedUser.getPassword()); // Not encoded during update
-        assertTrue(updatedUser.isEnabled());
-        assertNotEquals(existingUser.getUpdatedAt(), updatedUser.getUpdatedAt());
+        assertEquals("New Alias", user.getAlias());
+        assertEquals("new@example.com", user.getEmail());
+        assertEquals("newUsername", user.getUsername());
+        assertEquals("newPassword123", user.getPassword()); // Not encoded during update
+        assertTrue(user.isEnabled());
+        assertNotEquals(existingUser.getUpdatedAt(), user.getUpdatedAt());
+    }
+
+    // Creates a new user with encrypted user and password and verifies that after user creation, passwords are not same.
+    @Test
+    void createUser_shouldCreateUserFieldsProperly() {
+        CreateUserRequest request = new CreateUserRequest();
+        request.setAlias("New Alias");
+        request.setEmail("new@example.com");
+        request.setUsername("newUsername");
+        request.setPassword("newPassword123");
+
+        User user = userService.createUser(request);
+
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository, times(1)).createUser(userCaptor.capture());
+
+        assertEquals("New Alias", user.getAlias());
+        assertEquals("new@example.com", user.getEmail());
+        assertEquals("newUsername", user.getUsername());
+        assertNotEquals("newPassword123", user.getPassword());
+        assertTrue(user.isEnabled());
     }
 }
