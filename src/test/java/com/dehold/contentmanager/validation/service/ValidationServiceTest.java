@@ -1,8 +1,13 @@
 package com.dehold.contentmanager.validation.service;
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
+import com.dehold.contentmanager.content.blogpost.service.BlogPostService;
+import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
+import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
 import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationResult;
+import com.dehold.contentmanager.validation.pipeline.ValidationPipeline;
+import com.dehold.contentmanager.validation.pipeline.ValidationPipelineFactory;
 import com.dehold.contentmanager.validation.repository.ValidationResultRepository;
 import com.dehold.contentmanager.validation.step.ForbiddenWordValidator;
 import com.dehold.contentmanager.validation.step.LengthValidator;
@@ -24,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+
 class ValidationServiceTest {
 
     @Mock
@@ -32,9 +38,23 @@ class ValidationServiceTest {
     @InjectMocks
     private ValidationServiceImpl validationService;
 
+    private ValidationPipelineFactory pipelineFactory;
+    private BlogPostService blogPostService;
+    private SupportRequestRepository supportRepo;
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
+        pipelineFactory = mock(ValidationPipelineFactory.class);
+        blogPostService = mock(BlogPostService.class);
+        supportRepo = mock(SupportRequestRepository.class);
+
+        validationService = new ValidationServiceImpl(
+                repository,
+                pipelineFactory,
+                blogPostService,
+                supportRepo
+        );
     }
 
 
@@ -152,151 +172,165 @@ class ValidationServiceTest {
     //Verify that when there are support requests and pipelines,
     //the method runs validations and persists results via the repository.
     @Test
-    void givenSupportRequestsAndPipelines_whenRunSupportRequestValidation_thenResultsArePersisted() {
+    void givenSupportRequestAndPipeline_whenValidate_thenPersistResult() {
+
         UUID userId = UUID.randomUUID();
 
-        // Mock a single support request
-        var supportRequest = new com.dehold.contentmanager.content.customersupport.model.SupportRequest(
-                UUID.randomUUID(), userId, "Support request content", null,
-                UUID.randomUUID(), Instant.now(), Instant.now());
+        SupportRequest req = new SupportRequest(
+                UUID.randomUUID(), userId,
+                "Message", null,
+                UUID.randomUUID(), Instant.now(), Instant.now()
+        );
 
-        UUID id = UUID.randomUUID();
-        UUID contentId = UUID.randomUUID();
-        String contentType = "testContentType";
-        boolean isValid = true;
-        Instant createdAt = Instant.now();
+        when(supportRepo.findByUserId(userId)).thenReturn(List.of(req));
 
-        ValidationResult mockResult = ValidationResult.fromPersistence(id, userId, contentType, contentId,
-                isValid, Collections.emptyList(), createdAt);
+        // mock pipeline
+        ValidationPipeline<SupportRequest> pipeline = mock(ValidationPipeline.class);
 
-        // Mock dependencies
-        var mockSupportRepo = org.mockito.Mockito.mock(com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository.class);
-        var mockPipeline = org.mockito.Mockito.mock(com.dehold.contentmanager.validation.pipeline.ValidationPipeline.class);
-        var mockPipelineFactory = org.mockito.Mockito.mock(com.dehold.contentmanager.validation.pipeline.ValidationPipelineFactory.class);
-        var mockResultRepo = org.mockito.Mockito.mock(com.dehold.contentmanager.validation.repository.ValidationResultRepository.class);
-        var mockBlogPostService = org.mockito.Mockito.mock(com.dehold.contentmanager.content.blogpost.service.BlogPostService.class);
+        ValidationResult result = ValidationResult.fromPersistence(
+                UUID.randomUUID(), userId, "supportrequest",
+                req.getId(), true, List.of(), Instant.now()
+        );
 
-        org.mockito.Mockito.when(mockSupportRepo.findByUserId(userId)).thenReturn(List.of(supportRequest));
-        org.mockito.Mockito.when(mockPipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest"))
-                .thenReturn(List.of(mockPipeline));
-        org.mockito.Mockito.when(mockPipeline.run(supportRequest)).thenReturn(mockResult);
+        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest"))
+                .thenReturn((List) List.of(pipeline));
 
-        var service = new ValidationServiceImpl(mockResultRepo, mockPipelineFactory, mockBlogPostService, mockSupportRepo);
+        when(pipeline.run(req)).thenReturn(result);
 
-        // Act
-        List<ValidationResult> results = service.runSupportRequestValidation(userId);
+        // ACT
+        List<ValidationResult> results = validationService.runSupportRequestValidation(userId);
 
-        // Assert
+        // ASSERT
         assertEquals(1, results.size());
-        assertEquals(mockResult, results.get(0));
-        verify(mockPipelineFactory, times(1))
+        assertEquals(result, results.get(0));
+
+        verify(repository, times(1)).create(result);
+        verify(pipelineFactory, times(1))
                 .createValidationPipelineForUserAndContentType(userId, "supportrequest");
-        verify(mockResultRepo, times(1)).create(mockResult);
     }
 
-    //Ensure that if the user has no support requests,
-    //the method returns an empty result list and no persistence occurs.
+    // ---------------------------------------------------------
+    // 2️⃣ User has NO support requests → nothing persisted
+    // ---------------------------------------------------------
     @Test
-    void givenNoSupportRequests_whenRunSupportRequestValidation_thenReturnEmptyList() {
+    void givenNoSupportRequests_whenValidate_thenReturnEmptyAndNoPersist() {
+
         UUID userId = UUID.randomUUID();
 
-        // Mock dependencies
-        var mockSupportRepo = org.mockito.Mockito.mock(com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository.class);
-        var mockPipelineFactory = org.mockito.Mockito.mock(com.dehold.contentmanager.validation.pipeline.ValidationPipelineFactory.class);
-        var mockResultRepo = org.mockito.Mockito.mock(com.dehold.contentmanager.validation.repository.ValidationResultRepository.class);
-        var mockBlogPostService = org.mockito.Mockito.mock(com.dehold.contentmanager.content.blogpost.service.BlogPostService.class);
+        when(supportRepo.findByUserId(userId)).thenReturn(List.of());
 
-        org.mockito.Mockito.when(mockSupportRepo.findByUserId(userId)).thenReturn(List.of());
+        List<ValidationResult> results = validationService.runSupportRequestValidation(userId);
 
-        var service = new ValidationServiceImpl(mockResultRepo, mockPipelineFactory, mockBlogPostService, mockSupportRepo);
-
-        // Act
-        List<ValidationResult> results = service.runSupportRequestValidation(userId);
-
-        // Assert
         assertTrue(results.isEmpty());
-        verify(mockResultRepo, never()).create(any());
-        verify(mockPipelineFactory, never()).createValidationPipelineForUserAndContentType(any(), any());
+        verify(repository, never()).create(any());
+        verify(pipelineFactory, never())
+                .createValidationPipelineForUserAndContentType(any(), any());
     }
 
-    //When there are support requests but no pipelines,
-    //the service should skip validation and not persist any results.
+    // ---------------------------------------------------------
+    // 3️⃣ Support request exists but no pipelines → no validation, no persistence
+    // ---------------------------------------------------------
     @Test
-    void givenSupportRequestWithoutPipelines_whenRunSupportRequestValidation_thenNoValidationIsPerformed() {
+    void givenSupportRequestButNoPipelines_whenValidate_thenNoPersist() {
+
         UUID userId = UUID.randomUUID();
 
-        var supportRequest = new com.dehold.contentmanager.content.customersupport.model.SupportRequest(
-                UUID.randomUUID(), userId, "Support text", null,
-                UUID.randomUUID(), Instant.now(), Instant.now());
+        SupportRequest req = new SupportRequest(
+                UUID.randomUUID(), userId,
+                "Some message", null,
+                UUID.randomUUID(), Instant.now(), Instant.now()
+        );
 
-        var mockSupportRepo = org.mockito.Mockito.mock(com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository.class);
-        var mockPipelineFactory = org.mockito.Mockito.mock(com.dehold.contentmanager.validation.pipeline.ValidationPipelineFactory.class);
-        var mockResultRepo = org.mockito.Mockito.mock(com.dehold.contentmanager.validation.repository.ValidationResultRepository.class);
-        var mockBlogPostService = org.mockito.Mockito.mock(com.dehold.contentmanager.content.blogpost.service.BlogPostService.class);
+        when(supportRepo.findByUserId(userId)).thenReturn(List.of(req));
+        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest"))
+                .thenReturn(List.of()); // NO pipelines
 
-        org.mockito.Mockito.when(mockSupportRepo.findByUserId(userId)).thenReturn(List.of(supportRequest));
-        org.mockito.Mockito.when(mockPipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest"))
-                .thenReturn(List.of()); // no pipelines
+        List<ValidationResult> results = validationService.runSupportRequestValidation(userId);
 
-        var service = new ValidationServiceImpl(mockResultRepo, mockPipelineFactory, mockBlogPostService, mockSupportRepo);
-
-        // Act
-        List<ValidationResult> results = service.runSupportRequestValidation(userId);
-
-        // Assert
         assertTrue(results.isEmpty());
-        verify(mockResultRepo, never()).create(any());
+        verify(repository, never()).create(any());
     }
 
-    //Test that multiple support requests with multiple pipelines result in multiple persisted results.
+    // ---------------------------------------------------------
+    // 4️⃣ Multiple support requests × multiple pipelines → ALL results persisted
+    // ---------------------------------------------------------
     @Test
-    void givenMultipleSupportRequestsAndPipelines_whenRunSupportRequestValidation_thenAllResultsPersisted() {
+    void givenMultipleRequestsAndPipelines_whenValidate_thenAllPersisted() {
+
         UUID userId = UUID.randomUUID();
 
-        var req1 = new com.dehold.contentmanager.content.customersupport.model.SupportRequest(
-                UUID.randomUUID(), userId, "Support 1", null,
-                UUID.randomUUID(), Instant.now(), Instant.now());
-        var req2 = new com.dehold.contentmanager.content.customersupport.model.SupportRequest(
-                UUID.randomUUID(), userId, "Support 2", null,
-                UUID.randomUUID(), Instant.now(), Instant.now());
+        SupportRequest req1 = new SupportRequest(
+                UUID.randomUUID(), userId, "Msg1",
+                null, UUID.randomUUID(), Instant.now(), Instant.now()
+        );
+        SupportRequest req2 = new SupportRequest(
+                UUID.randomUUID(), userId, "Msg2",
+                null, UUID.randomUUID(), Instant.now(), Instant.now()
+        );
 
-        var mockPipeline1 = org.mockito.Mockito.mock(com.dehold.contentmanager.validation.pipeline.ValidationPipeline.class);
-        var mockPipeline2 = org.mockito.Mockito.mock(com.dehold.contentmanager.validation.pipeline.ValidationPipeline.class);
+        when(supportRepo.findByUserId(userId)).thenReturn(List.of(req1, req2));
 
-        UUID contentId = UUID.randomUUID();
-        String contentType = "testContentType";
-        boolean isValid = true;
-        Instant createdAt = Instant.now();
+        ValidationPipeline<SupportRequest> p1 = mock(ValidationPipeline.class);
+        ValidationPipeline<SupportRequest> p2 = mock(ValidationPipeline.class);
 
-        ValidationResult mockResult = ValidationResult.fromPersistence(UUID.randomUUID(), userId, contentType, contentId,
-                true, Collections.emptyList(), createdAt);
+        // results
+        ValidationResult res11 = ValidationResult.fromPersistence(
+                UUID.randomUUID(), userId, "supportrequest",
+                req1.getId(), true, List.of(), Instant.now()
+        );
+        ValidationResult res12 = ValidationResult.fromPersistence(
+                UUID.randomUUID(), userId, "supportrequest",
+                req1.getId(), false, List.of(new ValidationError("101", "Issue")), Instant.now()
+        );
+        ValidationResult res21 = ValidationResult.fromPersistence(
+                UUID.randomUUID(), userId, "supportrequest",
+                req2.getId(), true, List.of(), Instant.now()
+        );
+        ValidationResult res22 = ValidationResult.fromPersistence(
+                UUID.randomUUID(), userId, "supportrequest",
+                req2.getId(), false, List.of(new ValidationError("202", "Error")), Instant.now()
+        );
 
-        var result1 = ValidationResult.fromPersistence(UUID.randomUUID(), userId, contentType, contentId,
-                true, Collections.emptyList(), createdAt);
-        var result2 = ValidationResult.fromPersistence(UUID.randomUUID(), userId, contentType, contentId,
-                false, List.of(new ValidationError("401", "error")), createdAt);
+        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest"))
+                .thenReturn((List) List.of(p1, p2));
 
-        org.mockito.Mockito.when(mockPipeline1.run(any())).thenReturn(result1);
-        org.mockito.Mockito.when(mockPipeline2.run(any())).thenReturn(result2);
+        when(p1.run(req1)).thenReturn(res11);
+        when(p1.run(req2)).thenReturn(res21);
 
-        var mockSupportRepo = org.mockito.Mockito.mock(com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository.class);
-        var mockPipelineFactory = org.mockito.Mockito.mock(com.dehold.contentmanager.validation.pipeline.ValidationPipelineFactory.class);
-        var mockResultRepo = org.mockito.Mockito.mock(com.dehold.contentmanager.validation.repository.ValidationResultRepository.class);
-        var mockBlogPostService = org.mockito.Mockito.mock(com.dehold.contentmanager.content.blogpost.service.BlogPostService.class);
+        when(p2.run(req1)).thenReturn(res12);
+        when(p2.run(req2)).thenReturn(res22);
 
-        org.mockito.Mockito.when(mockSupportRepo.findByUserId(userId)).thenReturn(List.of(req1, req2));
-        org.mockito.Mockito.when(mockPipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest"))
-                .thenReturn(List.of(mockPipeline1, mockPipeline2));
+        // ACT
+        List<ValidationResult> results = validationService.runSupportRequestValidation(userId);
 
-        var service = new ValidationServiceImpl(mockResultRepo, mockPipelineFactory, mockBlogPostService, mockSupportRepo);
+        // ASSERT
+        assertEquals(4, results.size());
 
-        // Act
-        List<ValidationResult> results = service.runSupportRequestValidation(userId);
-
-        // Assert
-        assertEquals(4, results.size()); // 2 requests × 2 pipelines
-        verify(mockResultRepo, times(4)).create(any(ValidationResult.class));
+        verify(repository, times(4)).create(any(ValidationResult.class));
     }
 
+    // ---------------------------------------------------------
+    // 5️⃣ Invalid content type → pipeline factory throws exception
+    // ---------------------------------------------------------
+    @Test
+    void givenInvalidContentType_whenPipelineFactoryThrows_thenPropagated() {
+
+        UUID userId = UUID.randomUUID();
+
+        SupportRequest req = new SupportRequest(
+                UUID.randomUUID(), userId, "Bad msg",
+                null, UUID.randomUUID(), Instant.now(), Instant.now()
+        );
+
+        when(supportRepo.findByUserId(userId)).thenReturn(List.of(req));
+
+        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest"))
+                .thenThrow(new IllegalArgumentException("Unknown content type"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> validationService.runSupportRequestValidation(userId));
+
+        verify(repository, never()).create(any());
+    }
 
 }
