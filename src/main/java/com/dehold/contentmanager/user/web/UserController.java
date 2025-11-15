@@ -113,6 +113,16 @@ public class UserController {
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
+    @PostMapping("/{id}/validate-supportrequests")
+    public ResponseEntity<List<ValidationResponse>> validateSupportRequests(@PathVariable UUID id) {
+        userService.getUser(id);
+        List<ValidationResult> results = validationService.runSupportRequestValidation(id);
+        List<ValidationResponse> responses = results.stream()
+                .map(result -> new ValidationResponse("SupportRequest", ValidationResultDto.from(result)))
+                .toList();
+        return ResponseEntity.ok(responses);
+    }
+
     @PostMapping("/{id}/validate-supportresponses")
     public ResponseEntity<List<ValidationResponse>> validateSupportResponsesForUser(@PathVariable UUID id) {
         userService.getUser(id); // Check for the user to be existent

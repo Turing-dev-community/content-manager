@@ -3,6 +3,7 @@ package com.dehold.contentmanager.validation.service;
 import com.dehold.contentmanager.content.Content;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.service.BlogPostService;
+import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.model.SupportResponse;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
 import com.dehold.contentmanager.validation.pipeline.ValidationPipeline;
@@ -41,12 +42,15 @@ public class ValidationServiceImpl implements ValidationService {
     @Autowired
     private final BlogPostService blogPostService;
 
+    private final SupportRequestRepository supportRequestRepository;
+
     public ValidationServiceImpl(ValidationResultRepository validationResultRepository,
-                                 ValidationPipelineFactory validationPipelineFactory, BlogPostService blogPostService,SupportResponseService supportResponseService) {
-        this.supportResponseService = supportResponseService;
+                                 ValidationPipelineFactory validationPipelineFactory, BlogPostService blogPostService, SupportRequestRepository supportRequestRepository, SupportResponseService supportResponseService) {
         this.blogPostService = blogPostService;
         this.validationPipelineFactory = validationPipelineFactory;
         this.validationResultRepository = validationResultRepository;
+        this.supportRequestRepository = supportRequestRepository;
+        this.supportResponseService = supportResponseService;
     }
 
     @Override
@@ -134,6 +138,25 @@ public class ValidationServiceImpl implements ValidationService {
     @Override
     public List<ValidationResult> findByUserId(UUID id) {
         return validationResultRepository.findByUserId(id);
+    }
+
+    @Override
+    public List<ValidationResult> runSupportRequestValidation(UUID userId) {
+        // 1️⃣ Fetch all support requests for the given user
+        List<SupportRequest> supportRequests = supportRequestRepository.findByUserId(userId);
+
+        List<ValidationResult> allResults = new LinkedList<>();
+        // 2️⃣ For each support request, run all validation pipelines configured for "supportrequest"
+        for (SupportRequest supportRequest : supportRequests) {
+            List<ValidationPipeline<SupportRequest>> pipelines = validationPipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest");
+
+            for (ValidationPipeline<SupportRequest> pipeline : pipelines) {
+                ValidationResult result = pipeline.run(supportRequest);
+                allResults.add(result);
+            }
+        }
+        persistsResults(allResults);
+        return allResults;
     }
 
     @Override
