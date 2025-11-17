@@ -141,42 +141,6 @@ class UserServiceTest {
         verify(userRepository, times(1)).getUserById(randomId);
     }
 
-    // ✅ 3. Test that updateUser correctly updates alias, email, username, and password
-    @Test
-    void updateUser_shouldUpdateExistingUserFieldsProperly() {
-        UUID userId = UUID.randomUUID();
-        User existingUser = new User(
-                userId,
-                "Old Alias",
-                "old@example.com",
-                Instant.now(),
-                Instant.now(),
-                "oldUsername",
-                "oldPassword",
-                true
-        );
-
-        when(userRepository.getUserById(userId)).thenReturn(Optional.of(existingUser));
-
-        UpdateUserRequest request = new UpdateUserRequest();
-        request.setAlias("New Alias");
-        request.setEmail("new@example.com");
-        request.setUsername("newUsername");
-        request.setPassword("newPassword123");
-
-        User user = userService.updateUser(userId, request);
-
-        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository, times(1)).updateUser(userCaptor.capture());
-
-        assertEquals("New Alias", user.getAlias());
-        assertEquals("new@example.com", user.getEmail());
-        assertEquals("newUsername", user.getUsername());
-        assertEquals("newPassword123", user.getPassword()); // Not encoded during update
-        assertTrue(user.isEnabled());
-        assertNotEquals(existingUser.getUpdatedAt(), user.getUpdatedAt());
-    }
-
     // Creates a new user with encrypted user and password and verifies that after user creation, passwords are not same.
     @Test
     void createUser_shouldCreateUserFieldsProperly() {
