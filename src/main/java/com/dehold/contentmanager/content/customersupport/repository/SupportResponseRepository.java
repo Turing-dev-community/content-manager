@@ -7,6 +7,7 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -55,5 +56,12 @@ public class SupportResponseRepository {
         String sql = "DELETE FROM support_response WHERE id = ?";
         jdbcTemplate.update(sql, id);
     }
+
+    public List<SupportResponse> getSupportResponsesByUserId(UUID userId) {
+        String sql = "SELECT sr.* FROM support_response sr " +
+        "JOIN customer_request cr ON sr.support_request = cr.id " +
+        "WHERE cr.customer_id = ?";
+        return jdbcTemplate.query(sql, ROW_MAPPER, userId);
+        }
 }
 
