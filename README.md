@@ -29,6 +29,7 @@ Please update for each new feature:
 | 2025-11-13      |denis.h@turing.com | Validation Reports | Added new endpoint `/api/users/:id/validation-report` that provides a summary report of validation results for all content owned by a user. | [#53](https://github.com/Turing-dev-community/content-manager/issues/57) |
 | 2025-11-14      |denis.h@turing.com | Introduce a Generic Content Model | More flexible content creation by providing a generic content model that allows custom content types and fields | [#61](https://github.com/Turing-dev-community/content-manager/issues/61) |
 | 2025-11-14      | riddhi.s@turing.com    | Add pagination to GET /api/blogposts               | Add `page` and `size` query params to blog post list endpoint. Return paginated response with metadata.                       | [#55](https://github.com/Turing-dev-community/content-manager/issues/55) |
+| 2025-11-17 | riddhi.s@turing.com | Add ProductOffer content type | New marketplace-ready content type with pricing, stock, delivery fields. Model + repository + schema. No API yet. | [#74](https://github.com/Turing-dev-community/content-manager/issues/74) |
 | 2025-11-15 | riddhi.s@turing.com | Allow users to validate customer support responses | Endpoint `/api/users/{id}/validate-supportresponses` that runs validations against all `SupportResponse` entries owned by the user and persists results. Fixes circular `NOT NULL` dependency in DB schema. | [#67](https://github.com/Turing-dev-community/content-manager/issues/67) |
 
 ### Overview
