@@ -47,6 +47,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
 
     @BeforeAll
     static void setup(@Autowired JdbcTemplate jdbcTemplate) {
+        jdbcTemplate.update("DELETE FROM \"user\"");
         jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
                 user1Id, "testuser1", "testuser1@example.com", "TestUser-" + UUID.randomUUID(), "TestPassword-" + UUID.randomUUID());
 
