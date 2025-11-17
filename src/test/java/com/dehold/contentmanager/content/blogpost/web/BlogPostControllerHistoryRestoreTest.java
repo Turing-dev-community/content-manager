@@ -126,6 +126,51 @@ class BlogPostControllerHistoryRestoreTest {
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertTrue(response.getBody().contains("The entity BlogPostVersion") || response.getBody().toLowerCase().contains("not found"));
+        assertTrue(response.getBody().contains("The entity BlogPostVersion") || response.getBody().toLowerCase().contains("does not exist"));
+    }
+
+    @Test
+    void restoreVersion_successfullyRestoresVersion() {
+        // CREATE a blog post
+        UUID postId = UUID.randomUUID();
+        BlogPost post = new BlogPost(
+                postId,
+                "Original Title",
+                "Original Content",
+                Instant.now(),
+                Instant.now(),
+                user1Id
+        );
+        blogPostRepository.createBlogPost(post);
+
+        // UPDATE POST to create history entry
+        blogPostService.updateBlogPostVersion(postId, "Updated Title", "Updated Content");
+
+        // VERIFY history exists
+        List<BlogPostHistory> history = blogPostHistoryRepository.getHistoryByBlogPostId(postId);
+        assertEquals(1, history.size());
+        int versionToRestore = history.get(0).getVersionNumber();
+
+        // --- ACT: RESTORE via REST endpoint ---
+        ResponseEntity<BlogPost> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/blogposts/" + postId + "/restore/{version}",
+                null,
+                BlogPost.class,
+                versionToRestore
+        );
+
+        // ASSERT HTTP response
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        BlogPost restored = response.getBody();
+        assertNotNull(restored);
+
+        // ASSERT restored content
+        assertEquals("Original Title", restored.getTitle());
+        assertEquals("Original Content", restored.getContent());
+
+        // ASSERT DB reflects restored values
+        BlogPost fromDb = blogPostRepository.getBlogPost(postId).orElseThrow();
+        assertEquals("Original Title", fromDb.getTitle());
+        assertEquals("Original Content", fromDb.getContent());
     }
 }

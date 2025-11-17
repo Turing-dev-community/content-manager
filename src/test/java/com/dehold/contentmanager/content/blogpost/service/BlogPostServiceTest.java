@@ -1,6 +1,7 @@
 package com.dehold.contentmanager.content.blogpost.service;
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
+import com.dehold.contentmanager.content.blogpost.model.BlogPostHistory;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostHistoryRepository;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
 import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
@@ -12,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 
 import java.time.Instant;
 import java.util.List;
@@ -259,5 +262,91 @@ class BlogPostServiceTest {
 
         verify(blogPostHistoryRepository).saveHistory(any(BlogPost.class), eq(1));
         verify(blogPostRepository).updateBlogPost(any(BlogPost.class));
+    }
+
+    @Test
+    void restoreVersion_shouldRestoreVersionSuccessfully() {
+
+        UUID postId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        Instant now = Instant.now();
+
+        BlogPostHistory history = new BlogPostHistory();
+        history.setId(UUID.randomUUID());
+        history.setBlogPostId(postId);
+        history.setTitle("Old Title");
+        history.setContent("Old Content");
+        history.setVersionNumber(1);
+        history.setCreatedAt(now);
+        history.setUpdatedAt(now);
+
+        when(blogPostHistoryRepository.getHistoryByBlogPostId(postId))
+                .thenReturn(List.of(history));
+        BlogPost existing = new BlogPost(
+                postId, "Current Title", "Current Content", now, now, userId
+        );
+        when(blogPostRepository.getBlogPost(postId))
+                .thenReturn(Optional.of(existing));
+        BlogPost updated = new BlogPost(
+                postId, "Old Title", "Old Content", existing.getCreatedAt(), Instant.now(), userId
+        );
+        when(blogPostHistoryRepository.getNextVersionNumber(postId))
+                .thenReturn(2);
+        doNothing().when(blogPostHistoryRepository).saveHistory(any(), eq(2));
+        doNothing().when(blogPostRepository).updateBlogPost(any());
+        when(blogPostRepository.getBlogPost(postId))
+                .thenReturn(Optional.of(updated));
+        BlogPost result = blogPostService.restoreVersion(postId, 1);
+        assertNotNull(result);
+        assertEquals("Old Title", result.getTitle());
+        assertEquals("Old Content", result.getContent());
+
+        verify(blogPostHistoryRepository).getHistoryByBlogPostId(postId);
+        verify(blogPostHistoryRepository).saveHistory(any(), eq(2));
+        verify(blogPostRepository, times(2)).getBlogPost(postId); // called twice
+        verify(blogPostRepository).updateBlogPost(any());
+    }
+
+    @Test
+    void getHistory_shouldReturnHistoryForBlogPost() {
+        UUID postId = UUID.randomUUID();
+        Instant now = Instant.now();
+
+        BlogPostHistory h1 = new BlogPostHistory();
+        h1.setId(UUID.randomUUID());
+        h1.setBlogPostId(postId);
+        h1.setTitle("Title v1");
+        h1.setContent("Content v1");
+        h1.setVersionNumber(1);
+        h1.setCreatedAt(now.minusSeconds(60));
+        h1.setUpdatedAt(now.minusSeconds(60));
+
+        BlogPostHistory h2 = new BlogPostHistory();
+        h2.setId(UUID.randomUUID());
+        h2.setBlogPostId(postId);
+        h2.setTitle("Title v2");
+        h2.setContent("Content v2");
+        h2.setVersionNumber(2);
+        h2.setCreatedAt(now.minusSeconds(30));
+        h2.setUpdatedAt(now.minusSeconds(30));
+
+        List<BlogPostHistory> mockHistory = List.of(h2, h1); // assume ordered DESC
+
+        when(blogPostHistoryRepository.getHistoryByBlogPostId(postId))
+                .thenReturn(mockHistory);
+
+        // ACT
+        List<BlogPostHistory> result = blogPostService.getHistory(postId);
+
+        // ASSERT
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertEquals(mockHistory, result); // exact list comparison
+
+        assertEquals(2, result.get(0).getVersionNumber());
+        assertEquals(1, result.get(1).getVersionNumber());
+
+        verify(blogPostHistoryRepository, times(1))
+                .getHistoryByBlogPostId(postId);
     }
 }
