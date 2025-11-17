@@ -840,13 +840,13 @@ class UserControllerIntegrationTest {
         supportRequestRepository.create(r2);
         supportRequestRepository.create(r3);
 
-        // Valid (30 chars)
+        
         SupportResponse valid = new SupportResponse(UUID.randomUUID(), user.getId(),
                 "This is a valid response text.", r1.getId(), Instant.now(), Instant.now());
-        // Too short (2 chars)
+        
         SupportResponse short1 = new SupportResponse(UUID.randomUUID(), user.getId(),
                 "Hi", r2.getId(), Instant.now(), Instant.now());
-        // Too short (1 char)
+        
         SupportResponse short2 = new SupportResponse(UUID.randomUUID(), user.getId(),
                 "A", r3.getId(), Instant.now(), Instant.now());
 
@@ -854,7 +854,6 @@ class UserControllerIntegrationTest {
         supportResponseRepository.create(short1);
         supportResponseRepository.create(short2);
 
-        // Pipeline – step **id is required**
         ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
         pipelineDto.setUserId(user.getId());
         pipelineDto.setContentType("supportresponse");
@@ -870,56 +869,34 @@ class UserControllerIntegrationTest {
                         true)
         ));
         
-        // ----------------------------------------------------
-        // FIX 1: Assert pipeline creation status to catch 400s during setup
-        // ----------------------------------------------------
         ResponseEntity<ValidationPipelineModel> pipelineResponse = restTemplate.postForEntity(
                 "http://localhost:" + port + "/api/validation-pipelines",
                 pipelineDto,
                 ValidationPipelineModel.class);
                 
-        // Assert that the pipeline was created successfully (usually 201 CREATED)
         assertEquals(HttpStatus.CREATED, pipelineResponse.getStatusCode(), 
             "Pipeline creation failed during setup. Check server logs for validation errors on pipelineDto."); 
-        // ----------------------------------------------------
 
-        // ---------- Act ----------
-        // Fetch raw JSON response to handle manual deserialization
-        ResponseEntity<String> response = restTemplate.exchange(
+        ResponseEntity<ValidationResponse[]> response = restTemplate.exchange(
                 "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportresponses",
                 HttpMethod.POST,
                 null,
-                String.class
+                ValidationResponse[].class
         );
     
         // ---------- Assert ----------
-        // Assert the HTTP status of the final validation call
         assertEquals(HttpStatus.OK, response.getStatusCode(), 
             "Validation API call failed. Check server logs for the 400 BAD_REQUEST root cause.");
-            
-        String jsonBody = response.getBody();
-        assertNotNull(jsonBody);
 
-        // ----------------------------------------------------
-        // FIX 2: Manual deserialization using ObjectMapper to resolve Jackson/Record issues
-        // ----------------------------------------------------
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.findAndRegisterModules(); // Helps with Java 8 types like Records and Instant
+        ValidationResponse[] body = response.getBody();
+        assertNotNull(body);
 
-        // Define the correct type reference for manual deserialization
-        JavaType type = mapper.getTypeFactory().constructCollectionType(List.class, ValidationResponse.class);
-
-        // Manually deserialize the JSON string
-        List<ValidationResponse> results = mapper.readValue(jsonBody, type);
-        // ----------------------------------------------------
-
-        assertNotNull(results);
-        assertEquals(3, results.size());
+        assertEquals(3, body.length);
     
         int validCount = 0;
         int shortCount = 0;
     
-        for (ValidationResponse vr : results) {
+        for (ValidationResponse vr : body) {
             ValidationResultDto dto = vr.getValidationResult();
             assertEquals("SupportResponse", dto.getContentType());
             assertEquals(user.getId(), dto.getUserId());
@@ -938,5 +915,4 @@ class UserControllerIntegrationTest {
         assertEquals(1, validCount);   // only the first response
         assertEquals(2, shortCount);   // two short responses
     }
-
 }
