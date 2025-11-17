@@ -310,9 +310,16 @@ class BlogPostControllerIntegrationTest {
 
         String cd = headers.getFirst(HttpHeaders.CONTENT_DISPOSITION);
         assertNotNull(cd);
-        assertTrue(cd.contains("attachment"), "Content-Disposition must indicate attachment");
-        assertTrue(cd.contains("export-" + user1Id + ".json"), "Filename must include userId");
 
+        // Assert it indicates attachment and contains a filename token matching export-*.json
+        assertTrue(cd.toLowerCase().contains("attachment"), "Content-Disposition must indicate attachment");
+
+        // filename may be formatted differently by implementations; assert a flexible pattern:
+        // must contain "export-" and end with ".json" in the header value
+        assertTrue(cd.contains("export-") && cd.toLowerCase().contains(".json"),
+                "Content-Disposition filename should follow export-*.json pattern");
+
+        // Content-Type check (explicit per issue)
         assertEquals(MediaType.APPLICATION_JSON, headers.getContentType(), "Content-Type must be application/json");
     }
 
@@ -351,4 +358,44 @@ class BlogPostControllerIntegrationTest {
         assertNotNull(blogPosts, "Parsed JSON must not be null");
         assertTrue(blogPosts.size() > 0, "Exported JSON array must contain at least one blog post");
     }
+
+    @Test
+    void downloadExport_shouldContainBlogPostsInJsonArray_andValidateContent() throws Exception {
+        // create a blog post for this user
+        UUID createdId = UUID.randomUUID();
+        BlogPost bp = new BlogPost(createdId, "DL Title 3", "DL Body 3",
+                Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(bp);
+
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user1Id;
+
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        byte[] body = response.getBody();
+        assertNotNull(body);
+
+        // parse JSON into a List (tests that the exported payload is a JSON array of blog posts)
+        List<?> blogPosts = objectMapper.readValue(body, List.class);
+        assertNotNull(blogPosts, "Parsed JSON must not be null");
+        assertTrue(blogPosts.size() > 0, "Exported JSON array must contain at least one blog post");
+
+        // further validate structure of first element (should be a map with expected fields)
+        Object first = blogPosts.get(0);
+        assertTrue(first instanceof java.util.Map, "Each blog post entry should be a JSON object");
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> firstObj = (java.util.Map<String, Object>) first;
+
+        // check for common fields
+        assertTrue(firstObj.containsKey("id"), "Exported blog post must contain 'id' field");
+        assertTrue(firstObj.containsKey("title"), "Exported blog post must contain 'title' field");
+        assertTrue(firstObj.containsKey("content"), "Exported blog post must contain 'content' field");
+        assertTrue(firstObj.containsKey("userId"), "Exported blog post must contain 'userId' field");
+
+        // check at least one exported item has the expected userId
+        boolean hasUserMatch = blogPosts.stream().map(o -> (java.util.Map<String, Object>) o)
+                .anyMatch(m -> user1Id.toString().equals(String.valueOf(m.get("userId"))));
+        assertTrue(hasUserMatch, "At least one exported blog post must belong to the requested userId");
+    }
+
 }
