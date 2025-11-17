@@ -1,6 +1,7 @@
 package com.dehold.contentmanager.content.blogpost.service;
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
+import com.dehold.contentmanager.content.blogpost.model.Comment;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
 import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
@@ -48,7 +49,7 @@ class BlogPostServiceTest {
         doNothing().when(blogPostRepository).createBlogPost(any(BlogPost.class));
 
         BlogPost createdBlogPost = blogPostService.createBlogPost(request.getTitle(), request.getContent(),
-                request.getUserId());
+                request.getUserId(), null);
 
         assertNotNull(createdBlogPost);
         assertEquals(request.getTitle(), createdBlogPost.getTitle());
@@ -174,4 +175,82 @@ class BlogPostServiceTest {
         verify(blogPostRepository, times(1)).getPaginatedBlogPosts(eq(size), eq(0), eq(userId));
         verify(blogPostRepository, times(1)).countBlogPosts(eq(userId));
     }
+
+    @Test
+    void createBlogPost_withComments_shouldStoreAndReturnBlogPost() {
+        // Arrange
+        CreateBlogPostRequest request = new CreateBlogPostRequest();
+        request.setTitle("Post with comments");
+        request.setContent("Body");
+        UUID userId = UUID.randomUUID();
+        request.setUserId(userId);
+
+        Comment comment = new Comment(UUID.randomUUID(), userId, "Nice!", Instant.now(), Instant.now());
+
+        doNothing().when(blogPostRepository).createBlogPost(any(BlogPost.class));
+
+        // Act
+        BlogPost created = blogPostService.createBlogPost(
+                request.getTitle(),
+                request.getContent(),
+                request.getUserId(),
+                List.of(comment)
+        );
+
+        // Assert
+        assertNotNull(created);
+        assertEquals("Post with comments", created.getTitle());
+        assertEquals(1, created.getComments().size());
+        assertEquals("Nice!", created.getComments().get(0).getText());
+        verify(blogPostRepository, times(1)).createBlogPost(any(BlogPost.class));
+    }
+
+    @Test
+    void updateBlogPost_shouldIncludeUpdatedComments() {
+        // Arrange
+        UUID postId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Comment comment = new Comment(UUID.randomUUID(), userId, "Updated Comment", Instant.now(), Instant.now());
+
+        BlogPost existing = new BlogPost(postId, "Old Title", "Old Body", Instant.now(), Instant.now(), userId, List.of(comment));
+
+        when(blogPostRepository.getBlogPost(postId)).thenReturn(Optional.of(existing));
+
+
+        doNothing().when(blogPostRepository).updateBlogPost(any(BlogPost.class));
+
+        // Act
+        BlogPost updated = blogPostService.updateBlogPost(postId, "New Title", "New Body");
+
+        // Assert
+        assertEquals("New Title", updated.getTitle());
+        assertEquals("New Body", updated.getContent());
+        assertEquals(1, updated.getComments().size());
+        assertEquals("Updated Comment", updated.getComments().get(0).getText());
+        verify(blogPostRepository, times(1)).updateBlogPost(any(BlogPost.class));
+    }
+
+    @Test
+    void getBlogPostById_shouldReturnBlogPostWithComments() {
+        // Arrange
+        UUID postId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        Comment comment = new Comment(UUID.randomUUID(), userId, "Loaded comment", Instant.now(), Instant.now());
+
+        BlogPost post = new BlogPost(postId, "Loaded", "Loaded body",
+                Instant.now(), Instant.now(), userId, List.of(comment));
+
+        when(blogPostRepository.getBlogPost(postId))
+                .thenReturn(Optional.of(post));
+
+        // Act
+        BlogPost result = blogPostService.getBlogPost(postId);
+
+        // Assert
+        assertEquals(1, result.getComments().size());
+        assertEquals("Loaded comment", result.getComments().get(0).getText());
+    }
+
 }

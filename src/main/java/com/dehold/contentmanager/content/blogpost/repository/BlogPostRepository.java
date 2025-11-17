@@ -1,11 +1,14 @@
 package com.dehold.contentmanager.content.blogpost.repository;
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
+import com.dehold.contentmanager.content.blogpost.model.Comment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,6 +32,11 @@ public class BlogPostRepository {
                 blogPost.getUpdatedAt(),
                 blogPost.getUserId()
         );
+        if (blogPost.getComments() != null) {
+            for (Comment c : blogPost.getComments()) {
+                insertComment(blogPost.getId(), c);
+            }
+        }
     }
 
     public Optional<BlogPost> getBlogPost(UUID id) {
@@ -36,19 +44,30 @@ public class BlogPostRepository {
                 "SELECT * FROM blog_post WHERE id = ?",
                 this::mapRowToBlogPost,
                 id
-        ).stream().findFirst();
+        ).stream().findFirst().map(bp -> {
+            bp.setComments(loadCommentsForPost(bp.getId()));
+            return bp;
+        });
     }
 
     public List<BlogPost> getAllBlogPosts() {
-        return jdbcTemplate.query("SELECT * FROM blog_post", this::mapRowToBlogPost);
+        List<BlogPost> posts = jdbcTemplate.query("SELECT * FROM blog_post", this::mapRowToBlogPost);
+        for (BlogPost p : posts) {
+            p.setComments(loadCommentsForPost(p.getId()));
+        }
+        return posts;
     }
 
     public List<BlogPost> getBlogPostsByUserId(UUID userId) {
-        return jdbcTemplate.query(
+        List<BlogPost> posts = jdbcTemplate.query(
                 "SELECT * FROM blog_post WHERE user_id = ?",
                 this::mapRowToBlogPost,
                 userId
         );
+        for (BlogPost p : posts) {
+            p.setComments(loadCommentsForPost(p.getId()));
+        }
+        return posts;
     }
 
     public void updateBlogPost(BlogPost blogPost) {
@@ -76,20 +95,63 @@ public class BlogPostRepository {
         );
     }
 
+    private Comment mapRowToComment(ResultSet rs, int rowNum) throws SQLException {
+        return new Comment(
+                UUID.fromString(rs.getString("id")),
+                UUID.fromString(rs.getString("user_id")),
+                rs.getString("text"),
+                rs.getTimestamp("created_at").toInstant(),
+                rs.getTimestamp("updated_at").toInstant()
+        );
+    }
+
+    private List<Comment> loadCommentsForPost(UUID postId) {
+        List<Comment> comments = jdbcTemplate.query(
+                "SELECT * FROM comments WHERE blog_post_id = ? ORDER BY created_at ASC",
+                this::mapRowToComment,
+                postId
+        );
+        return comments == null ? new ArrayList<>() : comments;
+    }
+
+    private void insertComment(UUID blogPostId, Comment c) {
+        UUID cid = c.getId() == null ? UUID.randomUUID() : c.getId();
+        Instant created = c.getCreatedAt() == null ? Instant.now() : c.getCreatedAt();
+        Instant updated = c.getUpdatedAt() == null ? created : c.getUpdatedAt();
+
+        jdbcTemplate.update(
+                "INSERT INTO comments (id, blog_post_id, user_id, text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+                cid,
+                blogPostId,
+                c.getUserId(),
+                c.getText(),
+                created,
+                updated
+        );
+        c.setId(cid);
+        c.setCreatedAt(created);
+        c.setUpdatedAt(updated);
+    }
+
     public List<BlogPost> getPaginatedBlogPosts(int limit, int offset, UUID userId) {
+        List<BlogPost> posts;
         if (userId == null) {
-            return jdbcTemplate.query(
+            posts = jdbcTemplate.query(
                 "SELECT * FROM blog_post LIMIT ? OFFSET ?",
                 this::mapRowToBlogPost,
                 limit, offset
             );
         } else {
-            return jdbcTemplate.query(
+            posts = jdbcTemplate.query(
                 "SELECT * FROM blog_post WHERE user_id = ? LIMIT ? OFFSET ?",
                 this::mapRowToBlogPost,
                 userId, limit, offset
             );
         }
+        for (BlogPost p : posts) {
+            p.setComments(loadCommentsForPost(p.getId()));
+        }
+        return posts;
     }
 
     public long countBlogPosts(UUID userId) {

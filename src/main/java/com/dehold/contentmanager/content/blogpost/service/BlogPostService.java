@@ -1,6 +1,7 @@
 package com.dehold.contentmanager.content.blogpost.service;
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
+import com.dehold.contentmanager.content.blogpost.model.Comment;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
 import com.dehold.contentmanager.exception.EntityNotFoundException;
 import com.dehold.contentmanager.content.blogpost.model.Page;
@@ -20,14 +21,15 @@ public class BlogPostService {
         this.blogPostRepository = blogPostRepository;
     }
 
-    public BlogPost createBlogPost(String title, String content, UUID userId) {
+    public BlogPost createBlogPost(String title, String content, UUID userId, List<Comment> comments) {
         BlogPost blogPost = new BlogPost(
                 UUID.randomUUID(),
                 title,
                 content,
                 Instant.now(),
                 Instant.now(),
-                userId
+                userId,
+                comments
         );
         blogPostRepository.createBlogPost(blogPost);
         return blogPost;

@@ -84,3 +84,13 @@ CREATE TABLE generic_content (
     CONSTRAINT fk_generic_user FOREIGN KEY (user_id) REFERENCES "user" (id) ON DELETE CASCADE,
     CONSTRAINT fk_generic_parent FOREIGN KEY (parent_id) REFERENCES generic_content (id) ON DELETE SET NULL
 );
+
+CREATE TABLE IF NOT EXISTS comments (
+    id UUID PRIMARY KEY,
+    blog_post_id UUID NOT NULL,
+    user_id UUID NOT NULL,
+    text TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    CONSTRAINT fk_blog_post FOREIGN KEY (blog_post_id) REFERENCES blog_post (id) ON DELETE CASCADE
+);
