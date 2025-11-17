@@ -1,6 +1,5 @@
 package com.dehold.contentmanager.validation.web;
 
-import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.exception.CustomErrorResponse;
 import com.dehold.contentmanager.validation.model.ForbiddenWords;
 import com.dehold.contentmanager.validation.repository.ForbiddenWordsRepository;
@@ -22,8 +21,8 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-
-class ForbiddenWordsControllerIntegrationTest  extends ContentManagerApplicationTests {
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class ForbiddenWordsControllerIntegrationTest {
 
     @LocalServerPort
     private int port;

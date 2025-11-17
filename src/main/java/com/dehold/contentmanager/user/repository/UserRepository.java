@@ -7,7 +7,6 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -28,17 +27,14 @@ public class UserRepository {
                 rs.getString("alias"),
                 rs.getString("email"),
                 rs.getTimestamp("created_at").toInstant(),
-                rs.getTimestamp("updated_at").toInstant(),
-                    rs.getString("username"),
-                    rs.getString("password"),
-                    rs.getBoolean("enabled")
+                rs.getTimestamp("updated_at").toInstant()
             );
         }
     };
 
     public void createUser(User user) {
-        String sql = "INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        jdbcTemplate.update(sql, user.getId(), user.getAlias(), user.getEmail(), user.getUsername(), user.getPassword(), user.isEnabled(), user.getCreatedAt(), user.getUpdatedAt());
+        String sql = "INSERT INTO \"user\" (id, alias, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?)";
+        jdbcTemplate.update(sql, user.getId(), user.getAlias(), user.getEmail(), user.getCreatedAt(), user.getUpdatedAt());
     }
 
     public Optional<User> getUserById(UUID id) {
@@ -52,19 +48,8 @@ public class UserRepository {
     }
 
     public void updateUser(User user) {
-        String sql = "UPDATE \"user\" " +
-                "SET alias = ?, email = ?, username = ?, password = ?, enabled = ?, updated_at = ? " +
-                "WHERE id = ?";
-
-        jdbcTemplate.update(sql,
-                user.getAlias(),
-                user.getEmail(),
-                user.getUsername(),
-                user.getPassword(),
-                user.isEnabled(),
-                user.getUpdatedAt(),
-                user.getId()
-        );
+        String sql = "UPDATE \"user\" SET alias = ?, email = ?, created_at = ?, updated_at = ? WHERE id = ?";
+        jdbcTemplate.update(sql, user.getAlias(), user.getEmail(), user.getCreatedAt(), user.getUpdatedAt(), user.getId());
     }
 
     public void deleteUser(UUID id) {
