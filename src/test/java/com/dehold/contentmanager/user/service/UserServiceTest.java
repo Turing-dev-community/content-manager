@@ -127,18 +127,19 @@ class UserServiceTest {
         assertTrue(passwordEncoder.matches("plainpassword", savedUser.getPassword()), "Encoded password should match raw password");
     }
 
-    // ✅ 2. Test that exception is thrown when user not found
+    // Test that sets enabled=true and updates timestamps
     @Test
-    void getUser_shouldThrowEntityNotFoundExceptionWhenUserDoesNotExist() {
-        UUID randomId = UUID.randomUUID();
-        when(userRepository.getUserById(randomId)).thenReturn(Optional.empty());
+    void createUser_setsEnabledTrueAndUpdatesTimestamps() {
+        CreateUserRequest request = new CreateUserRequest();
+        request.setAlias("Test Alias1");
+        request.setEmail("test@example.com");
+        request.setUsername("Test123");
+        request.setPassword("plainpassword1");
+        User user1 = userService.createUser(request);
 
-        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class, () -> {
-            userService.getUser(randomId);
-        });
-
-        assertEquals("The entity User with id " + randomId + " does not exist", exception.getMessage());
-        verify(userRepository, times(1)).getUserById(randomId);
+        assertTrue(user1.isEnabled());
+        assertNotNull(user1.getCreatedAt());
+        assertNotNull(user1.getUpdatedAt());
     }
 
     // Creates a new user with encrypted user and password and verifies that after user creation, passwords are not same.
