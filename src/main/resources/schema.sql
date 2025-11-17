@@ -94,3 +94,23 @@ CREATE TABLE blog_post_history (
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL
 );
+
+-- Product Offer Table
+CREATE TABLE IF NOT EXISTS product_offer (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    brand VARCHAR(255),
+    category VARCHAR(255),
+    original_price DECIMAL(12,2),
+    offer_price DECIMAL(12,2) NOT NULL,
+    discount_percentage INTEGER,
+    stock_quantity INTEGER,
+    delivery_time VARCHAR(100),
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_product_offer_user FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE
+);
