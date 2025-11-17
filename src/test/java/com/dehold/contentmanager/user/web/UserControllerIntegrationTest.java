@@ -1,5 +1,6 @@
 package com.dehold.contentmanager.user.web;
 
+import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
 import com.dehold.contentmanager.exception.CustomErrorResponse;
@@ -7,6 +8,7 @@ import com.dehold.contentmanager.user.model.User;
 import com.dehold.contentmanager.user.repository.UserRepository;
 import com.dehold.contentmanager.user.web.dto.CreateUserRequest;
 import com.dehold.contentmanager.user.web.dto.UpdateUserRequest;
+import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
@@ -18,7 +20,12 @@ import com.dehold.contentmanager.validation.web.dto.ValidationReportDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationResponse;
 import com.dehold.contentmanager.validation.web.dto.ValidationResultDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationStepDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.dehold.contentmanager.validation.repository.ValidationResultRepository;
+import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
+import com.dehold.contentmanager.content.customersupport.model.SupportResponse;
+import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
+import com.dehold.contentmanager.content.customersupport.repository.SupportResponseRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -26,15 +33,20 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JavaType;
+import com.fasterxml.jackson.databind.JsonMappingException;
 
 import java.time.Instant;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class UserControllerIntegrationTest {
+
+class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     @LocalServerPort
     private int port;
@@ -51,11 +63,24 @@ class UserControllerIntegrationTest {
     @Autowired
     private ValidationResultRepository validationResultRepository;
 
+    @Autowired
+    private SupportRequestRepository supportRequestRepository;
+
+    @Autowired
+    private SupportResponseRepository supportResponseRepository;
+
+    private String uniqueUsername() {
+        return "TestUser-" + UUID.randomUUID();
+    }
+
     @Test
     void createUser_shouldReturnCreatedUser() {
         CreateUserRequest request = new CreateUserRequest();
         request.setAlias("Integration Test User");
         request.setEmail("integration-" + UUID.randomUUID() + "@example.com");
+        request.setUsername(uniqueUsername());
+        request.setPassword("TestUser-" + UUID.randomUUID());
+        request.isEnabled();
         ResponseEntity<User> response = restTemplate.postForEntity("http://localhost:" + port + "/api/users", request, User.class);
         assertEquals(201, response.getStatusCode().value());
         assertNotNull(response.getBody());
@@ -66,7 +91,7 @@ class UserControllerIntegrationTest {
     @Test
     void getUser_shouldReturnUser() {
         String uniqueEmail = "integration-" + UUID.randomUUID() + "@example.com";
-        User user = new User(UUID.randomUUID(), "Integration Test User", uniqueEmail, Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Integration Test User", uniqueEmail, Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
         ResponseEntity<User> response = restTemplate.getForEntity("http://localhost:" + port + "/api/users/" + user.getId(), User.class);
         assertEquals(200, response.getStatusCode().value());
@@ -79,11 +104,14 @@ class UserControllerIntegrationTest {
     void updateUser_shouldReturnUpdatedUser() {
         String oldEmail = "old-" + UUID.randomUUID() + "@example.com";
         String newEmail = "new-" + UUID.randomUUID() + "@example.com";
-        User user = new User(UUID.randomUUID(), "Old Name", oldEmail, Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Old Name", oldEmail, Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
         UpdateUserRequest request = new UpdateUserRequest();
         request.setAlias("New Name");
         request.setEmail(newEmail);
+        request.setUsername("TestName");
+        request.setPassword("TestUser-" + UUID.randomUUID());
+        request.isEnabled();
         HttpEntity<UpdateUserRequest> entity = new HttpEntity<>(request);
         ResponseEntity<User> response = restTemplate.exchange("http://localhost:" + port + "/api/users/" + user.getId(), HttpMethod.PUT, entity, User.class);
         assertEquals(200, response.getStatusCode().value());
@@ -109,7 +137,7 @@ class UserControllerIntegrationTest {
 
     @Test
     void getBlogpostsByUserId_shouldReturnBlogposts() {
-        User user = new User(UUID.randomUUID(), "Blogpost User", "blogpostuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Blogpost User", "blogpostuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Test Blogpost", "This is a test blogpost.", Instant.now(), Instant.now(), user.getId());
         blogPostRepository.createBlogPost(blogPost);
@@ -169,7 +197,7 @@ class UserControllerIntegrationTest {
 
     @Test
     void getBlogPostsForExistentUserThatHasNoPosts_shouldReturnEmptyList() {
-        User user = new User(UUID.randomUUID(), "Blogpost User", "blogpostuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Blogpost User", "blogpostuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         ResponseEntity<BlogPost[]> response = restTemplate.getForEntity("http://localhost:" + port + "/api/users" +
@@ -181,7 +209,7 @@ class UserControllerIntegrationTest {
 
     @Test
     void givenOneValidationResult_getValidationResultsByUser_shouldReturnOneValidationResult() {
-        User user = new User(UUID.randomUUID(), "Validation User", "validationuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Validation User", "validationuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Validation Blogpost", "This is a validation blogpost.", Instant.now(), Instant.now(), user.getId());
@@ -202,7 +230,7 @@ class UserControllerIntegrationTest {
 
     @Test
     void givenMultipleValidationResults_getValidationResultsByUser_shouldReturnMultipleValidationResults() {
-        User user = new User(UUID.randomUUID(), "Validation User", "validationuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Validation User", "validationuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Validation Blogpost", "This is a validation blogpost.", Instant.now(), Instant.now(), user.getId());
@@ -228,7 +256,7 @@ class UserControllerIntegrationTest {
 
     @Test
     void givenOneValidationResult_getValidationResultsByUser_shouldReturnRightPayload() {
-        User user = new User(UUID.randomUUID(), "Validation User", "validationuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Validation User", "validationuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestPassword@123", true);
         userRepository.createUser(user);
 
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Validation Blogpost", "This is a validation blogpost.", Instant.now(), Instant.now(), user.getId());
@@ -253,7 +281,7 @@ class UserControllerIntegrationTest {
 
     @Test
     void givenMultipleValidationResults_getValidationResultsByUser_shouldReturnRightPayload() {
-        User user = new User(UUID.randomUUID(), "Validation User", "validationuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Validation User", "validationuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Validation Blogpost", "This is a validation blogpost.", Instant.now(), Instant.now(), user.getId());
@@ -306,7 +334,7 @@ class UserControllerIntegrationTest {
 
     @Test
     void givenOneBlogPostAndPersistedValidationPipeline_validateBlogPostsForUser_shouldReturnValidationResult() {
-        User user = new User(UUID.randomUUID(), "Pipeline User", "pipelineuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Pipeline User", "pipelineuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Test Blog Post Title", "This is test content for the blog post", Instant.now(), Instant.now(), user.getId());
@@ -345,7 +373,7 @@ class UserControllerIntegrationTest {
 
     @Test
     void givenInvalidBlogPostAndPersistedValidationPipeline_validateBlogPostsForUser_shouldReturnValidationResultWithErrors() {
-        User user = new User(UUID.randomUUID(), "Pipeline User", "pipelineuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Pipeline User", "pipelineuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Shrt", "Too short", Instant.now(), Instant.now(), user.getId());
@@ -393,7 +421,7 @@ class UserControllerIntegrationTest {
 
     @Test
     void givenMultipleBlogPostsWithViolationsAndPersistedValidationPipeline_validateBlogPostsForUser_shouldReturnAllValidationResults() {
-        User user = new User(UUID.randomUUID(), "Pipeline User", "pipelineuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Pipeline User", "pipelineuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         BlogPost blogPost1 = new BlogPost(UUID.randomUUID(), "Hi", "This is valid content for the first blog post", Instant.now(), Instant.now(), user.getId());
@@ -470,7 +498,7 @@ class UserControllerIntegrationTest {
 
     @Test
     void givenOneBlogPostAndPipeline_whenValidateBlogPostsForUser_thenResultPersistedInDatabase() {
-        User user = new User(UUID.randomUUID(), "Persist User", "persistuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Persist User", "persistuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Valid Title", "This is sufficiently long content", Instant.now(), Instant.now(), user.getId());
@@ -502,7 +530,7 @@ class UserControllerIntegrationTest {
 
     @Test
     void givenMultipleBlogPostsAndPipeline_whenValidateBlogPostsForUser_thenAllResultsPersistedInDatabase() {
-        User user = new User(UUID.randomUUID(), "Persist Multi User", "persistmulti-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Persist Multi User", "persistmulti-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         BlogPost validPost = new BlogPost(UUID.randomUUID(), "Valid Title", "This content is definitely long enough", Instant.now(), Instant.now(), user.getId());
@@ -556,7 +584,7 @@ class UserControllerIntegrationTest {
 
     @Test
     void givenMultipleValidationResults_whenGetValidationReport_thenReturnCorrectReport() {
-        User user = new User(UUID.randomUUID(), "Report User", "reportuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Report User", "reportuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         BlogPost phoneNumberIncludedInPost = new BlogPost(UUID.randomUUID(), "Valid Title", "This content is sufficiently long, call +1 234 567 8901", Instant.now(), Instant.now(), user.getId());
@@ -606,8 +634,8 @@ class UserControllerIntegrationTest {
 
     @Test
     void givenValidationResultsForMultipleUsers_whenGetValidationReportForUser_thenReturnOnlyRequestedUsersCounts() {
-        User user1 = new User(UUID.randomUUID(), "Report User A", "reportA-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
-        User user2 = new User(UUID.randomUUID(), "Report User B", "reportB-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user1 = new User(UUID.randomUUID(), "Report User A", "reportA-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        User user2 = new User(UUID.randomUUID(), "Report User B", "reportB-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user1);
         userRepository.createUser(user2);
 
@@ -653,4 +681,249 @@ class UserControllerIntegrationTest {
         assertEquals(1, report.getErrorCodeToErrorCount().size());
     }
 
+    @Test
+    void givenOneSupportResponseAndPersistedValidationPipeline_validateSupportResponsesForUser_shouldReturnValidationResult() {
+        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        SupportRequest supportRequest = new SupportRequest(UUID.randomUUID(), user.getId(), "Help needed", null, user.getId(), Instant.now(), Instant.now());
+        supportRequestRepository.create(supportRequest);
+
+        SupportResponse supportResponse = new SupportResponse(UUID.randomUUID(), user.getId(), "We have resolved your issue. Thank you.", supportRequest.getId(), Instant.now(), Instant.now());
+        supportResponseRepository.create(supportResponse);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("supportresponse");
+        pipelineDto.setDescription("Test pipeline for support response validation");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "text",
+                Map.of("minLength", "10", "maxLength", "500"), true)
+        ));
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", pipelineDto, ValidationPipelineModel.class);
+
+        ResponseEntity<ValidationResponse[]> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportresponses",
+                null, ValidationResponse[].class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        ValidationResponse[] results = response.getBody();
+        assertNotNull(results);
+        assertEquals(1, results.length);
+
+        ValidationResponse validationResponse = results[0];
+        assertEquals("SupportResponse", validationResponse.getContentType());
+
+        ValidationResultDto result = validationResponse.getValidationResult();
+        assertEquals("SupportResponse", result.getContentType());
+        assertEquals(user.getId(), result.getUserId());
+        assertTrue(result.isValid());
+    }
+
+    @Test
+    void givenInvalidSupportResponseAndPersistedValidationPipeline_validateSupportResponsesForUser_shouldReturnValidationResultWithErrors() {
+        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        SupportRequest supportRequest = new SupportRequest(UUID.randomUUID(), user.getId(), "Help", null, user.getId(), Instant.now(), Instant.now());
+        supportRequestRepository.create(supportRequest);
+
+        SupportResponse supportResponse = new SupportResponse(UUID.randomUUID(), user.getId(), "Hi", supportRequest.getId(), Instant.now(), Instant.now());
+        supportResponseRepository.create(supportResponse);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("supportresponse");
+        pipelineDto.setDescription("Test pipeline for support response validation");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "text",
+                Map.of("minLength", "10", "maxLength", "500"), true)
+        ));
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", pipelineDto, ValidationPipelineModel.class);
+
+        ResponseEntity<ValidationResponse[]> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportresponses",
+                null, ValidationResponse[].class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        ValidationResponse[] results = response.getBody();
+        assertNotNull(results);
+        assertEquals(1, results.length);
+
+        ValidationResponse validationResponse = results[0];
+        assertEquals("SupportResponse", validationResponse.getContentType());
+
+        ValidationResultDto result = validationResponse.getValidationResult();
+        assertEquals("SupportResponse", result.getContentType());
+        assertEquals(user.getId(), result.getUserId());
+        assertFalse(result.isValid());
+        assertEquals(1, result.getErrors().size());
+
+        assertTrue(result.getErrors().stream().anyMatch(
+                e -> e.code().equals(LengthValidator.ERROR_CODE) &&
+                e.message().equals(LengthValidator.errorMessageTooShort("text"))
+        ));
+    }
+
+    @Test
+    void givenOneSupportResponseAndPipeline_whenValidateSupportResponsesForUser_thenResultPersistedInDatabase() {
+        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        SupportRequest supportRequest = new SupportRequest(UUID.randomUUID(), user.getId(), "Help", null, user.getId(), Instant.now(), Instant.now());
+        supportRequestRepository.create(supportRequest);
+
+        SupportResponse supportResponse = new SupportResponse(UUID.randomUUID(), user.getId(), "Valid response text", supportRequest.getId(), Instant.now(), Instant.now());
+        supportResponseRepository.create(supportResponse);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("supportresponse");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "text",
+                Map.of("minLength", "5", "maxLength", "500"), true)
+        ));
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", pipelineDto, ValidationPipelineModel.class);
+
+        restTemplate.postForEntity("http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportresponses", null, ValidationResponse[].class);
+
+        List<ValidationResult> persisted = validationResultRepository.findByUserId(user.getId());
+        assertEquals(1, persisted.size());
+        ValidationResult result = persisted.get(0);
+        assertEquals(user.getId(), result.getUserId());
+        assertEquals(supportResponse.getId(), result.getContentId());
+        assertTrue(result.isValid());
+    }
+
+    @Test
+    void givenMultipleSupportResponsesAndPipeline_whenValidateSupportResponsesForUser_thenAllResultsPersistedInDatabase() {
+        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        SupportRequest request1 = new SupportRequest(UUID.randomUUID(), user.getId(), "Issue 1", null, user.getId(), Instant.now(), Instant.now());
+        SupportRequest request2 = new SupportRequest(UUID.randomUUID(), user.getId(), "Issue 2", null, user.getId(), Instant.now(), Instant.now());
+        supportRequestRepository.create(request1);
+        supportRequestRepository.create(request2);
+
+        SupportResponse response1 = new SupportResponse(UUID.randomUUID(), user.getId(), "Valid response", request1.getId(), Instant.now(), Instant.now());
+        SupportResponse response2 = new SupportResponse(UUID.randomUUID(), user.getId(), "Short", request2.getId(), Instant.now(), Instant.now());
+        supportResponseRepository.create(response1);
+        supportResponseRepository.create(response2);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("supportresponse");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "text",
+                Map.of("minLength", "10", "maxLength", "500"), true)
+        ));
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines", pipelineDto, ValidationPipelineModel.class);
+
+        restTemplate.postForEntity("http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportresponses", null, ValidationResponse[].class);
+
+        List<ValidationResult> persisted = validationResultRepository.findByUserId(user.getId());
+        assertEquals(2, persisted.size());
+
+        Map<UUID, ValidationResult> byContentId = new HashMap<>();
+        for (ValidationResult r : persisted) {
+                byContentId.put(r.getContentId(), r);
+        }
+
+        assertTrue(byContentId.get(response1.getId()).isValid());
+        assertFalse(byContentId.get(response2.getId()).isValid());
+    }
+
+    @Test
+    void givenMultipleSupportResponsesWithViolationsAndPersistedValidationPipeline_validateSupportResponsesForUser_shouldReturnAllValidationResults() throws JsonMappingException, JsonProcessingException {
+        // ---------- Arrange ----------
+        User user = new User(UUID.randomUUID(),
+                "Support User",
+                "support-" + UUID.randomUUID() + "@example.com",
+                Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        SupportRequest r1 = new SupportRequest(UUID.randomUUID(), user.getId(), "Issue 1", null, user.getId(), Instant.now(), Instant.now());
+        SupportRequest r2 = new SupportRequest(UUID.randomUUID(), user.getId(), "Issue 2", null, user.getId(), Instant.now(), Instant.now());
+        SupportRequest r3 = new SupportRequest(UUID.randomUUID(), user.getId(), "Issue 3", null, user.getId(), Instant.now(), Instant.now());
+        supportRequestRepository.create(r1);
+        supportRequestRepository.create(r2);
+        supportRequestRepository.create(r3);
+
+
+        SupportResponse valid = new SupportResponse(UUID.randomUUID(), user.getId(),
+                "This is a valid response text.", r1.getId(), Instant.now(), Instant.now());
+
+        SupportResponse short1 = new SupportResponse(UUID.randomUUID(), user.getId(),
+                "Hi", r2.getId(), Instant.now(), Instant.now());
+
+        SupportResponse short2 = new SupportResponse(UUID.randomUUID(), user.getId(),
+                "A", r3.getId(), Instant.now(), Instant.now());
+
+        supportResponseRepository.create(valid);
+        supportResponseRepository.create(short1);
+        supportResponseRepository.create(short2);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("supportresponse");
+        pipelineDto.setDescription("Min length validation");
+        Map<String, String> lengthParams = new HashMap<>();
+        lengthParams.put("minLength", "10");
+        lengthParams.put("maxLength", "1000");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(UUID.randomUUID(),   // ← dummy UUID (required)
+                        ValidationStepType.LENGTH_VALIDATION,
+                        "text",
+                        lengthParams,   // ← only minLength is checked
+                        true)
+        ));
+
+        ResponseEntity<ValidationPipelineModel> pipelineResponse = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto,
+                ValidationPipelineModel.class);
+
+        assertEquals(HttpStatus.CREATED, pipelineResponse.getStatusCode(),
+            "Pipeline creation failed during setup. Check server logs for validation errors on pipelineDto.");
+
+        ResponseEntity<ValidationResponse[]> response = restTemplate.exchange(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportresponses",
+                HttpMethod.POST,
+                null,
+                ValidationResponse[].class
+        );
+
+        // ---------- Assert ----------
+        assertEquals(HttpStatus.OK, response.getStatusCode(),
+            "Validation API call failed. Check server logs for the 400 BAD_REQUEST root cause.");
+
+        ValidationResponse[] body = response.getBody();
+        assertNotNull(body);
+
+        assertEquals(3, body.length);
+
+        int validCount = 0;
+        int shortCount = 0;
+
+        for (ValidationResponse vr : body) {
+            ValidationResultDto dto = vr.getValidationResult();
+            assertEquals("SupportResponse", dto.getContentType());
+            assertEquals(user.getId(), dto.getUserId());
+
+            if (dto.isValid()) {
+                validCount++;
+            } else {
+                assertEquals(1, dto.getErrors().size());
+                ValidationError err = dto.getErrors().get(0);
+                assertEquals(LengthValidator.ERROR_CODE, err.code());
+                assertEquals(LengthValidator.errorMessageTooShort("text"), err.message());
+                shortCount++;
+            }
+        }
+
+        assertEquals(1, validCount);   // only the first response
+        assertEquals(2, shortCount);   // two short responses
+    }
 }

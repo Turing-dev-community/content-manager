@@ -2,6 +2,7 @@ package com.dehold.contentmanager.content.customersupport.web.dto;
 
 import java.time.Instant;
 import java.util.UUID;
+import java.util.List;
 
 public class CustomerRequestDto {
     private UUID id;
@@ -10,6 +11,7 @@ public class CustomerRequestDto {
     private UUID customerId;
     private Instant createdAt;
     private Instant updatedAt;
+    private List<UUID> subscribers;
 
     // Getters and setters
 
@@ -59,5 +61,13 @@ public class CustomerRequestDto {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public List<UUID> getSubscribers() {
+        return subscribers;
+    }
+
+    public void setSubscribers(List<UUID> subscribers) {
+        this.subscribers = subscribers;
     }
 }

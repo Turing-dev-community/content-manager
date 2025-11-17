@@ -8,6 +8,7 @@ import com.dehold.contentmanager.user.web.dto.UpdateUserRequest;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.service.ValidationPipelineService;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.time.Instant;
 import java.util.List;
@@ -19,6 +20,7 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
 
     private final ValidationPipelineService validationPipelineService;
+    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public UserServiceImpl(UserRepository userRepository, ValidationPipelineService validationPipelineService) {
         this.validationPipelineService = validationPipelineService;
@@ -32,7 +34,10 @@ public class UserServiceImpl implements UserService {
                 dto.getAlias(),
                 dto.getEmail(),
                 Instant.now(),
-                Instant.now()
+                Instant.now(),
+                dto.getUsername(),
+                passwordEncoder.encode(dto.getPassword()), // encode password
+                true
         );
         userRepository.createUser(user);
         return user;
@@ -52,7 +57,10 @@ public class UserServiceImpl implements UserService {
                 dto.getAlias() != null ? dto.getAlias() : existingUser.getAlias(),
                 dto.getEmail() != null ? dto.getEmail() : existingUser.getEmail(),
                 existingUser.getCreatedAt(),
-                Instant.now()
+                Instant.now(),
+                dto.getUsername(),
+                dto.getPassword(),
+                true
         );
         userRepository.updateUser(updatedUser);
         return updatedUser;
