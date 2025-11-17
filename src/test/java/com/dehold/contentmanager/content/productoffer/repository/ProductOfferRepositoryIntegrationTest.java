@@ -129,7 +129,7 @@ class ProductOfferRepositoryIntegrationTest {
 
     // === Helper Methods ===
     private User createUniqueUser(String email) {
-        User user = new User(UUID.randomUUID(), "offeruser", email, Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "offeruser", email, Instant.now(), Instant.now(), "TestUser-" + UUID.randomUUID(), "101", true);
         userRepository.createUser(user);
         return user;
     }
