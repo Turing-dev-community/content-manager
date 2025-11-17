@@ -1,6 +1,5 @@
 package com.dehold.contentmanager.validation.web;
 
-import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.exception.CustomErrorResponse;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
@@ -23,7 +22,8 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.*;
 
 
-class ValidationPipelineControllerTest  extends ContentManagerApplicationTests {
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class ValidationPipelineControllerTest {
 
     @LocalServerPort
     private int port;

@@ -3,7 +3,6 @@ package com.dehold.contentmanager.content.customersupport.model;
 import com.dehold.contentmanager.content.Content;
 
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 
 public class SupportRequest implements Content {
@@ -14,7 +13,6 @@ public class SupportRequest implements Content {
     private UUID customerId;
     private Instant createdAt;
     private Instant updatedAt;
-    private List<UUID> subscribers;
 
     public SupportRequest() {}
 
@@ -27,15 +25,6 @@ public class SupportRequest implements Content {
         this.customerId = customerId;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
-    }
-
-    // subscribers is optional; kept separate to avoid breaking existing constructor usages
-    public List<UUID> getSubscribers() {
-        return subscribers;
-    }
-
-    public void setSubscribers(List<UUID> subscribers) {
-        this.subscribers = subscribers;
     }
 
     @Override
