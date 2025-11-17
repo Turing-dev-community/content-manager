@@ -1,17 +1,14 @@
 package com.dehold.contentmanager.user.service;
 
-import com.dehold.contentmanager.exception.EntityNotFoundException;
 import com.dehold.contentmanager.user.model.User;
 import com.dehold.contentmanager.user.repository.UserRepository;
 import com.dehold.contentmanager.user.web.dto.CreateUserRequest;
 import com.dehold.contentmanager.user.web.dto.UpdateUserRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -28,23 +25,18 @@ class UserServiceTest {
     @InjectMocks
     private UserServiceImpl userService;
 
-    private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
     }
-
 
     @Test
     void createUser_shouldCreateAndReturnUser() {
         CreateUserRequest request = new CreateUserRequest();
         request.setAlias("Test User");
         request.setEmail("test@example.com");
-        request.setUsername("TestUser"+ UUID.randomUUID());
-        request.setPassword("TestPassword"+ UUID.randomUUID());
 
-        User user = new User(UUID.randomUUID(), "Test User", "test@example.com", Instant.now(), Instant.now(), "TestUser"+ UUID.randomUUID(), "TestPassword"+ UUID.randomUUID(), true);
+        User user = new User(UUID.randomUUID(), "Test User", "test@example.com", Instant.now(), Instant.now());
 
         doNothing().when(userRepository).createUser(any(User.class));
 
@@ -59,7 +51,7 @@ class UserServiceTest {
     @Test
     void getUser_shouldReturnUserIfExists() {
         UUID userId = UUID.randomUUID();
-        User user = new User(userId, "Test User", "test@example.com", Instant.now(), Instant.now(), "TestUser", "TestPassword", true);
+        User user = new User(userId, "Test User", "test@example.com", Instant.now(), Instant.now());
 
         when(userRepository.getUserById(userId)).thenReturn(Optional.of(user));
 
@@ -75,7 +67,7 @@ class UserServiceTest {
     @Test
     void updateUser_shouldUpdateAndReturnUpdatedUser() {
         UUID userId = UUID.randomUUID();
-        User existingUser = new User(userId, "Old Name", "old@example.com", Instant.now(), Instant.now(), "TestUser", "TestPassword", true);
+        User existingUser = new User(userId, "Old Name", "old@example.com", Instant.now(), Instant.now());
         Instant originalUpdatedAt = existingUser.getUpdatedAt();
         UpdateUserRequest request = new UpdateUserRequest();
         request.setAlias("New Name");
@@ -96,7 +88,7 @@ class UserServiceTest {
     @Test
     void deleteUser_shouldDeleteUserIfExists() {
         UUID userId = UUID.randomUUID();
-        User user = new User(userId, "Test User", "test@example.com", Instant.now(), Instant.now(), "TestUser", "TestPassword", true);
+        User user = new User(userId, "Test User", "test@example.com", Instant.now(), Instant.now());
 
         when(userRepository.getUserById(userId)).thenReturn(Optional.of(user));
         doNothing().when(userRepository).deleteUser(userId);
@@ -104,62 +96,5 @@ class UserServiceTest {
         userService.deleteUser(userId);
 
         verify(userRepository, times(1)).deleteUser(userId);
-    }
-
-    // Password should be encoded before saving
-    @Test
-    void createUser_shouldEncodePasswordBeforeSaving() {
-        CreateUserRequest request = new CreateUserRequest();
-        request.setAlias("Test Alias");
-        request.setEmail("test@example.com");
-        request.setUsername("testuser");
-        request.setPassword("plainpassword");
-
-        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-
-        userService.createUser(request);
-
-        verify(userRepository, times(1)).createUser(userCaptor.capture());
-        User savedUser = userCaptor.getValue();
-
-        assertNotNull(savedUser.getPassword());
-        assertNotEquals("plainpassword", savedUser.getPassword(), "Password should be encoded");
-        assertTrue(passwordEncoder.matches("plainpassword", savedUser.getPassword()), "Encoded password should match raw password");
-    }
-
-    // Test that sets enabled=true and updates timestamps
-    @Test
-    void createUser_setsEnabledTrueAndUpdatesTimestamps() {
-        CreateUserRequest request = new CreateUserRequest();
-        request.setAlias("Test Alias1");
-        request.setEmail("test@example.com");
-        request.setUsername("Test123");
-        request.setPassword("plainpassword1");
-        User user1 = userService.createUser(request);
-
-        assertTrue(user1.isEnabled());
-        assertNotNull(user1.getCreatedAt());
-        assertNotNull(user1.getUpdatedAt());
-    }
-
-    // Creates a new user with encrypted user and password and verifies that after user creation, passwords are not same.
-    @Test
-    void createUser_shouldCreateUserFieldsProperly() {
-        CreateUserRequest request = new CreateUserRequest();
-        request.setAlias("New Alias");
-        request.setEmail("new@example.com");
-        request.setUsername("newUsername");
-        request.setPassword("newPassword123");
-
-        User user = userService.createUser(request);
-
-        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository, times(1)).createUser(userCaptor.capture());
-
-        assertEquals("New Alias", user.getAlias());
-        assertEquals("new@example.com", user.getEmail());
-        assertEquals("newUsername", user.getUsername());
-        assertNotEquals("newPassword123", user.getPassword());
-        assertTrue(user.isEnabled());
     }
 }

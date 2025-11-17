@@ -1,7 +1,6 @@
 package com.dehold.contentmanager.validation.web;
 
 
-import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
@@ -27,7 +26,8 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class ValidationControllerIntegrationTest  extends ContentManagerApplicationTests {
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class ValidationControllerIntegrationTest {
 
     @LocalServerPort
     private int port;
@@ -171,8 +171,8 @@ class ValidationControllerIntegrationTest  extends ContentManagerApplicationTest
     void givenOneBlogPostAndPersistedValidationPipeline_whenRequestValidationRun_thenReturnValidationResult() {
         UUID userId = UUID.randomUUID();
         String userMail = UUID.randomUUID() + "testuser1@example.com";
-        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-                userId, "testuser", userMail, "TestUser-" + UUID.randomUUID(), "TestPassword-" + UUID.randomUUID());
+        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                userId, "testuser", userMail);
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Test Blog Post Title", "This is test content for the blog post", Instant.now(), Instant.now(), userId);
 
         var createBlogPostResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/blogposts",
@@ -217,8 +217,8 @@ class ValidationControllerIntegrationTest  extends ContentManagerApplicationTest
     void givenInvalidBlogPostAndPersistedValidationPipeline_whenRequestValidationRun_thenReturnValidationResultWithErrors() {
         UUID userId = UUID.randomUUID();
         String userMail = UUID.randomUUID() + "testuser1@example.com";
-        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-                userId, "testuser", userMail, "TestUser-" + UUID.randomUUID(), "TestPassword-" + UUID.randomUUID());
+        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                userId, "testuser", userMail);
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Shrt", "Too short", Instant.now(), Instant.now(), userId);
 
         var createBlogPostResponse = restTemplate.postForEntity("http://localhost:" + port + "/api/blogposts",
@@ -272,8 +272,8 @@ class ValidationControllerIntegrationTest  extends ContentManagerApplicationTest
     void givenMultipleBlogPostsWithViolationsAndPersistedValidationPipeline_whenValidateBlogPosts_thenReturnsAllValidationResults() {
         UUID userId = UUID.randomUUID();
         String userMail = UUID.randomUUID() + "testuser1@example.com";
-        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-                userId, "testuser", userMail, "TestUser-" + UUID.randomUUID(), "TestPassword-" + UUID.randomUUID());
+        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                userId, "testuser", userMail);
 
         // Violation in content
         BlogPost blogPost1 = new BlogPost(UUID.randomUUID(), "Hi", "This is valid content for the first blog post", Instant.now(), Instant.now(), userId);

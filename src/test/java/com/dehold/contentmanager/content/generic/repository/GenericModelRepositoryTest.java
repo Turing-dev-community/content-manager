@@ -33,13 +33,10 @@ class GenericModelRepositoryTest {
 
     private void insertUser(UUID userId) {
         jdbcTemplate.update(
-                "INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO \"user\" (id, alias, email, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
                 userId,
                 "User Alias",
                 "user-" + userId + "@example.com",
-                "TestUser",
-                "TestPassword",
-                true,
                 Instant.now(),
                 Instant.now()
         );
