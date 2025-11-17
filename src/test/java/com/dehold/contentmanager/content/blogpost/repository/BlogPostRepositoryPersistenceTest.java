@@ -38,6 +38,8 @@ public class BlogPostRepositoryPersistenceTest {
         req.setAlias("repo-user");
         String uniqueEmail = "repo-user+" + UUID.randomUUID() + "@example.com";
         req.setEmail(uniqueEmail);
+        req.setUsername("TestUser"+ UUID.randomUUID());
+        req.setPassword("TestPassword"+ UUID.randomUUID());
         User u = userService.createUser(req);
         assertNotNull(u);
         userId = u.getId();

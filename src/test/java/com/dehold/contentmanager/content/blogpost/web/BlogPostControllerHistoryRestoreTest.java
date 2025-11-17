@@ -59,8 +59,10 @@ class BlogPostControllerHistoryRestoreTest extends ContentManagerApplicationTest
     @BeforeEach
     void cleanDb() {
         // remove blog_post_history first because of FK references
+        jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY FALSE");
         jdbcTemplate.execute("TRUNCATE TABLE blog_post_history");
         jdbcTemplate.execute("TRUNCATE TABLE blog_post");
+        jdbcTemplate.execute("SET REFERENTIAL_INTEGRITY TRUE");
     }
 
     @Test
