@@ -5,6 +5,7 @@ import com.dehold.contentmanager.content.blogpost.model.Page;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
 import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,12 +15,16 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.MediaType;
+
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -38,6 +43,9 @@ class BlogPostControllerIntegrationTest {
 
     @Autowired
     private BlogPostRepository blogPostRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @BeforeEach
     void cleanDatabase(@Autowired JdbcTemplate jdbcTemplate) {
@@ -280,5 +288,35 @@ class BlogPostControllerIntegrationTest {
         assertEquals(25, response.getBody().getTotalElements());
         assertEquals(3, response.getBody().getTotalPages());  // 25 / 10 = 3 pages
         assertFalse(response.getBody().isLast());
+    }
+
+    @Test
+    void downloadExport_shouldReturnAttachmentWithJson() throws Exception {
+
+        BlogPost bp = new BlogPost(UUID.randomUUID(), "DL Title", "DL Body", Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(bp);
+
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user1Id.toString();
+
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        HttpHeaders headers = response.getHeaders();
+        assertTrue(headers.containsKey(HttpHeaders.CONTENT_DISPOSITION));
+        String cd = headers.getFirst(HttpHeaders.CONTENT_DISPOSITION);
+        assertNotNull(cd);
+        assertTrue(cd.contains("attachment"));
+        assertTrue(cd.contains("export-" + user1Id + ".json"));
+
+        assertEquals(MediaType.APPLICATION_JSON, headers.getContentType());
+        byte[] body = response.getBody();
+        assertNotNull(body);
+        assertTrue(body.length > 0);
+
+        // parse JSON and verify structure
+        List blogPosts = objectMapper.readValue(body, List.class);
+        //one blog post present
+        assertNotNull(blogPosts);
+        assertTrue(blogPosts.size() > 0);
     }
 }

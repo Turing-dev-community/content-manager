@@ -54,4 +54,13 @@ public class BlogPostController {
         blogPostService.deleteBlogPost(id);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Downloadable JSON export: returns application/json with
+     * Content-Disposition: attachment; filename="export-<userId>.json"
+     */
+    @GetMapping("/download/{userId}")
+    public ResponseEntity<byte[]> downloadExport(@PathVariable UUID userId) throws Exception {
+        return blogPostService.getBlogPostsByUserIdAndContentType(userId);
+    }
 }
