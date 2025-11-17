@@ -2,6 +2,7 @@ package com.dehold.contentmanager.content.blogpost.service;
 
 import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
+import com.dehold.contentmanager.content.blogpost.model.Comment;
 import com.dehold.contentmanager.content.blogpost.model.BlogPostHistory;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostHistoryRepository;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
@@ -11,6 +12,7 @@ import com.dehold.contentmanager.content.blogpost.model.Page;
 import com.dehold.contentmanager.exception.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -51,18 +53,26 @@ class BlogPostServiceTest {
         UUID userId = UUID.randomUUID();
         request.setUserId(userId);
 
-        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Test Blog Post", "This is a test blog post.",
-                Instant.now(), Instant.now(), UUID.randomUUID());
-
-        doNothing().when(blogPostRepository).createBlogPost(any(BlogPost.class));
+        // capture the BlogPost passed to repository to ensure service constructs it correctly
+        ArgumentCaptor<BlogPost> captor = ArgumentCaptor.forClass(BlogPost.class);
+        doNothing().when(blogPostRepository).createBlogPost(captor.capture());
 
         BlogPost createdBlogPost = blogPostService.createBlogPost(request.getTitle(), request.getContent(),
-                request.getUserId());
+                request.getUserId(), null);
 
         assertNotNull(createdBlogPost);
         assertEquals(request.getTitle(), createdBlogPost.getTitle());
         assertEquals(request.getContent(), createdBlogPost.getContent());
+
+        // verify repository called once and inspect the passed BlogPost object
         verify(blogPostRepository, times(1)).createBlogPost(any(BlogPost.class));
+        BlogPost passed = captor.getValue();
+        assertNotNull(passed.getId(), "Service must assign id before persisting");
+        assertEquals(request.getTitle(), passed.getTitle());
+        assertEquals(request.getContent(), passed.getContent());
+        assertEquals(userId, passed.getUserId());
+        assertNotNull(passed.getCreatedAt());
+        assertNotNull(passed.getUpdatedAt());
     }
 
     @Test
@@ -182,6 +192,99 @@ class BlogPostServiceTest {
         assertTrue(result.isLast());
         verify(blogPostRepository, times(1)).getPaginatedBlogPosts(eq(size), eq(0), eq(userId));
         verify(blogPostRepository, times(1)).countBlogPosts(eq(userId));
+    }
+
+    @Test
+    void createBlogPost_withComments_shouldPassCorrectBlogPostToRepository() {
+        // Arrange
+        UUID userId = UUID.randomUUID();
+        String title = "Post with comments";
+        String content = "Body text";
+
+        Comment comment = new Comment(null, userId, "Nice post!", null, null);
+
+        ArgumentCaptor<BlogPost> captor = ArgumentCaptor.forClass(BlogPost.class);
+        doNothing().when(blogPostRepository).createBlogPost(captor.capture());
+
+        // Act
+        BlogPost created = blogPostService.createBlogPost(title, content, userId, List.of(comment));
+
+        // Assert returned object basic sanity
+        assertNotNull(created);
+        assertEquals(title, created.getTitle());
+        assertEquals(content, created.getContent());
+
+        // Assert repository invocation and inspect passed value
+        verify(blogPostRepository, times(1)).createBlogPost(any(BlogPost.class));
+        BlogPost passed = captor.getValue();
+        assertNotNull(passed.getId(), "Service should assign id before persisting");
+        assertEquals(title, passed.getTitle());
+        assertEquals(content, passed.getContent());
+        assertEquals(userId, passed.getUserId());
+        assertNotNull(passed.getCreatedAt());
+        assertNotNull(passed.getUpdatedAt());
+
+        // Comments assertions
+        assertNotNull(passed.getComments());
+        assertEquals(1, passed.getComments().size());
+        Comment passedComment = passed.getComments().get(0);
+        assertEquals("Nice post!", passedComment.getText());
+        assertEquals(userId, passedComment.getUserId());
+    }
+
+    @Test
+    void updateBlogPost_withComments_shouldPassUpdatedBlogPostToRepository() {
+        // Arrange
+        UUID postId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        Comment comment = new Comment(null, userId, "Updated comment", null, null);
+
+        BlogPost existing = new BlogPost(postId, "Old", "OldBody", Instant.now(), Instant.now(), userId, List.of(comment));
+        when(blogPostRepository.getBlogPost(postId)).thenReturn(Optional.of(existing));
+
+
+        ArgumentCaptor<BlogPost> captor = ArgumentCaptor.forClass(BlogPost.class);
+        doNothing().when(blogPostRepository).updateBlogPost(captor.capture());
+
+        // Act
+        BlogPost updated = blogPostService.updateBlogPost(postId, "New Title", "New Body");
+
+        // Assert
+        assertNotNull(updated);
+        assertEquals("New Title", updated.getTitle());
+        assertEquals("New Body", updated.getContent());
+
+        verify(blogPostRepository, times(1)).updateBlogPost(any(BlogPost.class));
+        BlogPost passed = captor.getValue();
+        assertEquals(postId, passed.getId());
+        assertEquals("New Title", passed.getTitle());
+        assertEquals("New Body", passed.getContent());
+        assertNotNull(passed.getUpdatedAt());
+
+        assertNotNull(passed.getComments());
+        assertEquals(1, passed.getComments().size());
+        assertEquals("Updated comment", passed.getComments().get(0).getText());
+    }
+
+    @Test
+    void getBlogPostById_shouldReturnBlogPostWithComments_andVerifyRepositoryCall() {
+        // Arrange
+        UUID postId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        Comment c = new Comment(UUID.randomUUID(), userId, "Loaded comment", Instant.now(), Instant.now());
+        BlogPost post = new BlogPost(postId, "Loaded", "Loaded body", Instant.now(), Instant.now(), userId);
+        post.setComments(List.of(c));
+
+        when(blogPostRepository.getBlogPost(postId)).thenReturn(Optional.of(post));
+
+        // Act
+        BlogPost bp = blogPostService.getBlogPost(postId);
+
+        // Assert
+        assertEquals(postId, bp.getId());
+        assertNotNull(bp.getComments());
+        assertEquals(1, bp.getComments().size());
+        assertEquals("Loaded comment", bp.getComments().get(0).getText());
     }
     @Test
     void updateBlogPostVersion_shouldSaveHistoryAndUpdateBlogPost() {

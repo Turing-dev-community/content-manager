@@ -1,6 +1,7 @@
 package com.dehold.contentmanager.content.blogpost.service;
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
+import com.dehold.contentmanager.content.blogpost.model.Comment;
 import com.dehold.contentmanager.content.blogpost.model.BlogPostHistory;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostHistoryRepository;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
@@ -24,14 +25,15 @@ public class BlogPostService {
         this.blogPostHistoryRepository = blogPostHistoryRepository;
     }
 
-    public BlogPost createBlogPost(String title, String content, UUID userId) {
+    public BlogPost createBlogPost(String title, String content, UUID userId, List<Comment> comments) {
         BlogPost blogPost = new BlogPost(
                 UUID.randomUUID(),
                 title,
                 content,
                 Instant.now(),
                 Instant.now(),
-                userId
+                userId,
+                comments
         );
         blogPostRepository.createBlogPost(blogPost);
         return blogPost;

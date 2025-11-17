@@ -3,6 +3,8 @@ package com.dehold.contentmanager.content.blogpost.model;
 import com.dehold.contentmanager.content.Content;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class BlogPost implements Content {
@@ -13,6 +15,10 @@ public class BlogPost implements Content {
     private Instant createdAt;
     private Instant updatedAt;
     private UUID userId; // Foreign key to User
+    private List<Comment> comments = new ArrayList<>();
+
+    public BlogPost() {
+    }
 
     public BlogPost(UUID id, String title, String content, Instant createdAt, Instant updatedAt, UUID userId) {
         this.id = id;
@@ -21,6 +27,11 @@ public class BlogPost implements Content {
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.userId = userId;
+    }
+
+    public BlogPost(UUID id, String title, String content, Instant createdAt, Instant updatedAt, UUID userId, List<Comment> comments) {
+        this(id, title, content, createdAt, updatedAt, userId);
+        if (comments != null) this.comments = comments;
     }
 
     @Override
@@ -70,5 +81,13 @@ public class BlogPost implements Content {
 
     public void setUserId(UUID userId) {
         this.userId = userId;
+    }
+
+    public List<Comment> getComments() {
+        return comments;
+    }
+
+    public void setComments(List<Comment> comments) {
+        this.comments = comments;
     }
 }

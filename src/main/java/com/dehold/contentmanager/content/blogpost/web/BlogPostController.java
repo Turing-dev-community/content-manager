@@ -26,7 +26,7 @@ public class BlogPostController {
     @PostMapping
     public ResponseEntity<BlogPost> createBlogPost(@RequestBody CreateBlogPostRequest request) {
         BlogPost blogPost = blogPostService.createBlogPost(request.getTitle(), request.getContent(),
-                request.getUserId());
+                request.getUserId(), request.getComments());
         return ResponseEntity.status(HttpStatus.CREATED).body(blogPost);
     }
 
