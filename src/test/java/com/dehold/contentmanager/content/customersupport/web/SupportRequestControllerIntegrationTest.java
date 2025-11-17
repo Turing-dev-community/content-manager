@@ -1,5 +1,6 @@
 package com.dehold.contentmanager.content.customersupport.web;
 
+import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
 import com.dehold.contentmanager.content.customersupport.web.dto.CustomerRequestDto;
@@ -18,8 +19,8 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class SupportRequestControllerIntegrationTest {
+
+class SupportRequestControllerIntegrationTest extends ContentManagerApplicationTests {
     @LocalServerPort
     private int port;
 
