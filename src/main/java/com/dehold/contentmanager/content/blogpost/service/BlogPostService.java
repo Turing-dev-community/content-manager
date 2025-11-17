@@ -27,7 +27,7 @@ public class BlogPostService {
     private final BlogPostHistoryRepository blogPostHistoryRepository;
     private final ObjectMapper objectMapper;
 
-    public BlogPostService(BlogPostRepository blogPostRepository, BlogPostHistoryRepository blogPostHistoryRepository) {
+    public BlogPostService(BlogPostRepository blogPostRepository, BlogPostHistoryRepository blogPostHistoryRepository, ObjectMapper objectMapper) {
         this.blogPostRepository = blogPostRepository;
         this.blogPostHistoryRepository = blogPostHistoryRepository;
         this.objectMapper = objectMapper;
