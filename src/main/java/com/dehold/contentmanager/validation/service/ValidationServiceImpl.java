@@ -136,11 +136,11 @@ public class ValidationServiceImpl implements ValidationService {
 
     @Override
     public List<ValidationResult> runSupportRequestValidation(UUID userId) {
-        // 1️⃣ Fetch all support requests for the given user
+        // Fetch all support requests for the given user
         List<SupportRequest> supportRequests = supportRequestRepository.findByUserId(userId);
 
         List<ValidationResult> allResults = new LinkedList<>();
-        // 2️⃣ For each support request, run all validation pipelines configured for "supportrequest"
+        // For each support request, run all validation pipelines configured for "supportrequest"
         for (SupportRequest supportRequest : supportRequests) {
             List<ValidationPipeline<SupportRequest>> pipelines = validationPipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest");
 
@@ -149,6 +149,7 @@ public class ValidationServiceImpl implements ValidationService {
                 allResults.add(result);
             }
         }
+        //persist the results
         persistsResults(allResults);
         return allResults;
     }
