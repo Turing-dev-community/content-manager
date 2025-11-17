@@ -15,16 +15,22 @@ public class User {
     private String email;
     private Instant createdAt;
     private Instant updatedAt;
+    private String username;
+    private String password;
+    private boolean enabled;
 
     public User() {
     }
 
-    public User(UUID id, String alias, String email, Instant createdAt, Instant updatedAt) {
+    public User(UUID id, String alias, String email, Instant createdAt, Instant updatedAt, String username, String password, boolean enabled) {
         this.id = id;
         this.alias = alias;
         this.email = email;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
+        this.username = username;
+        this.password = password;
+        this.enabled = enabled;
     }
 
     public UUID getId() {
@@ -65,5 +71,29 @@ public class User {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 }

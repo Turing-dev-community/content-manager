@@ -2,6 +2,9 @@ CREATE TABLE IF NOT EXISTS "user" (
     id UUID PRIMARY KEY,
     alias VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
+    username VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL
 );
@@ -31,6 +34,7 @@ CREATE TABLE IF NOT EXISTS customer_request (
     text TEXT NOT NULL,
     support_response UUID,
     customer_id UUID NOT NULL,
+    subscribers TEXT,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL
 );
