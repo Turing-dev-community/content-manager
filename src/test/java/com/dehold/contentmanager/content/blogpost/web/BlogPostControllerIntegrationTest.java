@@ -290,33 +290,65 @@ class BlogPostControllerIntegrationTest {
         assertFalse(response.getBody().isLast());
     }
 
-    @Test
-    void downloadExport_shouldReturnAttachmentWithJson() throws Exception {
 
-        BlogPost bp = new BlogPost(UUID.randomUUID(), "DL Title", "DL Body", Instant.now(), Instant.now(), user1Id);
+    @Test
+    void downloadExport_shouldReturnAttachmentHeaders() throws Exception {
+        // create a blog post for this user
+        BlogPost bp = new BlogPost(UUID.randomUUID(), "DL Title", "DL Body",
+                Instant.now(), Instant.now(), user1Id);
         blogPostRepository.createBlogPost(bp);
 
-        String url = "http://localhost:" + port + "/api/blogposts/download/" + user1Id.toString();
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user1Id;
+
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+
+        // if feature not implemented this assert will fail (404 or other)
+        assertEquals(HttpStatus.OK, response.getStatusCode(), "Expected HTTP 200 from download endpoint");
+
+        HttpHeaders headers = response.getHeaders();
+        assertTrue(headers.containsKey(HttpHeaders.CONTENT_DISPOSITION), "Missing Content-Disposition header");
+
+        String cd = headers.getFirst(HttpHeaders.CONTENT_DISPOSITION);
+        assertNotNull(cd);
+        assertTrue(cd.contains("attachment"), "Content-Disposition must indicate attachment");
+        assertTrue(cd.contains("export-" + user1Id + ".json"), "Filename must include userId");
+
+        assertEquals(MediaType.APPLICATION_JSON, headers.getContentType(), "Content-Type must be application/json");
+    }
+
+    @Test
+    void downloadExport_shouldReturnNonEmptyJsonFile() throws Exception {
+        BlogPost bp = new BlogPost(UUID.randomUUID(), "DL Title 2", "DL Body 2",
+                Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(bp);
+
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user1Id;
 
         ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
         assertEquals(HttpStatus.OK, response.getStatusCode());
 
-        HttpHeaders headers = response.getHeaders();
-        assertTrue(headers.containsKey(HttpHeaders.CONTENT_DISPOSITION));
-        String cd = headers.getFirst(HttpHeaders.CONTENT_DISPOSITION);
-        assertNotNull(cd);
-        assertTrue(cd.contains("attachment"));
-        assertTrue(cd.contains("export-" + user1Id + ".json"));
+        byte[] body = response.getBody();
+        assertNotNull(body, "Response body must not be null");
+        assertTrue(body.length > 0, "Downloaded JSON must not be empty");
+    }
 
-        assertEquals(MediaType.APPLICATION_JSON, headers.getContentType());
+    @Test
+    void downloadExport_shouldContainBlogPostsInJsonArray() throws Exception {
+        BlogPost bp = new BlogPost(UUID.randomUUID(), "DL Title 3", "DL Body 3",
+                Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(bp);
+
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user1Id;
+
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
         byte[] body = response.getBody();
         assertNotNull(body);
-        assertTrue(body.length > 0);
 
-        // parse JSON and verify structure
-        List blogPosts = objectMapper.readValue(body, List.class);
-        //one blog post present
-        assertNotNull(blogPosts);
-        assertTrue(blogPosts.size() > 0);
+        // parse JSON into a List (tests that the exported payload is a JSON array of blog posts)
+        List<?> blogPosts = objectMapper.readValue(body, List.class);
+        assertNotNull(blogPosts, "Parsed JSON must not be null");
+        assertTrue(blogPosts.size() > 0, "Exported JSON array must contain at least one blog post");
     }
 }
