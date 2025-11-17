@@ -169,6 +169,7 @@ class ValidationServiceTest {
         assertEquals("2", report.getErrorCodeToErrorCount().get(ForbiddenWordValidator.ERROR_CODE));
         assertEquals(2, report.getErrorCodeToErrorCount().size());
     }
+
     //Verify that when there are support requests and pipelines,
     //the method runs validations and persists results via the repository.
     @Test
