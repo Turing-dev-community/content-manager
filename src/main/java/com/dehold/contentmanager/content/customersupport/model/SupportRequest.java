@@ -37,6 +37,10 @@ public class SupportRequest implements Content {
         return userId;
     }
 
+    public void setUserId(UUID userId) {
+        this.userId = userId;
+    }
+
     public void setId(UUID id) {
         this.id = id;
     }
