@@ -24,16 +24,51 @@ class ProductOfferRepositoryIntegrationTest {
     private UserRepository userRepository;
 
     @Test
-    void shouldCreateAndRetrieveSingleOffer() {
-        User user = createUniqueUser("single-offer@example.com");
-        ProductOffer offer = createSampleOffer(user.getId());
+    void shouldCreateAndRetrieveSingleOffer_verifyAllFields() {
+        // Arrange
+        User user = createUniqueUser("all-fields-test@example.com");
 
+        ProductOffer offer = new ProductOffer(
+            UUID.randomUUID(),
+            user.getId(),
+            "MacBook Pro M4",
+            "14-inch, 16GB RAM, 512GB SSD",
+            "Apple",
+            "Laptops",
+            new BigDecimal("199900.00"),
+            new BigDecimal("179900.00"),
+            10,
+            25,
+            "Free delivery in 1 day",
+            true,
+            Instant.now(),
+            Instant.now()
+        );
+
+        // Act
         productOfferRepository.create(offer);
-
         List<ProductOffer> result = productOfferRepository.findByUserId(user.getId());
-        assertEquals(1, result.size());
-        assertEquals("iPhone 15 Pro", result.get(0).getTitle());
-        assertEquals(new BigDecimal("119900.00"), result.get(0).getOfferPrice());
+        ProductOffer retrieved = result.get(0);
+
+        // Assert — ALL FIELDS EXPLICITLY VERIFIED
+        assertNotNull(retrieved.getId());
+        assertEquals(user.getId(), retrieved.getUserId());
+
+        assertEquals("MacBook Pro M4", retrieved.getTitle());
+        assertEquals("14-inch, 16GB RAM, 512GB SSD", retrieved.getDescription());
+        assertEquals("Apple", retrieved.getBrand());
+        assertEquals("Laptops", retrieved.getCategory());
+
+        assertEquals(new BigDecimal("199900.00"), retrieved.getOriginalPrice());
+        assertEquals(new BigDecimal("179900.00"), retrieved.getOfferPrice());
+        assertEquals(Integer.valueOf(10), retrieved.getDiscountPercentage());
+
+        assertEquals(Integer.valueOf(25), retrieved.getStockQuantity());
+        assertEquals("Free delivery in 1 day", retrieved.getDeliveryTime());
+        assertTrue(retrieved.isActive());
+
+        assertNotNull(retrieved.getCreatedAt());
+        assertNotNull(retrieved.getUpdatedAt());
     }
 
     @Test
@@ -47,19 +82,29 @@ class ProductOfferRepositoryIntegrationTest {
     }
 
     @Test
-    void shouldUpdateOffer() {
-        User user = createUniqueUser("update-offer@example.com");
+    void shouldUpdateOffer_verifyMutableFields() {
+        User user = createUniqueUser("update-test@example.com");
         ProductOffer offer = createSampleOffer(user.getId());
+
         productOfferRepository.create(offer);
 
-        offer.setOfferPrice(new BigDecimal("109900.00"));
-        offer.setStockQuantity(10);
+        // Update key fields
+        offer.setTitle("Updated Title");
+        offer.setOfferPrice(new BigDecimal("99900.00"));
+        offer.setDiscountPercentage(25);
+        offer.setStockQuantity(5);
+        offer.setDeliveryTime("Next week");
         offer.setActive(false);
+
         productOfferRepository.update(offer);
 
         ProductOffer updated = productOfferRepository.findById(offer.getId());
-        assertEquals(new BigDecimal("109900.00"), updated.getOfferPrice());
-        assertEquals(10, updated.getStockQuantity());
+
+        assertEquals("Updated Title", updated.getTitle());
+        assertEquals(new BigDecimal("99900.00"), updated.getOfferPrice());
+        assertEquals(Integer.valueOf(25), updated.getDiscountPercentage());
+        assertEquals(Integer.valueOf(5), updated.getStockQuantity());
+        assertEquals("Next week", updated.getDeliveryTime());
         assertFalse(updated.isActive());
     }
 
