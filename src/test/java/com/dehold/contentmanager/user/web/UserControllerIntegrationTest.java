@@ -1,5 +1,6 @@
 package com.dehold.contentmanager.user.web;
 
+import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
 import com.dehold.contentmanager.exception.CustomErrorResponse;
@@ -33,8 +34,8 @@ import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class UserControllerIntegrationTest {
+
+class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     @LocalServerPort
     private int port;
