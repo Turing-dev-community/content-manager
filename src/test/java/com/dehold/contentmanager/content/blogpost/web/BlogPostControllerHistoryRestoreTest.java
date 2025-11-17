@@ -49,9 +49,9 @@ class BlogPostControllerHistoryRestoreTest {
     static void beforeAll(@Autowired JdbcTemplate jdbcTemplate) {
         jdbcTemplate.update("DELETE FROM \"user\" WHERE id = ?", user1Id);
         jdbcTemplate.update(
-                "MERGE INTO \"user\" (id, alias, email, created_at, updated_at) " +
-                        "KEY(id) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-                user1Id, "testuser1", "testuser1@example.com"
+                "MERGE INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) " +
+                        "KEY(id) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                user1Id, "testuser1", "testuser1@example.com", "TestUser", "TestPassword", true
         );
     }
 
