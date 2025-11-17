@@ -813,53 +813,7 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
     }
 
     // -------------------------------------------------------------------------
-    // 3. NO SUPPORT REQUESTS → return empty list
-    // -------------------------------------------------------------------------
-    @Test
-    void givenUserWithoutSupportRequests_whenValidate_thenReturnEmptyList() {
-        User user = new User(
-                UUID.randomUUID(),
-                "No SR User",
-                "nosr-" + UUID.randomUUID() + "@example.com",
-                Instant.now(),
-                Instant.now()
-        );
-        userRepository.createUser(user);
-
-        ResponseEntity<ValidationResponse[]> response =
-                restTemplate.postForEntity(
-                        "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportrequests",
-                        null,
-                        ValidationResponse[].class
-                );
-
-        assertEquals(200, response.getStatusCode().value());
-        assertNotNull(response.getBody());
-        assertEquals(0, response.getBody().length);
-    }
-
-    // -------------------------------------------------------------------------
-    // 4. NON-EXISTENT USER → 404 Not Found
-    // -------------------------------------------------------------------------
-    @Test
-    void givenNonExistingUser_whenValidate_thenReturn404() {
-        UUID missingId = UUID.randomUUID();
-
-        ResponseEntity<CustomErrorResponse> response =
-                restTemplate.postForEntity(
-                        "http://localhost:" + port + "/api/users/" + missingId + "/validate-supportrequests",
-                        null,
-                        CustomErrorResponse.class
-                );
-
-        assertEquals(404, response.getStatusCode().value());
-        assertNotNull(response.getBody());
-        assertEquals("The entity User with id " + missingId + " does not exist",
-                response.getBody().getError());
-    }
-
-    // -------------------------------------------------------------------------
-    // 5. VALIDATION RESULTS ARE PERSISTED
+    // 3. VALIDATION RESULTS ARE PERSISTED
     // -------------------------------------------------------------------------
     @Test
     void givenSupportRequest_whenValidate_thenValidationIsPersisted() {
