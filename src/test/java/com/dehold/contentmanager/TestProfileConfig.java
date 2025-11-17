@@ -19,13 +19,9 @@ public class TestProfileConfig {
     @Bean
     public SecurityFilterChain testSecurityFilterChain(HttpSecurity http) throws Exception {
 
-        // NEW DSL — no deprecated csrf()
         http
-                .securityMatcher("/**")
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
-                .csrf(csrf -> csrf.disable())           // ← not deprecated
-                .httpBasic(Customizer.withDefaults())   // optional (not used)
-                .formLogin(form -> form.disable());     // disable login page
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/**"))  // NOT disabled, just ignored
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll());
 
         return http.build();
     }
