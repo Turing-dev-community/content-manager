@@ -1,5 +1,6 @@
 package com.dehold.contentmanager.content.blogpost.web;
 
+import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.model.Page;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
@@ -10,7 +11,6 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.ParameterizedTypeReference;
@@ -29,8 +29,8 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class BlogPostControllerIntegrationTest {
+
+class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
 
     private static final UUID user1Id = UUID.fromString("06c4f0e4-20d7-4886-841b-ebe0ca3622a5");
     private static final UUID user2Id = UUID.fromString("514b7a57-39a7-4623-9db0-3fda971bf11f");
@@ -49,16 +49,15 @@ class BlogPostControllerIntegrationTest {
 
     @BeforeEach
     void cleanDatabase(@Autowired JdbcTemplate jdbcTemplate) {
+
         jdbcTemplate.update("DELETE FROM blog_post");
-    }
+        jdbcTemplate.update("DELETE FROM \"user\"");
 
-    @BeforeAll
-    static void setup(@Autowired JdbcTemplate jdbcTemplate) {
-        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-                user1Id, "testuser1", "testuser1@example.com");
+        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                user1Id, "testuser1", "testuser1@example.com", "TestUser-" + UUID.randomUUID(), "TestPassword-" + UUID.randomUUID());
 
-        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, created_at, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-                user2Id, "testuser2", "testuser2@example.com");
+        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, true,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                user2Id, "testuser2", "testuser2@example.com", "TestUser-" + UUID.randomUUID(), "TestPassword-" + UUID.randomUUID());
     }
 
     @Test
