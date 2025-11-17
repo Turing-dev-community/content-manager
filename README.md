@@ -32,6 +32,7 @@ Please update for each new feature:
 | 2025-11-17 | riddhi.s@turing.com | Add ProductOffer content type | New marketplace-ready content type with pricing, stock, delivery fields. Model + repository + schema. No API yet. | [#74](https://github.com/Turing-dev-community/content-manager/issues/74) |
 | 2025-11-15 | riddhi.s@turing.com | Allow users to validate customer support responses | Endpoint `/api/users/{id}/validate-supportresponses` that runs validations against all `SupportResponse` entries owned by the user and persists results. Fixes circular `NOT NULL` dependency in DB schema. | [#67](https://github.com/Turing-dev-community/content-manager/issues/67) |
 | 2025-11-17      | pushpendra.s@turing.com | Add Comments to Blog Posts                                    | Enhance the BlogPost functionality to support a list of comments. Each blog post may contain multiple comments, and each comment should include.                     | [#75](https://github.com/Turing-dev-community/content-manager/issues/75) |
+| 2025-11-17      | pushpendra.s@turing.com | Regex Validator                                        | Implement a new validation step called RegexValidator that validates arbitrary content fields against a provided regular expression.                     | [#72](https://github.com/Turing-dev-community/content-manager/issues/72) |
 
 ### Overview
 - **Content Management**: Create, read, update, and delete various content types
