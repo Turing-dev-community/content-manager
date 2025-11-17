@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS support_response (
     id UUID PRIMARY KEY,
     user_id UUID,
     text TEXT NOT NULL,
-    support_request UUID NOT NULL,
+    support_request UUID,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL
 );
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS customer_request (
     id UUID PRIMARY KEY,
     user_id UUID,
     text TEXT NOT NULL,
-    support_response UUID NOT NULL,
+    support_response UUID,
     customer_id UUID NOT NULL,
     subscribers TEXT,
     created_at TIMESTAMP NOT NULL,
