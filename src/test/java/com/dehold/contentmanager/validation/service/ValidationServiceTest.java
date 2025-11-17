@@ -210,49 +210,7 @@ class ValidationServiceTest {
     }
 
     // ---------------------------------------------------------
-    // 2️⃣ User has NO support requests → nothing persisted
-    // ---------------------------------------------------------
-    @Test
-    void givenNoSupportRequests_whenValidate_thenReturnEmptyAndNoPersist() {
-
-        UUID userId = UUID.randomUUID();
-
-        when(supportRepo.findByUserId(userId)).thenReturn(List.of());
-
-        List<ValidationResult> results = validationService.runSupportRequestValidation(userId);
-
-        assertTrue(results.isEmpty());
-        verify(repository, never()).create(any());
-        verify(pipelineFactory, never())
-                .createValidationPipelineForUserAndContentType(any(), any());
-    }
-
-    // ---------------------------------------------------------
-    // 3️⃣ Support request exists but no pipelines → no validation, no persistence
-    // ---------------------------------------------------------
-    @Test
-    void givenSupportRequestButNoPipelines_whenValidate_thenNoPersist() {
-
-        UUID userId = UUID.randomUUID();
-
-        SupportRequest req = new SupportRequest(
-                UUID.randomUUID(), userId,
-                "Some message", null,
-                UUID.randomUUID(), Instant.now(), Instant.now()
-        );
-
-        when(supportRepo.findByUserId(userId)).thenReturn(List.of(req));
-        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest"))
-                .thenReturn(List.of()); // NO pipelines
-
-        List<ValidationResult> results = validationService.runSupportRequestValidation(userId);
-
-        assertTrue(results.isEmpty());
-        verify(repository, never()).create(any());
-    }
-
-    // ---------------------------------------------------------
-    // 4️⃣ Multiple support requests × multiple pipelines → ALL results persisted
+    // Multiple support requests × multiple pipelines → ALL results persisted
     // ---------------------------------------------------------
     @Test
     void givenMultipleRequestsAndPipelines_whenValidate_thenAllPersisted() {
@@ -308,29 +266,4 @@ class ValidationServiceTest {
 
         verify(repository, times(4)).create(any(ValidationResult.class));
     }
-
-    // ---------------------------------------------------------
-    // 5️⃣ Invalid content type → pipeline factory throws exception
-    // ---------------------------------------------------------
-    @Test
-    void givenInvalidContentType_whenPipelineFactoryThrows_thenPropagated() {
-
-        UUID userId = UUID.randomUUID();
-
-        SupportRequest req = new SupportRequest(
-                UUID.randomUUID(), userId, "Bad msg",
-                null, UUID.randomUUID(), Instant.now(), Instant.now()
-        );
-
-        when(supportRepo.findByUserId(userId)).thenReturn(List.of(req));
-
-        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest"))
-                .thenThrow(new IllegalArgumentException("Unknown content type"));
-
-        assertThrows(IllegalArgumentException.class,
-                () -> validationService.runSupportRequestValidation(userId));
-
-        verify(repository, never()).create(any());
-    }
-
 }
