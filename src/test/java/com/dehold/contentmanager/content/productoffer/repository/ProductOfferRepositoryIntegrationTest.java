@@ -23,6 +23,10 @@ class ProductOfferRepositoryIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
+    private String uniqueUsername() {
+        return "TestUser-" + UUID.randomUUID();
+    }
+
     @Test
     void shouldCreateAndRetrieveSingleOffer_verifyAllFields() {
         // Arrange
@@ -129,7 +133,7 @@ class ProductOfferRepositoryIntegrationTest {
 
     // === Helper Methods ===
     private User createUniqueUser(String email) {
-        User user = new User(UUID.randomUUID(), "offeruser", email, Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "offeruser", email, Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
         return user;
     }

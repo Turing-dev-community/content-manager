@@ -681,7 +681,10 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
                 "Support User",
                 "support-" + UUID.randomUUID() + "@example.com",
                 Instant.now(),
-                Instant.now()
+                Instant.now(),
+                uniqueUsername(),
+                "TestUser-" + UUID.randomUUID(),
+                true
         );
         userRepository.createUser(user);
 
@@ -746,7 +749,10 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
                 "Invalid Support User",
                 "invalid-sr-" + UUID.randomUUID() + "@example.com",
                 Instant.now(),
-                Instant.now()
+                Instant.now(),
+                uniqueUsername(),
+                "TestUser-" + UUID.randomUUID(),
+                true
         );
         userRepository.createUser(user);
 
@@ -809,7 +815,10 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
                 "Persist SR User",
                 "persistsr-" + UUID.randomUUID() + "@example.com",
                 Instant.now(),
-                Instant.now()
+                Instant.now(),
+                uniqueUsername(),
+                "TestUser-" + UUID.randomUUID(),
+                true
         );
         userRepository.createUser(user);
 
