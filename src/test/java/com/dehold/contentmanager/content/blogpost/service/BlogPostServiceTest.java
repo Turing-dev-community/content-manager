@@ -8,6 +8,7 @@ import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.model.Page;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -43,10 +44,9 @@ class BlogPostServiceTest {
         UUID userId = UUID.randomUUID();
         request.setUserId(userId);
 
-        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Test Blog Post", "This is a test blog post.",
-                Instant.now(), Instant.now(), UUID.randomUUID());
-
-        doNothing().when(blogPostRepository).createBlogPost(any(BlogPost.class));
+        // capture the BlogPost passed to repository to ensure service constructs it correctly
+        ArgumentCaptor<BlogPost> captor = ArgumentCaptor.forClass(BlogPost.class);
+        doNothing().when(blogPostRepository).createBlogPost(captor.capture());
 
         BlogPost createdBlogPost = blogPostService.createBlogPost(request.getTitle(), request.getContent(),
                 request.getUserId(), null);
@@ -54,7 +54,16 @@ class BlogPostServiceTest {
         assertNotNull(createdBlogPost);
         assertEquals(request.getTitle(), createdBlogPost.getTitle());
         assertEquals(request.getContent(), createdBlogPost.getContent());
+
+        // verify repository called once and inspect the passed BlogPost object
         verify(blogPostRepository, times(1)).createBlogPost(any(BlogPost.class));
+        BlogPost passed = captor.getValue();
+        assertNotNull(passed.getId(), "Service must assign id before persisting");
+        assertEquals(request.getTitle(), passed.getTitle());
+        assertEquals(request.getContent(), passed.getContent());
+        assertEquals(userId, passed.getUserId());
+        assertNotNull(passed.getCreatedAt());
+        assertNotNull(passed.getUpdatedAt());
     }
 
     @Test
