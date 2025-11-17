@@ -683,7 +683,7 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     @Test
     void givenOneSupportResponseAndPersistedValidationPipeline_validateSupportResponsesForUser_shouldReturnValidationResult() {
-        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         SupportRequest supportRequest = new SupportRequest(UUID.randomUUID(), user.getId(), "Help needed", null, user.getId(), Instant.now(), Instant.now());
@@ -723,7 +723,7 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     @Test
     void givenInvalidSupportResponseAndPersistedValidationPipeline_validateSupportResponsesForUser_shouldReturnValidationResultWithErrors() {
-        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         SupportRequest supportRequest = new SupportRequest(UUID.randomUUID(), user.getId(), "Help", null, user.getId(), Instant.now(), Instant.now());
@@ -769,7 +769,7 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     @Test
     void givenOneSupportResponseAndPipeline_whenValidateSupportResponsesForUser_thenResultPersistedInDatabase() {
-        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         SupportRequest supportRequest = new SupportRequest(UUID.randomUUID(), user.getId(), "Help", null, user.getId(), Instant.now(), Instant.now());
@@ -799,7 +799,7 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     @Test
     void givenMultipleSupportResponsesAndPipeline_whenValidateSupportResponsesForUser_thenAllResultsPersistedInDatabase() {
-        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now());
+        User user = new User(UUID.randomUUID(), "Support User", "support-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         SupportRequest request1 = new SupportRequest(UUID.randomUUID(), user.getId(), "Issue 1", null, user.getId(), Instant.now(), Instant.now());
@@ -841,7 +841,7 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
         User user = new User(UUID.randomUUID(),
                 "Support User",
                 "support-" + UUID.randomUUID() + "@example.com",
-                Instant.now(), Instant.now());
+                Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
         userRepository.createUser(user);
 
         SupportRequest r1 = new SupportRequest(UUID.randomUUID(), user.getId(), "Issue 1", null, user.getId(), Instant.now(), Instant.now());
