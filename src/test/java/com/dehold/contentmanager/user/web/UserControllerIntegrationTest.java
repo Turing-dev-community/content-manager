@@ -926,4 +926,195 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
         assertEquals(1, validCount);   // only the first response
         assertEquals(2, shortCount);   // two short responses
     }
+
+    // -------------------------------------------------------------------------
+    // 1. SUCCESS — valid support request returns a valid result
+    // -------------------------------------------------------------------------
+    @Test
+    void givenValidSupportRequest_whenValidate_thenReturnValidResult() {
+
+        // Create user
+        User user = new User(
+                UUID.randomUUID(),
+                "Support User",
+                "support-" + UUID.randomUUID() + "@example.com",
+                Instant.now(),
+                Instant.now(),
+                uniqueUsername(),
+                "TestUser-" + UUID.randomUUID(),
+                true
+        );
+        userRepository.createUser(user);
+
+        // Create support request
+        SupportRequest request = new SupportRequest(
+                UUID.randomUUID(),
+                user.getId(),
+                "This is a valid support request message.",
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                Instant.now(),
+                Instant.now()
+        );
+        supportRequestRepository.create(request);
+
+        // Create validation pipeline
+        var pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("supportrequest");
+        pipelineDto.setDescription("Support Request Validation Pipeline");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "text",
+                        Map.of("minLength", "5", "maxLength", "500"), true)
+        ));
+
+        restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto,
+                ValidationPipelineModel.class
+        );
+
+        // Call the API
+        ResponseEntity<ValidationResponse[]> response =
+                restTemplate.postForEntity(
+                        "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportrequests",
+                        null,
+                        ValidationResponse[].class
+                );
+
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().length);
+
+        ValidationResponse vr = response.getBody()[0];
+        assertEquals("SupportRequest", vr.getContentType());
+
+        ValidationResultDto dto = vr.getValidationResult();
+        assertTrue(dto.isValid());
+        assertEquals("SupportRequest", dto.getContentType());
+        assertEquals(user.getId(), dto.getUserId());
+        assertEquals(request.getId(), dto.getContentId());
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. FAILURE — invalid support request returns validation errors
+    // -------------------------------------------------------------------------
+    @Test
+    void givenInvalidSupportRequest_whenValidate_thenReturnErrors() {
+
+        User user = new User(
+                UUID.randomUUID(),
+                "Invalid Support User",
+                "invalid-sr-" + UUID.randomUUID() + "@example.com",
+                Instant.now(),
+                Instant.now(),
+                uniqueUsername(),
+                "TestUser-" + UUID.randomUUID(),
+                true
+        );
+        userRepository.createUser(user);
+
+        // Too short text to trigger validation errors
+        SupportRequest request = new SupportRequest(
+                UUID.randomUUID(),
+                user.getId(),
+                "Hi",
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                Instant.now(),
+                Instant.now()
+        );
+        supportRequestRepository.create(request);
+
+        // Create pipeline for validation
+        var pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("supportrequest");
+        pipelineDto.setDescription("SR Pipeline");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "text",
+                        Map.of("minLength", "5", "maxLength", "500"), true)
+        ));
+
+        restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto,
+                ValidationPipelineModel.class
+        );
+
+        ResponseEntity<ValidationResponse[]> response =
+                restTemplate.postForEntity(
+                        "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportrequests",
+                        null,
+                        ValidationResponse[].class
+                );
+
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().length);
+
+        ValidationResultDto dto = response.getBody()[0].getValidationResult();
+        assertFalse(dto.isValid());
+        assertEquals(1, dto.getErrors().size());
+
+        assertTrue(dto.getErrors().stream().anyMatch(
+                e -> e.code().equals(LengthValidator.ERROR_CODE)
+        ));
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. VALIDATION RESULTS ARE PERSISTED
+    // -------------------------------------------------------------------------
+    @Test
+    void givenSupportRequest_whenValidate_thenValidationIsPersisted() {
+
+        User user = new User(
+                UUID.randomUUID(),
+                "Persist SR User",
+                "persistsr-" + UUID.randomUUID() + "@example.com",
+                Instant.now(),
+                Instant.now(),
+                uniqueUsername(),
+                "TestUser-" + UUID.randomUUID(),
+                true
+        );
+        userRepository.createUser(user);
+
+        SupportRequest sr = new SupportRequest(
+                UUID.randomUUID(),
+                user.getId(),
+                "This is a valid request",
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                Instant.now(),
+                Instant.now()
+        );
+        supportRequestRepository.create(sr);
+
+        var pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("supportrequest");
+        pipelineDto.setDescription("Persistence Pipeline");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "text",
+                        Map.of("minLength", "5", "maxLength", "500"), true)
+        ));
+
+        restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto,
+                ValidationPipelineModel.class
+        );
+
+        restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-supportrequests",
+                null,
+                ValidationResponse[].class
+        );
+
+        List<ValidationResult> persisted = validationResultRepository.findByUserId(user.getId());
+        assertEquals(1, persisted.size());
+        assertEquals(user.getId(), persisted.get(0).getUserId());
+        assertEquals(sr.getId(), persisted.get(0).getContentId());
+    }
 }

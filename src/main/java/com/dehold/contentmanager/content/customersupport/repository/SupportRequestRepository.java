@@ -88,4 +88,19 @@ public class SupportRequestRepository {
         String sql = "DELETE FROM customer_request WHERE id = ?";
         jdbcTemplate.update(sql, id);
     }
+
+    public List<SupportRequest> findByUserId(UUID userId) {
+        String sql = "SELECT * FROM customer_request WHERE user_id = ?";
+        return jdbcTemplate.query(sql, new Object[]{userId}, (rs, rowNum) ->
+                new SupportRequest(
+                        UUID.fromString(rs.getString("id")),
+                        UUID.fromString(rs.getString("user_id")),
+                        rs.getString("text"),
+                        UUID.fromString(rs.getString("support_response")),
+                        UUID.fromString(rs.getString("customer_id")),
+                        rs.getTimestamp("created_at").toInstant(),
+                        rs.getTimestamp("updated_at").toInstant()
+                )
+        );
+    }
 }

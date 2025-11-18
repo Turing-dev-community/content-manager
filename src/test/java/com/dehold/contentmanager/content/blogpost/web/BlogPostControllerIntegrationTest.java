@@ -6,6 +6,8 @@ import com.dehold.contentmanager.content.blogpost.model.Page;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
 import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,12 +15,16 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.MediaType;
+
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -28,6 +34,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
 
     private static final UUID user1Id = UUID.fromString("06c4f0e4-20d7-4886-841b-ebe0ca3622a5");
     private static final UUID user2Id = UUID.fromString("514b7a57-39a7-4623-9db0-3fda971bf11f");
+    private static final UUID user3Id = UUID.randomUUID();
 
     @LocalServerPort
     private int port;
@@ -37,6 +44,9 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
 
     @Autowired
     private BlogPostRepository blogPostRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @BeforeEach
     void cleanDatabase(@Autowired JdbcTemplate jdbcTemplate) {
@@ -278,5 +288,127 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         assertEquals(25, response.getBody().getTotalElements());
         assertEquals(3, response.getBody().getTotalPages());  // 25 / 10 = 3 pages
         assertFalse(response.getBody().isLast());
+    }
+
+
+    @Test
+    void downloadExport_shouldReturnAttachmentHeaders() throws Exception {
+        // create a blog post for this user
+        BlogPost bp = new BlogPost(UUID.randomUUID(), "DL Title", "DL Body",
+                Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(bp);
+
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user1Id;
+
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+
+        // if feature not implemented this assert will fail (404 or other)
+        assertEquals(HttpStatus.OK, response.getStatusCode(), "Expected HTTP 200 from download endpoint");
+
+        HttpHeaders headers = response.getHeaders();
+        assertTrue(headers.containsKey(HttpHeaders.CONTENT_DISPOSITION), "Missing Content-Disposition header");
+
+        String cd = headers.getFirst(HttpHeaders.CONTENT_DISPOSITION);
+        assertNotNull(cd);
+
+        // Assert it indicates attachment and contains a filename token matching export-*.json
+        assertTrue(cd.toLowerCase().contains("attachment"), "Content-Disposition must indicate attachment");
+
+        // filename may be formatted differently by implementations; assert a flexible pattern:
+        // must contain "export-" and end with ".json" in the header value
+        assertTrue(cd.contains("export-") && cd.toLowerCase().contains(".json"),
+                "Content-Disposition filename should follow export-*.json pattern");
+
+        // Content-Type check (explicit per issue)
+        assertEquals(MediaType.APPLICATION_JSON, headers.getContentType(), "Content-Type must be application/json");
+    }
+
+    @Test
+    void downloadExport_shouldReturnNonEmptyJsonFile() throws Exception {
+        BlogPost bp = new BlogPost(UUID.randomUUID(), "DL Title 2", "DL Body 2",
+                Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(bp);
+
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user1Id;
+
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        byte[] body = response.getBody();
+        assertNotNull(body, "Response body must not be null");
+        assertTrue(body.length > 0, "Downloaded JSON must not be empty");
+    }
+
+    @Test
+    void downloadExport_shouldContainBlogPostsInJsonArray() throws Exception {
+        BlogPost bp = new BlogPost(UUID.randomUUID(), "DL Title 3", "DL Body 3",
+                Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(bp);
+
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user1Id;
+
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        byte[] body = response.getBody();
+        assertNotNull(body);
+
+        // parse JSON into a List (tests that the exported payload is a JSON array of blog posts)
+        List<?> blogPosts = objectMapper.readValue(body, List.class);
+        assertNotNull(blogPosts, "Parsed JSON must not be null");
+        assertTrue(blogPosts.size() > 0, "Exported JSON array must contain at least one blog post");
+    }
+
+    @Test
+    void downloadExport_shouldContainBlogPostsInJsonArray_andValidateContent() throws Exception {
+        // create a blog post for this user
+        UUID createdId = UUID.randomUUID();
+        BlogPost bp = new BlogPost(createdId, "DL Title 3", "DL Body 3",
+                Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(bp);
+
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user1Id;
+
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+
+        byte[] body = response.getBody();
+        assertNotNull(body);
+
+        // parse JSON into a List (tests that the exported payload is a JSON array of blog posts)
+        List<?> blogPosts = objectMapper.readValue(body, List.class);
+        assertNotNull(blogPosts, "Parsed JSON must not be null");
+        assertTrue(blogPosts.size() > 0, "Exported JSON array must contain at least one blog post");
+
+        // further validate structure of first element (should be a map with expected fields)
+        Object first = blogPosts.get(0);
+        assertTrue(first instanceof java.util.Map, "Each blog post entry should be a JSON object");
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> firstObj = (java.util.Map<String, Object>) first;
+
+        // check for common fields
+        assertTrue(firstObj.containsKey("id"), "Exported blog post must contain 'id' field");
+        assertTrue(firstObj.containsKey("title"), "Exported blog post must contain 'title' field");
+        assertTrue(firstObj.containsKey("content"), "Exported blog post must contain 'content' field");
+        assertTrue(firstObj.containsKey("userId"), "Exported blog post must contain 'userId' field");
+
+        // check at least one exported item has the expected userId
+        boolean hasUserMatch = blogPosts.stream().map(o -> (java.util.Map<String, Object>) o)
+                .anyMatch(m -> user1Id.toString().equals(String.valueOf(m.get("userId"))));
+        assertTrue(hasUserMatch, "At least one exported blog post must belong to the requested userId");
+    }
+
+    @Test
+    void downloadExport_emptyUser_shouldReturnEmptyFile() throws Exception {
+        // JSON: should be an empty array
+        String urlJson = "http://localhost:" + port + "/api/blogposts/download/" + user3Id;
+        ResponseEntity<byte[]> respJson = restTemplate.getForEntity(urlJson, byte[].class);
+
+        assertEquals(HttpStatus.OK, respJson.getStatusCode());
+        assertEquals(MediaType.APPLICATION_JSON, respJson.getHeaders().getContentType());
+
+        List<?> items = objectMapper.readValue(respJson.getBody(), List.class);
+        assertNotNull(items);
+        assertEquals(0, items.size(), "Expected empty JSON array for user with no blog posts");
     }
 }
