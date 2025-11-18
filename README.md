@@ -14,6 +14,8 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
    1. Create a new branch for your feature named `feature/your-feature-name` or `fix/your-bug-fix`
    1. Implement the feature or bug fix
    1. **Update the feature list**
+   1. Merge the latest `main` into your branch and run `mvn clean install` (for code coverage build failures check 
+      the [Test Coverage](#test-coverage) section)
    1. Create a pull request to merge your changes back to main
    1. Inform repository owner for review
 
@@ -42,6 +44,23 @@ Please update for each new feature:
 
 
 ### Test Coverage
+
+#### Run the Test Coverage Tool
+
+The test coverage tool can be triggered via the Maven build the following ways:
+1. `mvn clean install`
+2. `mvn clean test`
+
+#### Overview of the Tooling
+
+The test coverage is done via the following two tools:
+1. [JaCoCo test coverage lib](https://www.jacoco.org/jacoco/): This is a common tool for spring boot applications. 
+   It takes care of checking the unit test coverage and provides reports.
+2. [DiffTestCoverageChecker](src/main/java/com/dehold/contentmanager/DiffTestCoverageChecker.java): 
+   3. A custom tool that validates test coverage on changed files only (diff coverage). It reads the JaCoCo CSV report and ensures that modified files meet the minimum coverage threshold of 80%. The build will fail if any changed file has insufficient test coverage.
+   4. Motivation: There is an existing code base with varying test coverage. By checking the coverage against the 
+      diff to origin/main, developers are encouraged to improve the test coverage of the files they modify in their 
+      PRs. This is an enforcement of the Boy Scout Rule ("Always leave the codebase cleaner than you found it").
 
 
 
