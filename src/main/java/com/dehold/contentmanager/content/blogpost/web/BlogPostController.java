@@ -57,6 +57,15 @@ public class BlogPostController {
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Downloadable JSON export: returns application/json with
+     * Content-Disposition: attachment; filename="export-<userId>.json"
+     */
+    @GetMapping("/download/{userId}")
+    public ResponseEntity<byte[]> downloadExport(@PathVariable UUID userId) throws Exception {
+        return blogPostService.getBlogPostsByUserIdAndContentType(userId);
+    }
+
     @GetMapping("/{id}/history")
     public ResponseEntity<List<BlogPostHistory>> getBlogPostHistory(@PathVariable UUID id) {
         List<BlogPostHistory> history = blogPostService.getHistory(id);
