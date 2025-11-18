@@ -401,7 +401,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
     @Test
     void downloadExport_emptyUser_shouldReturnEmptyFile() throws Exception {
         // JSON: should be an empty array
-        String urlJson = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=json";
+        String urlJson = "http://localhost:" + port + "/api/blogposts/download/" + user3Id;
         ResponseEntity<byte[]> respJson = restTemplate.getForEntity(urlJson, byte[].class);
 
         assertEquals(HttpStatus.OK, respJson.getStatusCode());
