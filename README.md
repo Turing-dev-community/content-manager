@@ -55,6 +55,14 @@ The test coverage tool can be triggered via the Maven build the following ways:
 1. `mvn clean install`
 2. `mvn clean test`
 
+The coverage of modified files must be 80% or more (the files that diff from origin/main), otherwise the build will 
+fail. 
+
+The failure message looks like this:
+
+![Build Failure Example](build-failure-example.png)
+
+
 #### Overview of the Tooling
 
 The test coverage is done via the following two tools:
@@ -65,6 +73,7 @@ The test coverage is done via the following two tools:
    4. Motivation: There is an existing code base with varying test coverage. By checking the coverage against the 
       diff to origin/main, developers are encouraged to improve the test coverage of the files they modify in their 
       PRs. This is an enforcement of the Boy Scout Rule ("Always leave the codebase cleaner than you found it").
+
 
 
 
