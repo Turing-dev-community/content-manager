@@ -34,6 +34,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
 
     private static final UUID user1Id = UUID.fromString("06c4f0e4-20d7-4886-841b-ebe0ca3622a5");
     private static final UUID user2Id = UUID.fromString("514b7a57-39a7-4623-9db0-3fda971bf11f");
+    private static final UUID user3Id = UUID.randomUUID();
 
     @LocalServerPort
     private int port;
@@ -397,4 +398,17 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         assertTrue(hasUserMatch, "At least one exported blog post must belong to the requested userId");
     }
 
+    @Test
+    void downloadExport_emptyUser_shouldReturnEmptyFile() throws Exception {
+        // JSON: should be an empty array
+        String urlJson = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=json";
+        ResponseEntity<byte[]> respJson = restTemplate.getForEntity(urlJson, byte[].class);
+
+        assertEquals(HttpStatus.OK, respJson.getStatusCode());
+        assertEquals(MediaType.APPLICATION_JSON, respJson.getHeaders().getContentType());
+
+        List<?> items = objectMapper.readValue(respJson.getBody(), List.class);
+        assertNotNull(items);
+        assertEquals(0, items.size(), "Expected empty JSON array for user with no blog posts");
+    }
 }
