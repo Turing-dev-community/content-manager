@@ -1,7 +1,7 @@
 package com.dehold.contentmanager;
 
-import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -22,28 +22,47 @@ public class DiffTestCoverageChecker {
             return;
         }
 
-        // 2. Parse JaCoCo XML
-        File xml = new File("target/site/jacoco/jacoco.xml");
-        if (!xml.exists()) {
-            System.err.println("JaCoCo XML report not found: " + xml.getAbsolutePath());
+        // 2. Parse JaCoCo CSV
+        File csv = new File("target/site/jacoco/jacoco.csv");
+        if (!csv.exists()) {
+            System.err.println("JaCoCo CSV report not found: " + csv.getAbsolutePath());
             System.exit(1);
         }
 
-        Map<String, Double> coverageMap = parseJacoco(xml);
+        Map<String, Double> coverageMap = parseJacocoCsv(csv);
 
         // 3. Compute diff-only coverage
-        List<Double> coverages = changedClasses.stream()
-                .map(cls -> coverageMap.getOrDefault(cls, 0.0))
-                .toList();
+        Map<String, Double> changedClassCoverage = new LinkedHashMap<>();
+        for (String cls : changedClasses) {
+            changedClassCoverage.put(cls, coverageMap.getOrDefault(cls, 0.0));
+        }
 
-        double avgCoverage = coverages.stream().mapToDouble(Double::doubleValue).average().orElse(0);
+        double avgCoverage = changedClassCoverage.values().stream()
+                .mapToDouble(Double::doubleValue)
+                .average()
+                .orElse(0);
 
-        System.out.println("Changed classes: " + changedClasses);
-        System.out.println("Diff coverage: " + avgCoverage);
-        System.out.println("Required: " + minCoverage);
+        System.out.println("\n=== Diff Coverage Report ===");
+        System.out.println("Changed classes and their coverage:");
+        changedClassCoverage.forEach((cls, cov) ->
+                System.out.printf("  %s %s: %.1f%%\n",
+                        cov < minCoverage ? "❌ " : "✅ ",
+                        cls,
+                        cov * 100)
+        );
+
+        System.out.printf("\nOverall diff coverage: %.1f%%\n", avgCoverage * 100);
+        System.out.printf("Required minimum: %.1f%%\n\n", minCoverage * 100);
 
         if (avgCoverage < minCoverage) {
-            System.err.println("❌ Diff coverage check FAILED.");
+            List<String> failedClasses = changedClassCoverage.entrySet().stream()
+                    .filter(e -> e.getValue() < minCoverage)
+                    .map(e -> String.format("%s (%.1f%%)", e.getKey(), e.getValue() * 100))
+                    .toList();
+
+            System.err.println("❌  Diff coverage check FAILED.");
+            System.err.println("Files below minimum coverage:");
+            failedClasses.forEach(f -> System.err.println("  - " + f));
             System.exit(1);
         }
 
@@ -61,43 +80,24 @@ public class DiffTestCoverageChecker {
                 .collect(Collectors.toList());
     }
 
-    // Parse JaCoCo XML
-    private static Map<String, Double> parseJacoco(File file) throws Exception {
+    private static Map<String, Double> parseJacocoCsv(File file) throws Exception {
         var map = new HashMap<String, Double>();
+        List<String> lines = Files.readAllLines(file.toPath());
 
-        var factory = DocumentBuilderFactory.newInstance();
-        // Disable DTD validation and external entity loading
-        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-        factory.setFeature("http://xml.org/sax/features/validation", false);
+        for (int i = 1; i < lines.size(); i++) {
+            String[] parts = lines.get(i).split(",");
+            if (parts.length < 9) continue;
 
-        var doc = factory.newDocumentBuilder().parse(file);
-        var nodes = doc.getElementsByTagName("package");
+            String packageName = parts[1];
+            String className = parts[2];
+            String fullClassName = packageName + "." + className;
 
-        for (int i = 0; i < nodes.getLength(); i++) {
-            var pkg = nodes.item(i);
-            var pkgName = pkg.getAttributes().getNamedItem("name").getNodeValue().replace("/", ".");
+            int lineMissed = Integer.parseInt(parts[7]);
+            int lineCovered = Integer.parseInt(parts[8]);
+            int total = lineMissed + lineCovered;
 
-            var classes = pkg.getChildNodes();
-            for (int j = 0; j < classes.getLength(); j++) {
-                var c = classes.item(j);
-                if (!c.getNodeName().equals("class")) continue;
-
-                var className = pkgName + "." + c.getAttributes().getNamedItem("name").getNodeValue();
-
-                var counters = c.getChildNodes();
-                for (int k = 0; k < counters.getLength(); k++) {
-                    var cnt = counters.item(k);
-                    if (cnt.getNodeName().equals("counter") &&
-                            cnt.getAttributes().getNamedItem("type").getNodeValue().equals("LINE")) {
-
-                        int covered = Integer.parseInt(cnt.getAttributes().getNamedItem("covered").getNodeValue());
-                        int missed = Integer.parseInt(cnt.getAttributes().getNamedItem("missed").getNodeValue());
-                        double ratio = covered + missed == 0 ? 1.0 : (double) covered / (covered + missed);
-
-                        map.put(className, ratio);
-                    }
-                }
-            }
+            double ratio = total == 0 ? 1.0 : (double) lineCovered / total;
+            map.put(fullClassName, ratio);
         }
 
         return map;
