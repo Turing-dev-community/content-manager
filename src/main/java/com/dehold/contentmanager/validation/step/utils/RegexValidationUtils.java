@@ -19,7 +19,6 @@ public final class RegexValidationUtils {
     public static String normalizeForMessage(String regex) {
         if (regex == null) return "";
         return regex.trim().replaceAll("\\s+", " ");
-
     }
 }
 
