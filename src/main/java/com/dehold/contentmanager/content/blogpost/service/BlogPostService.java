@@ -1,5 +1,6 @@
 package com.dehold.contentmanager.content.blogpost.service;
 
+import com.dehold.contentmanager.content.blogpost.export.ExportCsvConverter;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.model.Comment;
 import com.dehold.contentmanager.content.blogpost.model.BlogPostHistory;
@@ -107,21 +108,36 @@ public class BlogPostService {
         return new Page<>(posts, page, size, total);
     }
 
-    public ResponseEntity<byte[]> getBlogPostsByUserIdAndContentType(UUID userId) throws Exception {
+    public ResponseEntity<byte[]> getBlogPostsByUserIdAndContentType(UUID userId, String format) throws Exception {
         List<BlogPost> resp = getBlogPostsByUserId(userId);
 
-        byte[] jsonBytes = objectMapper.writeValueAsBytes(resp);
+        if ("csv".equalsIgnoreCase(format)) {
+            byte[] csvBytes = ExportCsvConverter.toCsvBytes(resp);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setContentDisposition(
-                ContentDisposition.attachment()
-                        .filename("export-" + userId + ".json")
-                        .build()
-        );
-        headers.setContentLength(jsonBytes.length);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.valueOf("text/csv"));
+            headers.setContentDisposition(
+                    ContentDisposition.attachment()
+                            .filename("export-" + userId + ".csv")
+                            .build()
+            );
+            headers.setContentLength(csvBytes.length);
+            return new ResponseEntity<>(csvBytes, headers, HttpStatus.OK);
+        } else {
+            // default json
+            byte[] jsonBytes = objectMapper.writeValueAsBytes(resp);
 
-        return new ResponseEntity<>(jsonBytes, headers, HttpStatus.OK);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setContentDisposition(
+                    ContentDisposition.attachment()
+                            .filename("export-" + userId + ".json")
+                            .build()
+            );
+            headers.setContentLength(jsonBytes.length);
+
+            return new ResponseEntity<>(jsonBytes, headers, HttpStatus.OK);
+        }
     }
 
     public List<BlogPostHistory> getHistory(UUID blogPostId) {

@@ -59,6 +59,9 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
 
         jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, true,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
                 user2Id, "testuser2", "testuser2@example.com", "TestUser-" + UUID.randomUUID(), "TestPassword-" + UUID.randomUUID());
+
+        jdbcTemplate.update("INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, true,  CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                user3Id, "testuser3", "testuser3@example.com", "TestUser-" + UUID.randomUUID(), "TestPassword-" + UUID.randomUUID());
     }
 
     @Test
@@ -398,6 +401,128 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
     }
 
     @Test
+    void downloadExport_json_shouldReturnAttachmentAndContainBlogPost() throws Exception {
+        // persist a blog post for the user
+        UUID postId = UUID.randomUUID();
+        BlogPost bp = new BlogPost(postId, "JSON Title", "JSON Body", Instant.now(), Instant.now(), user3Id);
+        blogPostRepository.createBlogPost(bp);
+
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=json";
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode(), "Expected 200 OK");
+        HttpHeaders headers = response.getHeaders();
+        assertEquals(MediaType.APPLICATION_JSON, headers.getContentType(), "Expected application/json");
+
+        String cd = headers.getFirst(HttpHeaders.CONTENT_DISPOSITION);
+        assertNotNull(cd, "Content-Disposition header required");
+        assertTrue(cd.toLowerCase().contains("attachment"));
+        assertTrue(cd.contains("export-"));
+
+        byte[] body = response.getBody();
+        assertNotNull(body, "Response body must not be null");
+
+        // parse JSON array
+        List<?> items = objectMapper.readValue(body, List.class);
+        assertNotNull(items, "Parsed JSON must not be null");
+        assertTrue(items.size() > 0, "Expected at least one exported blog post");
+
+        // verify at least one item matches our persisted post
+        boolean match = items.stream().map(o -> (java.util.Map<String, Object>) o).anyMatch(m -> postId.toString().equals(String.valueOf(m.get("id"))) && "JSON Title".equals(m.get("title")) && user3Id.toString().equals(String.valueOf(m.get("userId"))));
+        assertTrue(match, "Exported JSON must contain the persisted blog post with correct fields");
+    }
+
+    @Test
+    void downloadExport_csv_shouldReturnCsvAttachmentAndContainBlogPost() throws Exception {
+        UUID postId = UUID.randomUUID();
+        BlogPost bp = new BlogPost(postId, "CSV, Title \"with quotes\"", "CSV Body\nwith newline", Instant.now(), Instant.now(), user3Id);
+        blogPostRepository.createBlogPost(bp);
+
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=csv";
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        HttpHeaders headers = response.getHeaders();
+        assertEquals(MediaType.valueOf("text/csv"), headers.getContentType(), "Expected text/csv");
+        String cd = headers.getFirst(HttpHeaders.CONTENT_DISPOSITION);
+        assertNotNull(cd);
+        assertTrue(cd.toLowerCase().contains("attachment"));
+        assertTrue(cd.contains("export-"));
+
+        byte[] body = response.getBody();
+        assertNotNull(body);
+        String csv = new String(body, java.nio.charset.StandardCharsets.UTF_8);
+
+        // basic CSV structure: header line and at least one data row
+        String[] lines = csv.split("\\r?\\n");
+        assertTrue(lines.length >= 2, "CSV should contain header + at least one data row");
+
+        // header should contain the expected columns
+        assertEquals("\"id\",\"title\",\"content\",\"createdAt\",\"updatedAt\",\"userId\"", lines[0]);
+
+        // second line should contain quoted title; verify presence of title text (quoted/escaped)
+        assertTrue(csv.contains("\"CSV, Title \"\"with quotes\"\"\"") || csv.contains("CSV, Title"), "CSV must contain escaped/quoted title");
+        // ensure userId appears in CSV
+        assertTrue(csv.contains(user3Id.toString()), "CSV must include the userId for the blog post");
+    }
+
+    @Test
+    void downloadExport_defaultWithoutFormat_shouldReturnJson() throws Exception {
+        BlogPost bp = new BlogPost(UUID.randomUUID(), "DEF Title", "DEF Body", Instant.now(), Instant.now(), user3Id);
+        blogPostRepository.createBlogPost(bp);
+
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user3Id;
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        HttpHeaders headers = response.getHeaders();
+        assertEquals(MediaType.APPLICATION_JSON, headers.getContentType());
+        byte[] body = response.getBody();
+        assertNotNull(body);
+        // ensure it's valid JSON array
+        Object parsed = objectMapper.readValue(body, Object.class);
+        assertNotNull(parsed);
+    }
+
+    @Test
+    void downloadExport_formatParam_caseInsensitive_shouldReturnCsv() throws Exception {
+        BlogPost bp = new BlogPost(UUID.randomUUID(), "CASE Title", "CASE Body", Instant.now(), Instant.now(), user3Id);
+        blogPostRepository.createBlogPost(bp);
+
+        // uppercase CSV param
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=CSV";
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(MediaType.valueOf("text/csv"), response.getHeaders().getContentType());
+    }
+
+    @Test
+    void downloadExport_emptyUser_shouldReturnEmptyJsonArray_andCsvHeaderOnly() throws Exception {
+        // JSON: should be an empty array
+        String urlJson = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=json";
+        ResponseEntity<byte[]> respJson = restTemplate.getForEntity(urlJson, byte[].class);
+        assertEquals(HttpStatus.OK, respJson.getStatusCode());
+        assertEquals(MediaType.APPLICATION_JSON, respJson.getHeaders().getContentType());
+        List<?> items = objectMapper.readValue(respJson.getBody(), List.class);
+        assertNotNull(items);
+        assertEquals(0, items.size(), "Expected empty JSON array for user with no blog posts");
+
+        // CSV: should contain header line but no data rows
+        String urlCsv = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=csv";
+        ResponseEntity<byte[]> respCsv = restTemplate.getForEntity(urlCsv, byte[].class);
+        assertEquals(HttpStatus.OK, respCsv.getStatusCode());
+        assertEquals(MediaType.valueOf("text/csv"), respCsv.getHeaders().getContentType());
+        String csv = new String(respCsv.getBody(), java.nio.charset.StandardCharsets.UTF_8);
+        String[] lines = csv.split("\\r?\\n");
+        // header line present, but no following data line
+        assertTrue(lines.length >= 1);
+        assertEquals("\"id\",\"title\",\"content\",\"createdAt\",\"updatedAt\",\"userId\"", lines[0]);
+        // either only header or header + empty line
+        assertTrue(lines.length == 1 || (lines.length == 2 && lines[1].isEmpty()));
+    }
+
+    @Test
     void downloadExport_emptyUser_shouldReturnEmptyFile() throws Exception {
         // JSON: should be an empty array
         String urlJson = "http://localhost:" + port + "/api/blogposts/download/" + user3Id;
@@ -410,7 +535,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         assertNotNull(items);
         assertEquals(0, items.size(), "Expected empty JSON array for user with no blog posts");
     }
-    
+
     @Test
     void search_shouldReturnIdWhenTermMatchesTitleOnly() {
         // Arrange: Term "Java" is in the Title, but not the Content.
@@ -599,7 +724,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         );
         blogPostRepository.createBlogPost(post);
 
-        // Act: Search, but omit the '?term=' query parameter. 
+        // Act: Search, but omit the '?term=' query parameter.
         // This causes the @RequestParam String term to be bound as null.
         String url = "http://localhost:" + port + "/api/blogposts/" + post.getId() + "/search";
 
