@@ -8,10 +8,6 @@ import com.dehold.contentmanager.content.blogpost.web.dto.BlogPostSearchResponse
 import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.dehold.contentmanager.user.service.UserService;
-import com.dehold.contentmanager.user.web.dto.CreateUserRequest;
-import com.dehold.contentmanager.user.model.User;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,27 +48,8 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
     @Autowired
     private ObjectMapper objectMapper;
 
-    @Autowired
-    private UserService userService;
-
-    private UUID userId;
-
     @BeforeEach
-    void setup() {
-        // use a unique email per setup to avoid DuplicateKey violations in H2
-        CreateUserRequest req = new CreateUserRequest();
-        req.setAlias("repo-user");
-        String uniqueEmail = "repo-user+" + UUID.randomUUID() + "@example.com";
-        req.setEmail(uniqueEmail);
-        req.setUsername("TestUser"+ UUID.randomUUID());
-        req.setPassword("TestPassword"+ UUID.randomUUID());
-        User u = userService.createUser(req);
-        assertNotNull(u);
-        userId = u.getId();
-    }
-
-    @BeforeEach
-    void cleanDatabase(@Autowired JdbcTemplate jdbcTemplate) {
+    void cleanupDbAndSetupUsers(@Autowired JdbcTemplate jdbcTemplate) {
 
         jdbcTemplate.update("DELETE FROM blog_post");
         jdbcTemplate.update("DELETE FROM \"user\"");
@@ -433,16 +410,17 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         assertNotNull(items);
         assertEquals(0, items.size(), "Expected empty JSON array for user with no blog posts");
     }
+    
     @Test
-    void search_shouldReturnIdWhenTermMatchesTitle() {
-
+    void search_shouldReturnIdWhenTermMatchesTitleOnly() {
+        // Arrange: Term "Java" is in the Title, but not the Content.
         BlogPost post = new BlogPost(
             UUID.randomUUID(),
-            "Learn Java Programming",
-            "This post is about Java basics",
+            "Learn Java Programming", // Matches "Java"
+            "This post is about Go basics", // Does not match "Java"
             Instant.now(),
             Instant.now(),
-            userId
+            user1Id
         );
         blogPostRepository.createBlogPost(post);
 
@@ -453,9 +431,37 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
             BlogPostSearchResponse.class
         );
 
+        // Assert
         assertEquals(HttpStatus.OK, response.getStatusCode());
         List<UUID> ids = response.getBody().blogPostIds();
-        assertEquals(1, ids.size());
+        assertEquals(1, ids.size(), "Should find post when term matches Title.");
+        assertEquals(post.getId(), ids.get(0));
+    }
+
+    @Test
+    void search_shouldReturnIdWhenTermMatchesContentOnly() {
+        // Arrange: Term "Java" is in the Content, but not the Title.
+        BlogPost post = new BlogPost(
+            UUID.randomUUID(),
+            "Python vs Go Languages", // Does not match "Java"
+            "This post covers Python and Java concepts.", // Matches "Java"
+            Instant.now(),
+            Instant.now(),
+            user1Id
+        );
+        blogPostRepository.createBlogPost(post);
+
+        String url = "http://localhost:" + port + "/api/blogposts/"+post.getId()+"/search?term=Java";
+
+        ResponseEntity<BlogPostSearchResponse> response = restTemplate.getForEntity(
+            url,
+            BlogPostSearchResponse.class
+        );
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        List<UUID> ids = response.getBody().blogPostIds();
+        assertEquals(1, ids.size(), "Should find post when term matches Content.");
         assertEquals(post.getId(), ids.get(0));
     }
 
@@ -467,7 +473,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
             "lower case java everywhere",
             Instant.now(),
             Instant.now(),
-            userId
+            user1Id
         );
         blogPostRepository.createBlogPost(post);
 
@@ -489,7 +495,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
             "No Java here at all",
             Instant.now(),
             Instant.now(),
-            userId
+            user1Id
         );
         blogPostRepository.createBlogPost(post);
 
@@ -505,10 +511,10 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
 
     @Test
     void search_shouldReturnMultipleIdsWhenMultiplePostsMatch() {
-        BlogPost post1 = new BlogPost(UUID.randomUUID(), "Java Basics", "Learn Java", Instant.now(), Instant.now(), userId);
-        BlogPost post2 = new BlogPost(UUID.randomUUID(), "Advanced Java", "Powerful language", Instant.now(), Instant.now(), userId);
-        BlogPost post3 = new BlogPost(UUID.randomUUID(), "Favourite Language of All Time", "Java is Favourite language.", Instant.now(), Instant.now(), userId);
-        BlogPost post4 = new BlogPost(UUID.randomUUID(), "Python Guide", "Python is great for scripting", Instant.now(), Instant.now(), userId);
+        BlogPost post1 = new BlogPost(UUID.randomUUID(), "Java Basics", "Learn Java", Instant.now(), Instant.now(), user1Id);
+        BlogPost post2 = new BlogPost(UUID.randomUUID(), "Advanced Java", "Powerful language", Instant.now(), Instant.now(), user1Id);
+        BlogPost post3 = new BlogPost(UUID.randomUUID(), "Favourite Language of All Time", "Java is Favourite language.", Instant.now(), Instant.now(), user1Id);
+        BlogPost post4 = new BlogPost(UUID.randomUUID(), "Python Guide", "Python is great for scripting", Instant.now(), Instant.now(), user1Id);
 
         blogPostRepository.createBlogPost(post1);
         blogPostRepository.createBlogPost(post2);
@@ -526,6 +532,84 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         assertEquals(3, ids.size());
         assertTrue(ids.contains(post1.getId()));
         assertTrue(ids.contains(post2.getId()));
+    }
+
+    @Test
+    void search_shouldReturnEmptyListWhenTermIsEmpty() {
+        // Arrange: Create one post to ensure the database isn't empty, but the search term is.
+        BlogPost post = new BlogPost(
+            UUID.randomUUID(),
+            "A title",
+            "Some content",
+            Instant.now(),
+            Instant.now(),
+            user1Id
+        );
+        blogPostRepository.createBlogPost(post);
+
+        // Act: Search with an empty term
+        String url = "http://localhost:" + port + "/api/blogposts/" + post.getId() + "/search?term=";
+
+        ResponseEntity<BlogPostSearchResponse> response = restTemplate.getForEntity(
+            url, BlogPostSearchResponse.class
+        );
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        // Verify that the list of results is empty
+        assertTrue(response.getBody().blogPostIds().isEmpty(), "Expected an empty list when the search term is empty.");
+    }
+
+    @Test
+    void search_shouldReturnEmptyListWhenTermIsWhitespace() {
+        // Arrange: Create one post to ensure the database isn't empty, but the search term is whitespace.
+        BlogPost post = new BlogPost(
+            UUID.randomUUID(),
+            "A title",
+            "Some content",
+            Instant.now(),
+            Instant.now(),
+            user1Id
+        );
+        blogPostRepository.createBlogPost(post);
+
+        // Act: Search with a whitespace term (the framework handles URL encoding spaces)
+        String url = "http://localhost:" + port + "/api/blogposts/" + post.getId() + "/search?term=   ";
+
+        ResponseEntity<BlogPostSearchResponse> response = restTemplate.getForEntity(
+            url, BlogPostSearchResponse.class
+        );
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        // Verify that the list of results is empty
+        assertTrue(response.getBody().blogPostIds().isEmpty(), "Expected an empty list when the search term is whitespace only.");
+    }
+
+    @Test
+    void search_shouldReturnEmptyListWhenTermIsOmitted() {
+        // Arrange: Create one post to ensure the database isn't empty.
+        BlogPost post = new BlogPost(
+            UUID.randomUUID(),
+            "A title",
+            "Some content",
+            Instant.now(),
+            Instant.now(),
+            user1Id
+        );
+        blogPostRepository.createBlogPost(post);
+
+        // Act: Search, but omit the '?term=' query parameter. 
+        // This causes the @RequestParam String term to be bound as null.
+        String url = "http://localhost:" + port + "/api/blogposts/" + post.getId() + "/search";
+
+        ResponseEntity<BlogPostSearchResponse> response = restTemplate.getForEntity(
+            url, BlogPostSearchResponse.class
+        );
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().blogPostIds().isEmpty(), "Expected an empty list when the search term is null (omitted).");
     }
 
 }

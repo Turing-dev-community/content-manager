@@ -80,7 +80,7 @@ public class BlogPostController {
     }
 
     @GetMapping("/{id}/search")
-    public ResponseEntity<BlogPostSearchResponse> search(@PathVariable UUID id, @RequestParam("term") String term) {
+    public ResponseEntity<BlogPostSearchResponse> search(@PathVariable UUID id, @RequestParam(value = "term", required = false) String term) {
         List<UUID> ids = blogPostService.searchByTerm(term);
         return ResponseEntity.ok(new BlogPostSearchResponse(ids));
     }

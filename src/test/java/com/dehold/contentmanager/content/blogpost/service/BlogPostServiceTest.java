@@ -497,16 +497,27 @@ class BlogPostServiceTest {
     }
 
     @Test
-    void searchByTerm_shouldHandleNullAndEmptyTerm() {
+    void searchByTerm_shouldHandleNullEmptyAndWhitespaceTerm() {
         when(blogPostRepository.searchByTerm(null)).thenReturn(List.of());
         when(blogPostRepository.searchByTerm("")).thenReturn(List.of());
         when(blogPostRepository.searchByTerm("   ")).thenReturn(List.of());
 
-        assertTrue(blogPostService.searchByTerm(null).isEmpty());
-        assertTrue(blogPostService.searchByTerm("").isEmpty());
-        assertTrue(blogPostService.searchByTerm("   ").isEmpty());
+        // Test Case: Null
+        List<UUID> resultNull = blogPostService.searchByTerm(null);
+        assertTrue(resultNull.isEmpty(), "Should return empty list for null term.");
 
-        verify(blogPostRepository, times(3)).searchByTerm(any());
+        // Test Case: Empty String
+        List<UUID> resultEmpty = blogPostService.searchByTerm("");
+        assertTrue(resultEmpty.isEmpty(), "Should return empty list for empty string.");
+        
+        // Test Case: Whitespace Only (Trimming expectation)
+        List<UUID> resultWhitespace = blogPostService.searchByTerm("   ");
+        assertTrue(resultWhitespace.isEmpty(), "Should return empty list for whitespace-only string.");
+
+        verify(blogPostRepository, times(1)).searchByTerm(null);
+        verify(blogPostRepository, times(1)).searchByTerm("");
+        verify(blogPostRepository, times(1)).searchByTerm("   ");
+        
     }
 
 }
