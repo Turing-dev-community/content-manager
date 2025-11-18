@@ -118,6 +118,18 @@ CREATE TABLE IF NOT EXISTS product_offer (
 
     CONSTRAINT fk_product_offer_user FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE
 );
+
+-- FAQ Page Table
+CREATE TABLE IF NOT EXISTS faq_page (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    introduction TEXT,
+    faq_items TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_faq_user FOREIGN KEY (user_id) REFERENCES "user" (id) ON DELETE CASCADE
+);
 CREATE TABLE IF NOT EXISTS comments (
     id UUID PRIMARY KEY,
     blog_post_id UUID NOT NULL,
