@@ -4,10 +4,14 @@ import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.model.Page;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
+import com.dehold.contentmanager.content.blogpost.web.dto.BlogPostSearchResponse;
 import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.junit.jupiter.api.BeforeAll;
+import com.dehold.contentmanager.user.service.UserService;
+import com.dehold.contentmanager.user.web.dto.CreateUserRequest;
+import com.dehold.contentmanager.user.model.User;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +51,25 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private UserService userService;
+
+    private UUID userId;
+
+    @BeforeEach
+    void setup() {
+        // use a unique email per setup to avoid DuplicateKey violations in H2
+        CreateUserRequest req = new CreateUserRequest();
+        req.setAlias("repo-user");
+        String uniqueEmail = "repo-user+" + UUID.randomUUID() + "@example.com";
+        req.setEmail(uniqueEmail);
+        req.setUsername("TestUser"+ UUID.randomUUID());
+        req.setPassword("TestPassword"+ UUID.randomUUID());
+        User u = userService.createUser(req);
+        assertNotNull(u);
+        userId = u.getId();
+    }
 
     @BeforeEach
     void cleanDatabase(@Autowired JdbcTemplate jdbcTemplate) {
@@ -290,7 +313,6 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         assertFalse(response.getBody().isLast());
     }
 
-
     @Test
     void downloadExport_shouldReturnAttachmentHeaders() throws Exception {
         // create a blog post for this user
@@ -411,4 +433,99 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         assertNotNull(items);
         assertEquals(0, items.size(), "Expected empty JSON array for user with no blog posts");
     }
+    @Test
+    void search_shouldReturnIdWhenTermMatchesTitle() {
+
+        BlogPost post = new BlogPost(
+            UUID.randomUUID(),
+            "Learn Java Programming",
+            "This post is about Java basics",
+            Instant.now(),
+            Instant.now(),
+            userId
+        );
+        blogPostRepository.createBlogPost(post);
+
+        String url = "http://localhost:" + port + "/api/blogposts/"+post.getId()+"/search?term=Java";
+
+        ResponseEntity<BlogPostSearchResponse> response = restTemplate.getForEntity(
+            url,
+            BlogPostSearchResponse.class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        List<UUID> ids = response.getBody().blogPostIds();
+        assertEquals(1, ids.size());
+        assertEquals(post.getId(), ids.get(0));
+    }
+
+    @Test
+    void search_shouldBeCaseSensitive() {
+        BlogPost post = new BlogPost(
+            UUID.randomUUID(),
+            "java tutorial for beginners",
+            "lower case java everywhere",
+            Instant.now(),
+            Instant.now(),
+            userId
+        );
+        blogPostRepository.createBlogPost(post);
+
+        String url = "http://localhost:" + port + "/api/blogposts/" + post.getId() + "/search?term=Java";
+
+        ResponseEntity<BlogPostSearchResponse> response = restTemplate.getForEntity(
+            url, BlogPostSearchResponse.class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().blogPostIds().isEmpty());
+    }
+
+    @Test
+    void search_shouldReturnEmptyWhenNoMatch() {
+        BlogPost post = new BlogPost(
+            UUID.randomUUID(),
+            "Python vs Go",
+            "No Java here at all",
+            Instant.now(),
+            Instant.now(),
+            userId
+        );
+        blogPostRepository.createBlogPost(post);
+
+        String url = "http://localhost:" + port + "/api/blogposts/" + post.getId() + "/search?term=Rust";
+
+        ResponseEntity<BlogPostSearchResponse> response = restTemplate.getForEntity(
+            url, BlogPostSearchResponse.class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().blogPostIds().isEmpty());
+    }
+
+    @Test
+    void search_shouldReturnMultipleIdsWhenMultiplePostsMatch() {
+        BlogPost post1 = new BlogPost(UUID.randomUUID(), "Java Basics", "Learn Java", Instant.now(), Instant.now(), userId);
+        BlogPost post2 = new BlogPost(UUID.randomUUID(), "Advanced Java", "Powerful language", Instant.now(), Instant.now(), userId);
+        BlogPost post3 = new BlogPost(UUID.randomUUID(), "Favourite Language of All Time", "Java is Favourite language.", Instant.now(), Instant.now(), userId);
+        BlogPost post4 = new BlogPost(UUID.randomUUID(), "Python Guide", "Python is great for scripting", Instant.now(), Instant.now(), userId);
+
+        blogPostRepository.createBlogPost(post1);
+        blogPostRepository.createBlogPost(post2);
+        blogPostRepository.createBlogPost(post3);
+        blogPostRepository.createBlogPost(post4);
+
+        String url = "http://localhost:" + port + "/api/blogposts/" + post1.getId() + "/search?term=Java";
+
+        ResponseEntity<BlogPostSearchResponse> response = restTemplate.getForEntity(
+            url, BlogPostSearchResponse.class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        List<UUID> ids = response.getBody().blogPostIds();
+        assertEquals(3, ids.size());
+        assertTrue(ids.contains(post1.getId()));
+        assertTrue(ids.contains(post2.getId()));
+    }
+
 }

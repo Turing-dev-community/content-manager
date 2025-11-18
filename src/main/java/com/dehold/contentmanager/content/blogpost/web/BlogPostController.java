@@ -3,6 +3,7 @@ package com.dehold.contentmanager.content.blogpost.web;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.model.BlogPostHistory;
 import com.dehold.contentmanager.content.blogpost.service.BlogPostService;
+import com.dehold.contentmanager.content.blogpost.web.dto.BlogPostSearchResponse;
 import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.model.Page;
@@ -77,4 +78,11 @@ public class BlogPostController {
         BlogPost restored = blogPostService.restoreVersion(id, version);
         return ResponseEntity.ok(restored);
     }
+
+    @GetMapping("/{id}/search")
+    public ResponseEntity<BlogPostSearchResponse> search(@PathVariable UUID id, @RequestParam("term") String term) {
+        List<UUID> ids = blogPostService.searchByTerm(term);
+        return ResponseEntity.ok(new BlogPostSearchResponse(ids));
+    }
+
 }

@@ -137,4 +137,8 @@ public class BlogPostService {
         updateBlogPostVersion(blogPostId, version.getTitle(), version.getContent());
         return getBlogPost(blogPostId);
     }
+
+    public List<UUID> searchByTerm(String term) {
+        return blogPostRepository.searchByTerm(term);
+    }
 }

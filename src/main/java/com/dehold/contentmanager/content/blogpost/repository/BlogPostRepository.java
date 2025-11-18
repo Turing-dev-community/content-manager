@@ -161,4 +161,18 @@ public class BlogPostRepository {
             return jdbcTemplate.queryForObject("SELECT COUNT(*) FROM blog_post WHERE user_id = ?", Long.class, userId);
         }
     }
+
+    public List<UUID> searchByTerm(String term) {
+        if (term == null || term.trim().isEmpty()) {
+            return List.of();
+        }
+    
+        String sql = """
+            SELECT id FROM blog_post
+            WHERE title LIKE ? OR content LIKE ?
+            """;
+    
+        String pattern = "%" + term.trim() + "%";
+        return jdbcTemplate.queryForList(sql, UUID.class, pattern, pattern);
+    }
 }
