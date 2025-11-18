@@ -1,6 +1,5 @@
 package com.dehold.contentmanager.content.blogpost.service;
 
-import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.model.Comment;
 import com.dehold.contentmanager.content.blogpost.model.BlogPostHistory;
@@ -16,8 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+
 
 import java.time.Instant;
 import java.util.List;
@@ -26,6 +24,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -453,4 +452,72 @@ class BlogPostServiceTest {
         verify(blogPostHistoryRepository, times(1))
                 .getHistoryByBlogPostId(postId);
     }
+
+    @Test
+    void searchByTerm_shouldReturnMatchingIds_caseSensitive_positive() {
+        UUID id1 = UUID.randomUUID();
+        UUID id2 = UUID.randomUUID();
+
+        when(blogPostRepository.searchByTerm("Java"))
+            .thenReturn(List.of(id1, id2));
+
+        List<UUID> result = blogPostService.searchByTerm("Java");
+
+        assertEquals(2, result.size());
+        assertTrue(result.contains(id1));
+        assertTrue(result.contains(id2));
+        verify(blogPostRepository).searchByTerm("Java");
+    }
+
+    @Test
+    void searchByTerm_shouldBeCaseSensitive_negative() {
+       
+        when(blogPostRepository.searchByTerm("java"))
+            .thenReturn(List.of(UUID.randomUUID()));
+
+        // Search for uppercase "Java" → no match
+        when(blogPostRepository.searchByTerm("Java"))
+            .thenReturn(List.of());
+
+        List<UUID> result = blogPostService.searchByTerm("Java");
+
+        assertTrue(result.isEmpty(), "Should be case-sensitive: 'Java' ≠ 'java'");
+        verify(blogPostRepository).searchByTerm("Java");
+    }
+
+    @Test
+    void searchByTerm_shouldReturnEmptyWhenNoMatch() {
+        when(blogPostRepository.searchByTerm("NonExistentTerm"))
+            .thenReturn(List.of());
+
+        List<UUID> result = blogPostService.searchByTerm("NonExistentTerm");
+
+        assertTrue(result.isEmpty());
+        verify(blogPostRepository).searchByTerm("NonExistentTerm");
+    }
+
+    @Test
+    void searchByTerm_shouldHandleNullEmptyAndWhitespaceTerm() {
+        when(blogPostRepository.searchByTerm(null)).thenReturn(List.of());
+        when(blogPostRepository.searchByTerm("")).thenReturn(List.of());
+        when(blogPostRepository.searchByTerm("   ")).thenReturn(List.of());
+
+        // Test Case: Null
+        List<UUID> resultNull = blogPostService.searchByTerm(null);
+        assertTrue(resultNull.isEmpty(), "Should return empty list for null term.");
+
+        // Test Case: Empty String
+        List<UUID> resultEmpty = blogPostService.searchByTerm("");
+        assertTrue(resultEmpty.isEmpty(), "Should return empty list for empty string.");
+        
+        // Test Case: Whitespace Only (Trimming expectation)
+        List<UUID> resultWhitespace = blogPostService.searchByTerm("   ");
+        assertTrue(resultWhitespace.isEmpty(), "Should return empty list for whitespace-only string.");
+
+        verify(blogPostRepository, times(1)).searchByTerm(null);
+        verify(blogPostRepository, times(1)).searchByTerm("");
+        verify(blogPostRepository, times(1)).searchByTerm("   ");
+        
+    }
+
 }
