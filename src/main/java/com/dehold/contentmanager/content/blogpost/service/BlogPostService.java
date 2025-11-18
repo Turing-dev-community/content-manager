@@ -1,6 +1,8 @@
 package com.dehold.contentmanager.content.blogpost.service;
 
 import com.dehold.contentmanager.content.blogpost.export.ExportCsvConverter;
+import com.dehold.contentmanager.content.blogpost.export.ExportResponse;
+import com.dehold.contentmanager.content.blogpost.export.ExportService;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.model.Comment;
 import com.dehold.contentmanager.content.blogpost.model.BlogPostHistory;
@@ -27,11 +29,14 @@ public class BlogPostService {
     private final BlogPostRepository blogPostRepository;
     private final BlogPostHistoryRepository blogPostHistoryRepository;
     private final ObjectMapper objectMapper;
+    private final ExportService exportService;
 
-    public BlogPostService(BlogPostRepository blogPostRepository, BlogPostHistoryRepository blogPostHistoryRepository, ObjectMapper objectMapper) {
+
+    public BlogPostService(BlogPostRepository blogPostRepository, BlogPostHistoryRepository blogPostHistoryRepository, ObjectMapper objectMapper, ExportService exportService) {
         this.blogPostRepository = blogPostRepository;
         this.blogPostHistoryRepository = blogPostHistoryRepository;
         this.objectMapper = objectMapper;
+        this.exportService = exportService;
     }
 
     public BlogPost createBlogPost(String title, String content, UUID userId, List<Comment> comments) {
@@ -109,7 +114,7 @@ public class BlogPostService {
     }
 
     public ResponseEntity<byte[]> getBlogPostsByUserIdAndContentType(UUID userId, String format) throws Exception {
-        List<BlogPost> resp = getBlogPostsByUserId(userId);
+        ExportResponse resp = exportService.exportAllForUser(userId);
 
         if ("csv".equalsIgnoreCase(format)) {
             byte[] csvBytes = ExportCsvConverter.toCsvBytes(resp);
