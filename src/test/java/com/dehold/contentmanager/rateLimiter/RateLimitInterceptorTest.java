@@ -55,14 +55,12 @@ public class RateLimitInterceptorTest  extends ContentManagerApplicationTests {
     void whenMoreThan100Requests_thenReturn429TooManyRequests() throws Exception {
         // Perform 100 valid requests
         for (int i = 1; i <= 100; i++) {
-            mockMvc.perform(get("/api/test")
-                            .header("X-User-Id", "user-123"))
+            mockMvc.perform(get("/api/test"))
                     .andExpect(status().isOk());
         }
 
         // 101st request should fail
-        mockMvc.perform(get("/api/test")
-                        .header("X-User-Id", "user-123"))
+        mockMvc.perform(get("/api/test"))
                 .andExpect(status().isTooManyRequests())
                 .andExpect(content().string("{\"error\":\"Too Many Requests\"}"))
                 .andExpect(header().string("Retry-After", "60"));
