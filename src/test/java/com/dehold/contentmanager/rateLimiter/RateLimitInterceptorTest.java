@@ -113,19 +113,24 @@ public class RateLimitInterceptorTest  extends ContentManagerApplicationTests {
     }
 
     @Test
-    void shouldSkipNonApiEndpoints() throws Exception {
+    void shouldSkipNonApiEndpoints_AndAllowUnlimitedAccess() throws Exception {
         RateLimitService service = mock(RateLimitService.class);
         RateLimitInterceptor interceptor = new RateLimitInterceptor(service);
 
         HttpServletRequest req = mock(HttpServletRequest.class);
         HttpServletResponse res = mock(HttpServletResponse.class);
-
         when(req.getRequestURI()).thenReturn("/health");
 
-        boolean allowed = interceptor.preHandle(req, res, new Object());
+        final int requestCount = 101;
 
-        assertTrue(allowed);
+        for (int i = 0; i < requestCount; i++) {
+            boolean allowed = interceptor.preHandle(req, res, new Object());
+            // Assert that every single request is allowed
+            assertTrue(allowed, "Request " + (i + 1) + " should be allowed.");
+        }
+        // across all 101 requests. This proves it was skipped.
         verify(service, never()).getBucketForKey(any());
+        verify(res, never()).setStatus(anyInt());
     }
 
     @Test
