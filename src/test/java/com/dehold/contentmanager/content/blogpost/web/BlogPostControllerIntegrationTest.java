@@ -523,6 +523,77 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
     }
 
     @Test
+    void downloadExport_shouldIncludeFilenameExtension_inContentDisposition() throws Exception {
+        UUID postId = UUID.randomUUID();
+        BlogPost bp = new BlogPost(postId, "EXT Title", "EXT Body", Instant.now(), Instant.now(), user3Id);
+        blogPostRepository.createBlogPost(bp);
+
+        // JSON case
+        String urlJson = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=json";
+        ResponseEntity<byte[]> respJson = restTemplate.getForEntity(urlJson, byte[].class);
+        assertEquals(HttpStatus.OK, respJson.getStatusCode());
+        String cdJson = respJson.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION);
+        assertNotNull(cdJson);
+        assertTrue(cdJson.toLowerCase().contains("attachment"));
+        assertTrue(cdJson.contains("export-"), "Content-Disposition must contain 'export-'");
+        assertTrue(cdJson.toLowerCase().contains(".json"), "Filename must contain .json extension");
+
+        // CSV case
+        String urlCsv = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=csv";
+        ResponseEntity<byte[]> respCsv = restTemplate.getForEntity(urlCsv, byte[].class);
+        assertEquals(HttpStatus.OK, respCsv.getStatusCode());
+        String cdCsv = respCsv.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION);
+        assertNotNull(cdCsv);
+        assertTrue(cdCsv.toLowerCase().contains("attachment"));
+        assertTrue(cdCsv.contains("export-"), "Content-Disposition must contain 'export-'");
+        assertTrue(cdCsv.toLowerCase().contains(".csv"), "Filename must contain .csv extension");
+    }
+
+    @Test
+    void downloadExport_unknownFormat_shouldFallbackToJson() throws Exception {
+        UUID postId = UUID.randomUUID();
+        BlogPost bp = new BlogPost(postId, "FALLBACK Title", "FALLBACK Body", Instant.now(), Instant.now(), user3Id);
+        blogPostRepository.createBlogPost(bp);
+
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=xml";
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+
+        // controller's documented behavior: default to JSON when format is unknown
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(MediaType.APPLICATION_JSON, response.getHeaders().getContentType());
+        byte[] body = response.getBody();
+        assertNotNull(body);
+        List<?> items = objectMapper.readValue(body, List.class);
+        assertNotNull(items);
+        assertTrue(items.size() > 0, "Fallback JSON should contain the persisted blog post");
+    }
+
+    @Test
+    void downloadExport_csv_strictEscaping_shouldProduceEscapedTitleAndQuotedNewlineContent() throws Exception {
+        UUID postId = UUID.randomUUID();
+        String title = "CSV, Title \"with quotes\"";
+        String content = "Line1\nLine2, with comma";
+        BlogPost bp = new BlogPost(postId, title, content, Instant.now(), Instant.now(), user3Id);
+        blogPostRepository.createBlogPost(bp);
+
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=csv";
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(MediaType.valueOf("text/csv"), response.getHeaders().getContentType());
+
+        String csv = new String(response.getBody(), java.nio.charset.StandardCharsets.UTF_8);
+        assertNotNull(csv);
+
+        // exact expected escaped title token: inner quotes doubled, whole value quoted
+        String expectedEscapedTitle = "\"CSV, Title \"\"with quotes\"\"\"";
+        assertTrue(csv.contains(expectedEscapedTitle), "CSV must contain the title with quotes escaped by doubling");
+
+        // content should be quoted and still contain the newline (inside the quoted field)
+        String expectedQuotedContent = "\"" + content.replace("\"", "\"\"") + "\"";
+        assertTrue(csv.contains(expectedQuotedContent), "CSV must contain the content quoted (including newline and commas)");
+    }
+
+    @Test
     void downloadExport_emptyUser_shouldReturnEmptyFile() throws Exception {
         // JSON: should be an empty array
         String urlJson = "http://localhost:" + port + "/api/blogposts/download/" + user3Id;
