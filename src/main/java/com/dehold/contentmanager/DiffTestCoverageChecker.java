@@ -1,8 +1,11 @@
 package com.dehold.contentmanager;
 
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.w3c.dom.NodeList;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class DiffTestCoverageChecker {
@@ -10,11 +13,15 @@ public class DiffTestCoverageChecker {
     public static void main(String[] args) throws Exception {
         double minCoverage = args.length > 0 ? Double.parseDouble(args[0]) : 0.80;
 
-        // 1. Read changed files
+        // 1. Read exclusions from pom.xml
+        List<Pattern> exclusionPatterns = readExclusionsFromPom();
+
+        // 2. Read changed files
         List<String> changedFiles = getChangedFiles();
         List<String> changedClasses = changedFiles.stream()
                 .filter(f -> f.endsWith(".java"))
                 .map(f -> f.replace("src/main/java/", "").replace(".java", "").replace("/", "."))
+                .filter(cls -> !isExcluded(cls, exclusionPatterns))
                 .toList();
 
         if (changedClasses.isEmpty()) {
@@ -22,7 +29,7 @@ public class DiffTestCoverageChecker {
             return;
         }
 
-        // 2. Parse JaCoCo CSV
+        // 3. Parse JaCoCo CSV
         File csv = new File("target/site/jacoco/jacoco.csv");
         if (!csv.exists()) {
             System.err.println("JaCoCo CSV report not found: " + csv.getAbsolutePath());
@@ -31,10 +38,12 @@ public class DiffTestCoverageChecker {
 
         Map<String, Double> coverageMap = parseJacocoCsv(csv);
 
-        // 3. Compute diff-only coverage
+        // 4. Compute diff-only coverage
         Map<String, Double> changedClassCoverage = new LinkedHashMap<>();
         for (String cls : changedClasses) {
-            changedClassCoverage.put(cls, coverageMap.getOrDefault(cls, 0.0));
+            if (coverageMap.containsKey(cls)) {
+                changedClassCoverage.put(cls, coverageMap.get(cls));
+            }
         }
 
         double avgCoverage = changedClassCoverage.values().stream()
@@ -101,6 +110,38 @@ public class DiffTestCoverageChecker {
         }
 
         return map;
+    }
+
+    private static List<Pattern> readExclusionsFromPom() throws Exception {
+        List<Pattern> patterns = new ArrayList<>();
+        File pom = new File("pom.xml");
+
+        if (!pom.exists()) {
+            return patterns;
+        }
+
+        var factory = DocumentBuilderFactory.newInstance();
+        factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        factory.setFeature("http://xml.org/sax/features/validation", false);
+
+        var doc = factory.newDocumentBuilder().parse(pom);
+        NodeList excludeNodes = doc.getElementsByTagName("exclude");
+
+        for (int i = 0; i < excludeNodes.getLength(); i++) {
+            String exclude = excludeNodes.item(i).getTextContent().trim();
+            if (!exclude.isEmpty()) {
+                String className = exclude
+                        .replace(".class", "")
+                        .replace("/", ".");
+                patterns.add(Pattern.compile(Pattern.quote(className)));
+            }
+        }
+
+        return patterns;
+    }
+
+    private static boolean isExcluded(String className, List<Pattern> exclusionPatterns) {
+        return exclusionPatterns.stream().anyMatch(pattern -> pattern.matcher(className).matches());
     }
 }
 

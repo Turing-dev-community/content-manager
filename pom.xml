@@ -74,19 +74,31 @@
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
 				<version>0.8.14</version>
+				<configuration>
+					<excludes>
+						<exclude>com/dehold/contentmanager/DiffTestCoverageChecker.class</exclude>
+					</excludes>
+				</configuration>
 				<executions>
 					<execution>
 						<goals>
 							<goal>prepare-agent</goal>
 						</goals>
 					</execution>
-					<execution>
-						<id>report</id>
-						<phase>test</phase>
-						<goals>
-							<goal>report</goal>
-						</goals>
-					</execution>
+				<execution>
+					<id>report</id>
+					<phase>test</phase>
+					<goals>
+						<goal>report</goal>
+					</goals>
+					<configuration>
+						<formats>
+							<format>HTML</format>
+							<format>CSV</format>
+							<format>XML</format>
+						</formats>
+					</configuration>
+				</execution>
 					<execution>
 						<id>jacoco-check</id>
 						<phase>test</phase>
@@ -128,6 +140,19 @@
 								<argument>
 									awk -F, 'NR==2{printf "\n=== JaCoCo Coverage Summary ===\nInstructions: %.1f%%\nBranches: %.1f%%\nLines: %.1f%%\n\n", $5/($4+$5)*100, $9/($8+$9)*100, $11/($10+$11)*100}' target/site/jacoco/jacoco.csv || true
 								</argument>
+							</arguments>
+						</configuration>
+					</execution>
+					<execution>
+						<id>diff-coverage-check</id>
+						<phase>verify</phase>
+						<goals>
+							<goal>java</goal>
+						</goals>
+						<configuration>
+							<mainClass>com.dehold.contentmanager.DiffTestCoverageChecker</mainClass>
+							<arguments>
+								<argument>0.80</argument> <!-- required min coverage -->
 							</arguments>
 						</configuration>
 					</execution>
