@@ -23,8 +23,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
 
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -384,9 +386,9 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
 
         // further validate structure of first element (should be a map with expected fields)
         Object first = blogPosts.get(0);
-        assertTrue(first instanceof java.util.Map, "Each blog post entry should be a JSON object");
+        assertTrue(first instanceof Map, "Each blog post entry should be a JSON object");
         @SuppressWarnings("unchecked")
-        java.util.Map<String, Object> firstObj = (java.util.Map<String, Object>) first;
+        Map<String, Object> firstObj = (Map<String, Object>) first;
 
         // check for common fields
         assertTrue(firstObj.containsKey("id"), "Exported blog post must contain 'id' field");
@@ -395,7 +397,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         assertTrue(firstObj.containsKey("userId"), "Exported blog post must contain 'userId' field");
 
         // check at least one exported item has the expected userId
-        boolean hasUserMatch = blogPosts.stream().map(o -> (java.util.Map<String, Object>) o)
+        boolean hasUserMatch = blogPosts.stream().map(o -> (Map<String, Object>) o)
                 .anyMatch(m -> user1Id.toString().equals(String.valueOf(m.get("userId"))));
         assertTrue(hasUserMatch, "At least one exported blog post must belong to the requested userId");
     }
@@ -428,7 +430,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         assertTrue(items.size() > 0, "Expected at least one exported blog post");
 
         // verify at least one item matches our persisted post
-        boolean match = items.stream().map(o -> (java.util.Map<String, Object>) o).anyMatch(m -> postId.toString().equals(String.valueOf(m.get("id"))) && "JSON Title".equals(m.get("title")) && user3Id.toString().equals(String.valueOf(m.get("userId"))));
+        boolean match = items.stream().map(o -> (Map<String, Object>) o).anyMatch(m -> postId.toString().equals(String.valueOf(m.get("id"))) && "JSON Title".equals(m.get("title")) && user3Id.toString().equals(String.valueOf(m.get("userId"))));
         assertTrue(match, "Exported JSON must contain the persisted blog post with correct fields");
     }
 
@@ -451,7 +453,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
 
         byte[] body = response.getBody();
         assertNotNull(body);
-        String csv = new String(body, java.nio.charset.StandardCharsets.UTF_8);
+        String csv = new String(body, StandardCharsets.UTF_8);
 
         // basic CSV structure: header line and at least one data row
         String[] lines = csv.split("\\r?\\n");
@@ -513,7 +515,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         ResponseEntity<byte[]> respCsv = restTemplate.getForEntity(urlCsv, byte[].class);
         assertEquals(HttpStatus.OK, respCsv.getStatusCode());
         assertEquals(MediaType.valueOf("text/csv"), respCsv.getHeaders().getContentType());
-        String csv = new String(respCsv.getBody(), java.nio.charset.StandardCharsets.UTF_8);
+        String csv = new String(respCsv.getBody(), StandardCharsets.UTF_8);
         String[] lines = csv.split("\\r?\\n");
         // header line present, but no following data line
         assertTrue(lines.length >= 1);
@@ -581,7 +583,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(MediaType.valueOf("text/csv"), response.getHeaders().getContentType());
 
-        String csv = new String(response.getBody(), java.nio.charset.StandardCharsets.UTF_8);
+        String csv = new String(response.getBody(), StandardCharsets.UTF_8);
         assertNotNull(csv);
 
         // exact expected escaped title token: inner quotes doubled, whole value quoted

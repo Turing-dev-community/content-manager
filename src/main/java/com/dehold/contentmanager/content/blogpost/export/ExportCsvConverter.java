@@ -2,6 +2,7 @@ package com.dehold.contentmanager.content.blogpost.export;
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.StringJoiner;
 
@@ -17,9 +18,9 @@ public final class ExportCsvConverter {
         StringBuilder sb = new StringBuilder();
 
         // Blog posts section
-        sb.append(csvHeader(java.util.List.of("id", "title", "content", "createdAt", "updatedAt", "userId")));
+        sb.append(csvHeader(List.of("id", "title", "content", "createdAt", "updatedAt", "userId")));
         for (BlogPost b : resp) {
-            sb.append(csvLine(java.util.List.of(
+            sb.append(csvLine(List.of(
                     safe(b.getId() == null ? "" : b.getId().toString()),
                     safe(b.getTitle()),
                     safe(b.getContent()),
@@ -29,14 +30,14 @@ public final class ExportCsvConverter {
             )));
         }
         sb.append('\n');
-        return sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        return sb.toString().getBytes(StandardCharsets.UTF_8);
     }
 
-    private static String csvHeader(java.util.List<String> cols) {
+    private static String csvHeader(List<String> cols) {
         return csvLine(cols);
     }
 
-    private static String csvLine(java.util.List<String> cols) {
+    private static String csvLine(List<String> cols) {
         StringJoiner sj = new StringJoiner(",", "", "\n");
         for (String c : cols) {
             sj.add(quote(c));
