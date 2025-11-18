@@ -7,6 +7,7 @@ import java.util.UUID;
 
 public class CreateBlogPostRequest {
 
+
     private String title;
     private String content;
     private UUID userId;
