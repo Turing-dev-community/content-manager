@@ -72,6 +72,9 @@ public class DiffTestCoverageChecker {
             System.err.println("❌  Diff coverage check FAILED.");
             System.err.println("Files below minimum coverage:");
             failedClasses.forEach(f -> System.err.println("  - " + f));
+            System.err.println("\n" + "=".repeat(50));
+            System.err.println("BUILD FAILURE: Diff coverage below threshold");
+            System.err.println("=".repeat(50));
             System.exit(1);
         }
 
