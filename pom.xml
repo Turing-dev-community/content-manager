@@ -147,13 +147,17 @@
 						<id>diff-coverage-check</id>
 						<phase>verify</phase>
 						<goals>
-							<goal>java</goal>
+							<goal>exec</goal>
 						</goals>
 						<configuration>
-							<mainClass>com.dehold.contentmanager.DiffTestCoverageChecker</mainClass>
+							<executable>sh</executable>
 							<arguments>
-								<argument>0.80</argument> <!-- required min coverage -->
+								<argument>-c</argument>
+								<argument>java -cp ${project.build.outputDirectory} com.dehold.contentmanager.DiffTestCoverageChecker 0.80 2>&amp;1 || exit 1</argument>
 							</arguments>
+							<successCodes>
+								<successCode>0</successCode>
+							</successCodes>
 						</configuration>
 					</execution>
 				</executions>
