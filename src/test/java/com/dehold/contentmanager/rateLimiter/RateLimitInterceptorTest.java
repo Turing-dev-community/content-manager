@@ -1,5 +1,6 @@
 package com.dehold.contentmanager.rateLimiter;
 
+import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.ratelimiter.RateLimitInterceptor;
 import com.dehold.contentmanager.ratelimiter.RateLimitService;
 import com.dehold.contentmanager.ratelimiter.TokenBucket;
@@ -21,7 +22,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-public class RateLimitInterceptorTest {
+public class RateLimitInterceptorTest  extends ContentManagerApplicationTests {
 
 
     //✔ request from unauthenticated user

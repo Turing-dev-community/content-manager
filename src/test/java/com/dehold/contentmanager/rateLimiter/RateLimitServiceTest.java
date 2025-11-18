@@ -1,5 +1,6 @@
 package com.dehold.contentmanager.rateLimiter;
 
+import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.ratelimiter.RateLimitService;
 import com.dehold.contentmanager.ratelimiter.TokenBucket;
 import org.junit.jupiter.api.Test;
@@ -12,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
-public class RateLimitServiceTest {
+public class RateLimitServiceTest  extends ContentManagerApplicationTests {
 
     //✔ returns same bucket for same key
     //✔ returns different buckets for different keys

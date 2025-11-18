@@ -1,11 +1,12 @@
 package com.dehold.contentmanager.rateLimiter;
 
+import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.ratelimiter.TokenBucket;
 import org.junit.jupiter.api.Test;
 import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-public class TokenBucketTest {
+public class TokenBucketTest  extends ContentManagerApplicationTests {
 
     //✔ initial capacity
     //✔ successful consumption
