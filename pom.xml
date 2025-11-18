@@ -86,6 +86,13 @@
 						<goals>
 							<goal>report</goal>
 						</goals>
+					</execution>
+					<execution>
+						<id>jacoco-check</id>
+						<phase>test</phase>
+						<goals>
+							<goal>check</goal>
+						</goals>
 						<configuration>
 							<rules>
 								<rule>
@@ -99,6 +106,29 @@
 									</limits>
 								</rule>
 							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<execution>
+						<id>jacoco-summary</id>
+						<phase>test</phase>
+						<goals>
+							<goal>exec</goal>
+						</goals>
+						<configuration>
+							<executable>sh</executable>
+							<arguments>
+								<argument>-c</argument>
+								<argument>
+									awk -F, 'NR==2{printf "\n=== JaCoCo Coverage Summary ===\nInstructions: %.1f%%\nBranches: %.1f%%\nLines: %.1f%%\n\n", $5/($4+$5)*100, $9/($8+$9)*100, $11/($10+$11)*100}' target/site/jacoco/jacoco.csv || true
+								</argument>
+							</arguments>
 						</configuration>
 					</execution>
 				</executions>
