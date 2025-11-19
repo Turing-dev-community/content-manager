@@ -9,6 +9,13 @@ import java.util.UUID;
 
 public class BlogPost implements Content {
 
+    public enum State {
+        DRAFT,
+        PENDING_REVIEW,
+        APPROVED,
+        REJECTED
+    }
+
     private UUID id;
     private String title;
     private String content;
@@ -16,6 +23,7 @@ public class BlogPost implements Content {
     private Instant updatedAt;
     private UUID userId; // Foreign key to User
     private List<Comment> comments = new ArrayList<>();
+    private State state = State.DRAFT; // Default state is DRAFT
 
     public BlogPost() {
     }
@@ -89,5 +97,13 @@ public class BlogPost implements Content {
 
     public void setComments(List<Comment> comments) {
         this.comments = comments;
+    }
+
+    public State getState() {
+        return state;
+    }
+
+    public void setState(State state) {
+        this.state = state;
     }
 }

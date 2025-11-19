@@ -520,4 +520,84 @@ class BlogPostServiceTest {
         
     }
 
+    @Test
+    void submitForReview_shouldTransitionDraftToPendingReview() {
+        UUID blogPostId = UUID.randomUUID();
+        BlogPost draftPost = new BlogPost(blogPostId, "Title", "Content", Instant.now(), Instant.now(), UUID.randomUUID());
+        draftPost.setState(BlogPost.State.DRAFT);
+
+        when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(draftPost));
+        doNothing().when(blogPostRepository).updateBlogPost(any(BlogPost.class));
+
+        BlogPost updatedPost = blogPostService.submitForReview(blogPostId);
+
+        assertEquals(BlogPost.State.PENDING_REVIEW, updatedPost.getState());
+        verify(blogPostRepository).updateBlogPost(updatedPost);
+    }
+
+    @Test
+    void approveBlogPost_shouldTransitionPendingReviewToApproved() {
+        UUID blogPostId = UUID.randomUUID();
+        BlogPost pendingPost = new BlogPost(blogPostId, "Title", "Content", Instant.now(), Instant.now(), UUID.randomUUID());
+        pendingPost.setState(BlogPost.State.PENDING_REVIEW);
+
+        when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(pendingPost));
+        doNothing().when(blogPostRepository).updateBlogPost(any(BlogPost.class));
+
+        BlogPost updatedPost = blogPostService.approveBlogPost(blogPostId);
+
+        assertEquals(BlogPost.State.APPROVED, updatedPost.getState());
+        verify(blogPostRepository).updateBlogPost(updatedPost);
+    }
+
+    @Test
+    void rejectBlogPost_shouldTransitionPendingReviewToRejected() {
+        UUID blogPostId = UUID.randomUUID();
+        BlogPost pendingPost = new BlogPost(blogPostId, "Title", "Content", Instant.now(), Instant.now(), UUID.randomUUID());
+        pendingPost.setState(BlogPost.State.PENDING_REVIEW);
+
+        when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(pendingPost));
+        doNothing().when(blogPostRepository).updateBlogPost(any(BlogPost.class));
+
+        BlogPost updatedPost = blogPostService.rejectBlogPost(blogPostId);
+
+        assertEquals(BlogPost.State.REJECTED, updatedPost.getState());
+        verify(blogPostRepository).updateBlogPost(updatedPost);
+    }
+
+    @Test
+    void submitForReview_shouldThrowExceptionIfNotDraft() {
+        UUID blogPostId = UUID.randomUUID();
+        BlogPost nonDraftPost = new BlogPost(blogPostId, "Title", "Content", Instant.now(), Instant.now(), UUID.randomUUID());
+        nonDraftPost.setState(BlogPost.State.APPROVED);
+
+        when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(nonDraftPost));
+
+        assertThrows(IllegalStateException.class, () -> blogPostService.submitForReview(blogPostId));
+        verify(blogPostRepository, never()).updateBlogPost(any());
+    }
+
+    @Test
+    void approveBlogPost_shouldThrowExceptionIfNotPendingReview() {
+        UUID blogPostId = UUID.randomUUID();
+        BlogPost nonPendingPost = new BlogPost(blogPostId, "Title", "Content", Instant.now(), Instant.now(), UUID.randomUUID());
+        nonPendingPost.setState(BlogPost.State.DRAFT);
+
+        when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(nonPendingPost));
+
+        assertThrows(IllegalStateException.class, () -> blogPostService.approveBlogPost(blogPostId));
+        verify(blogPostRepository, never()).updateBlogPost(any());
+    }
+
+    @Test
+    void rejectBlogPost_shouldThrowExceptionIfNotPendingReview() {
+        UUID blogPostId = UUID.randomUUID();
+        BlogPost nonPendingPost = new BlogPost(blogPostId, "Title", "Content", Instant.now(), Instant.now(), UUID.randomUUID());
+        nonPendingPost.setState(BlogPost.State.DRAFT);
+
+        when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(nonPendingPost));
+
+        assertThrows(IllegalStateException.class, () -> blogPostService.rejectBlogPost(blogPostId));
+        verify(blogPostRepository, never()).updateBlogPost(any());
+    }
 }

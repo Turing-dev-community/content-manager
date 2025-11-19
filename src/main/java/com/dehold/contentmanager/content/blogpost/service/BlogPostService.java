@@ -176,4 +176,37 @@ public class BlogPostService {
     public List<UUID> searchByTerm(String term) {
         return blogPostRepository.searchByTerm(term);
     }
+
+    public BlogPost submitForReview(UUID id) {
+        BlogPost blogPost = getBlogPost(id);
+        if (blogPost.getState() != BlogPost.State.DRAFT) {
+            throw new IllegalStateException("Only DRAFT posts can be submitted for review.");
+        }
+        blogPost.setState(BlogPost.State.PENDING_REVIEW);
+        blogPost.setUpdatedAt(Instant.now());
+        blogPostRepository.updateBlogPost(blogPost);
+        return blogPost;
+    }
+
+    public BlogPost approveBlogPost(UUID id) {
+        BlogPost blogPost = getBlogPost(id);
+        if (blogPost.getState() != BlogPost.State.PENDING_REVIEW) {
+            throw new IllegalStateException("Only PENDING_REVIEW posts can be approved.");
+        }
+        blogPost.setState(BlogPost.State.APPROVED);
+        blogPost.setUpdatedAt(Instant.now());
+        blogPostRepository.updateBlogPost(blogPost);
+        return blogPost;
+    }
+
+    public BlogPost rejectBlogPost(UUID id) {
+        BlogPost blogPost = getBlogPost(id);
+        if (blogPost.getState() != BlogPost.State.PENDING_REVIEW) {
+            throw new IllegalStateException("Only PENDING_REVIEW posts can be rejected.");
+        }
+        blogPost.setState(BlogPost.State.REJECTED);
+        blogPost.setUpdatedAt(Instant.now());
+        blogPostRepository.updateBlogPost(blogPost);
+        return blogPost;
+    }
 }
