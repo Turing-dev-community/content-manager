@@ -123,4 +123,13 @@ public class ProductOfferRepository {
     public void delete(UUID id) {
         jdbcTemplate.update("DELETE FROM product_offer WHERE id = ?", id);
     }
+
+    public List<ProductOffer> findAll() {
+        String sql = "SELECT * FROM product_offer ORDER BY created_at DESC";
+        return jdbcTemplate.query(sql, ROW_MAPPER);
+    }
+
+    public void deleteAll() {
+        jdbcTemplate.update("DELETE FROM product_offer");
+    }
 }
