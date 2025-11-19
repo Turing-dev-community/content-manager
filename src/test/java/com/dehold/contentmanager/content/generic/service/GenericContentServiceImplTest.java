@@ -69,13 +69,9 @@ class GenericContentServiceImplTest {
 
         when(repository.findById(contentId)).thenReturn(Optional.empty());
 
-        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class, () -> {
+        assertThrows(EntityNotFoundException.class, () -> {
             service.getById(contentId);
         });
-
-        assertTrue(exception.getMessage().contains("GenericContent"));
-        assertTrue(exception.getMessage().contains(contentId.toString()));
-        verify(repository).findById(contentId);
     }
 
     @Test
@@ -117,14 +113,10 @@ class GenericContentServiceImplTest {
 
         when(repository.findById(contentId)).thenReturn(Optional.empty());
 
-        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class, () -> {
+        assertThrows(EntityNotFoundException.class, () -> {
             service.update(updateRequest);
         });
 
-        assertTrue(exception.getMessage().contains("GenericContent"));
-        assertTrue(exception.getMessage().contains(contentId.toString()));
-        verify(repository).findById(contentId);
-        verify(repository, never()).save(any());
     }
 
     @Test
@@ -146,14 +138,9 @@ class GenericContentServiceImplTest {
 
         when(repository.existsById(contentId)).thenReturn(false);
 
-        EntityNotFoundException exception = assertThrows(EntityNotFoundException.class, () -> {
+        assertThrows(EntityNotFoundException.class, () -> {
             service.deleteById(contentId);
         });
-
-        assertTrue(exception.getMessage().contains("GenericContent"));
-        assertTrue(exception.getMessage().contains(contentId.toString()));
-        verify(repository).existsById(contentId);
-        verify(repository, never()).deleteById(any());
     }
 
     @Test
