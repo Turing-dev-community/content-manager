@@ -63,8 +63,11 @@ public class BlogPostController {
      * Content-Disposition: attachment; filename="export-<userId>.json"
      */
     @GetMapping("/download/{userId}")
-    public ResponseEntity<byte[]> downloadExport(@PathVariable UUID userId, @RequestParam(name = "format", defaultValue = "json") String format) throws Exception {
-        return blogPostService.getBlogPostsByUserIdAndContentType(userId, format);
+    public ResponseEntity<byte[]> downloadExport(
+            @PathVariable UUID userId,
+            @RequestParam(name = "format", defaultValue = "json") String format,
+            @RequestParam(name = "contentType", required = false) String contentTypeParam) throws Exception {
+        return blogPostService.getBlogPostsByUserIdAndContentType(userId, format, contentTypeParam);
     }
 
     @GetMapping("/{id}/history")

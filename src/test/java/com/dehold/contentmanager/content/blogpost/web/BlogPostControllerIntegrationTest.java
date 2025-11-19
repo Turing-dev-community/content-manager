@@ -560,7 +560,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         BlogPost bp = new BlogPost(postId, "FALLBACK Title", "FALLBACK Body", Instant.now(), Instant.now(), user3Id);
         blogPostRepository.createBlogPost(bp);
 
-        String url = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=xml";
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=yml";
         ResponseEntity<byte[]> response = restTemplate.getForEntity(url, byte[].class);
 
         // controller's documented behavior: default to JSON when format is unknown

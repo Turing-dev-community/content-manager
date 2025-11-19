@@ -1,8 +1,10 @@
 package com.dehold.contentmanager.content.blogpost.service;
 
+import com.dehold.contentmanager.content.blogpost.export.ContentExportType;
 import com.dehold.contentmanager.content.blogpost.export.ExportCsvConverter;
 import com.dehold.contentmanager.content.blogpost.export.ExportResponse;
 import com.dehold.contentmanager.content.blogpost.export.ExportService;
+import com.dehold.contentmanager.content.blogpost.export.ExportXmlConverter;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.model.Comment;
 import com.dehold.contentmanager.content.blogpost.model.BlogPostHistory;
@@ -19,6 +21,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -113,8 +116,18 @@ public class BlogPostService {
         return new Page<>(posts, page, size, total);
     }
 
-    public ResponseEntity<byte[]> getBlogPostsByUserIdAndContentType(UUID userId, String format) throws Exception {
-        ExportResponse resp = exportService.exportAllForUser(userId);
+    public ResponseEntity<byte[]> getBlogPostsByUserIdAndContentType(UUID userId, String format, String contentTypeParam) throws Exception {
+        // parse contentType param
+        ContentExportType contentType = ContentExportType.fromStringIgnoreCase(contentTypeParam);
+        if (contentTypeParam != null && contentType == null) {
+            // invalid contentType -> 400 Bad Request
+            String msg = "Invalid contentType: " + contentTypeParam + ". Supported values: blogpost, supportrequest, supportresponse";
+            return ResponseEntity.badRequest()
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body(msg.getBytes(StandardCharsets.UTF_8));
+        }
+
+        ExportResponse resp = exportService.exportForUserByType(userId, contentType);
 
         if ("csv".equalsIgnoreCase(format)) {
             byte[] csvBytes = ExportCsvConverter.toCsvBytes(resp);
@@ -128,7 +141,20 @@ public class BlogPostService {
             );
             headers.setContentLength(csvBytes.length);
             return new ResponseEntity<>(csvBytes, headers, HttpStatus.OK);
-        } else {
+        } else if ("xml".equalsIgnoreCase(format)) {
+            byte[] xml = ExportXmlConverter.toXmlBytes(resp);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_XML);
+            headers.setContentDisposition(
+                    ContentDisposition.attachment()
+                            .filename("export-" + userId + ".xml")
+                            .build());
+            headers.setContentLength(xml.length);
+
+            return new ResponseEntity<>(xml, headers, HttpStatus.OK);
+        }
+        else {
             // default json
             byte[] jsonBytes = objectMapper.writeValueAsBytes(resp);
 
