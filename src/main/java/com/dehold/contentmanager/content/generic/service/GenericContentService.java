@@ -6,7 +6,8 @@ import java.util.UUID;
 
 public interface GenericContentService {
     GenericContentModel getById(UUID id);
-    GenericContentModel save(GenericContentModel content);
+    GenericContentModel create(GenericContentModel content);
+    GenericContentModel update(GenericContentModel content);
     void deleteById(UUID id);
     boolean existsById(UUID id);
 }

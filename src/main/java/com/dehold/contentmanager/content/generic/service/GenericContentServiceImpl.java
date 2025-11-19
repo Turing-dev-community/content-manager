@@ -22,9 +22,16 @@ public class GenericContentServiceImpl implements GenericContentService {
     }
 
     @Override
-    public GenericContentModel save(GenericContentModel content) {
+    public GenericContentModel create(GenericContentModel content) {
         repository.save(content);
-        return repository.findById(content.getId()).orElseThrow(() -> EntityNotFoundException.of("GenericContent", content.getId().toString()));
+        return content;
+    }
+
+    @Override
+    public GenericContentModel update(GenericContentModel content) {
+        getById(content.getId()); // Ensure it exists
+        repository.save(content);
+        return content;
     }
 
     @Override
