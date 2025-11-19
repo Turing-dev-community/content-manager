@@ -220,11 +220,45 @@ class GenericContentControllerTest extends ContentManagerApplicationTests {
     }
 
     @Test
-    void givenEntityNotExists_getContent_shouldReturnNotFound() {
+    void givenEntityNotExistent_getContent_shouldReturnNotFound() {
         UUID nonExistentId = UUID.randomUUID();
 
         ResponseEntity<String> response = restTemplate.getForEntity(
                 "http://localhost:" + port + "/api/content/" + nonExistentId,
+                String.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("The entity GenericContent with id " + nonExistentId + " does not exist"));
+    }
+
+    @Test
+    void givenEntityNotExistent_updateContent_shouldReturnNotFound() {
+        UUID nonExistentId = UUID.randomUUID();
+        GenericContentModel updateRequest = createSampleGenericContent(nonExistentId, user1Id);
+
+        HttpEntity<GenericContentModel> entity = new HttpEntity<>(updateRequest);
+        ResponseEntity<String> response = restTemplate.exchange(
+                "http://localhost:" + port + "/api/content/" + nonExistentId,
+                HttpMethod.PUT,
+                entity,
+                String.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("The entity GenericContent with id " + nonExistentId + " does not exist"));
+    }
+
+    @Test
+    void givenEntityNotExistent_deleteContent_shouldReturnNotFound() {
+        UUID nonExistentId = UUID.randomUUID();
+
+        ResponseEntity<String> response = restTemplate.exchange(
+                "http://localhost:" + port + "/api/content/" + nonExistentId,
+                HttpMethod.DELETE,
+                null,
                 String.class
         );
 
