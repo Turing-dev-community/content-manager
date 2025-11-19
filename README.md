@@ -50,6 +50,7 @@ Please update for each new feature:
 
 | 2025-11-19      | pushpendra.s@turing.com     | Export content by contentType                                                                                                                | Introduce support for exporting only a specific content type for a given user.                                                                                                                                                                                        | [#99](https://github.com/Turing-dev-community/content-manager/issues/99)   |
 
+
 ### Overview
 - **Content Management**: Create, read, update, and delete various content types
 - **Validation Pipeline**: Configurable validation system with support for length checks and custom validators
