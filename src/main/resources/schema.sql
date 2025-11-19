@@ -127,3 +127,15 @@ CREATE TABLE IF NOT EXISTS comments (
     updated_at TIMESTAMP NOT NULL,
     CONSTRAINT fk_blog_post FOREIGN KEY (blog_post_id) REFERENCES blog_post (id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS webhook (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    url VARCHAR(512) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_webhook_user 
+        FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE,
+    CONSTRAINT chk_webhook_url 
+        CHECK (url ~ '^https?://.+')
+);

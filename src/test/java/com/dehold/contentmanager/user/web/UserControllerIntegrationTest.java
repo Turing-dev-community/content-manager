@@ -20,15 +20,17 @@ import com.dehold.contentmanager.validation.web.dto.ValidationReportDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationResponse;
 import com.dehold.contentmanager.validation.web.dto.ValidationResultDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationStepDto;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.dehold.contentmanager.validation.repository.ValidationResultRepository;
 import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.model.SupportResponse;
 import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
 import com.dehold.contentmanager.content.customersupport.repository.SupportResponseRepository;
+import com.dehold.contentmanager.content.webhook.model.Webhook;
+import com.dehold.contentmanager.content.webhook.web.dto.CreateWebhookRequest;
+import com.dehold.contentmanager.content.webhook.web.dto.UpdateWebhookRequest;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpEntity;
@@ -37,7 +39,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
 import java.time.Instant;
@@ -68,6 +69,8 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     @Autowired
     private SupportResponseRepository supportResponseRepository;
+
+    private static final UUID FIXED_TEST_USER_ID = UUID.fromString("06c4f0e4-20d7-4886-841b-ebe0ca3622a5");
 
     private String uniqueUsername() {
         return "TestUser-" + UUID.randomUUID();
@@ -1117,4 +1120,110 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
         assertEquals(user.getId(), persisted.get(0).getUserId());
         assertEquals(sr.getId(), persisted.get(0).getContentId());
     }
+
+    @Test
+    void getWebhooks_shouldReturnUserWebhooks() {
+        createWebhook("https://hook1.com");
+        createWebhook("https://hook2.com");
+
+        ResponseEntity<Webhook[]> response = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks",
+                Webhook[].class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().length >= 2);
+        assertTrue(List.of(response.getBody()).stream()
+                .allMatch(w -> w.getUserId().equals(FIXED_TEST_USER_ID)));
+    }
+
+    @Test
+    void getWebhook_shouldReturnSingleWebhook() {
+        Webhook created = createWebhook("https://single.com");
+
+        ResponseEntity<Webhook> response = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks/" + created.getId(),
+                Webhook.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(created.getId(), response.getBody().getId());
+        assertEquals("https://single.com", response.getBody().getUrl());
+    }
+
+    @Test
+    void updateWebhook_shouldUpdateUrl() {
+        Webhook created = createWebhook("https://old.com");
+
+        UpdateWebhookRequest update = new UpdateWebhookRequest();
+        update.setUrl("https://updated.com");
+
+        HttpEntity<UpdateWebhookRequest> entity = new HttpEntity<>(update);
+        ResponseEntity<Webhook> response = restTemplate.exchange(
+                "http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks/" + created.getId(),
+                HttpMethod.PUT, entity, Webhook.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("https://updated.com", response.getBody().getUrl());
+    }
+
+    @Test
+    void deleteWebhook_shouldDeleteWebhook() {
+        Webhook created = createWebhook("https://todelete.com");
+
+        restTemplate.delete("http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks/" + created.getId());
+
+        ResponseEntity<Webhook> response = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks/" + created.getId(),
+                Webhook.class);
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
+    @Test
+    void invalidUrl_shouldReturn400() {
+        CreateWebhookRequest request = new CreateWebhookRequest();
+        request.setUrl("not-a-url");
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks",
+                request, String.class);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void getWebhooks_forNonExistentUser_shouldReturn404() {
+        UUID fakeUserId = UUID.randomUUID();
+
+        ResponseEntity<CustomErrorResponse> response = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/users/" + fakeUserId + "/webhooks",
+                CustomErrorResponse.class);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("The entity User with id " + fakeUserId + " does not exist", 
+                        response.getBody().getError());
+    }
+
+    @Test
+    void getWebhook_forNonExistentWebhook_shouldReturn404() {
+        UUID existingUserId = FIXED_TEST_USER_ID; 
+        
+        UUID nonExistentWebhookId = UUID.randomUUID();
+
+        ResponseEntity<CustomErrorResponse> response = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/users/" + existingUserId + "/webhooks/" + nonExistentWebhookId,
+                CustomErrorResponse.class);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        
+        assertEquals("The entity Webhook with id " + nonExistentWebhookId + " does not exist", 
+                        response.getBody().getError());
+    }
+    
+    private Webhook createWebhook(String url) {
+        CreateWebhookRequest request = new CreateWebhookRequest();
+        request.setUrl(url);
+        return restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks",
+                request, Webhook.class).getBody();
+    }
+
 }
