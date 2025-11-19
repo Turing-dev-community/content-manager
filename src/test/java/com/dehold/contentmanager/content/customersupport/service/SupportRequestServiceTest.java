@@ -9,11 +9,13 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.when;
 
 class SupportRequestServiceTest {
 
@@ -29,48 +31,82 @@ class SupportRequestServiceTest {
     }
 
     @Test
-    void save_shouldCallRepositoryCreate() {
-        SupportRequest request = new SupportRequest(
-            UUID.randomUUID(),
-            UUID.randomUUID(),
-            "Test text",
-            UUID.randomUUID(),
-            UUID.randomUUID(),
-            Instant.now(),
-            Instant.now()
-        );
+    void addSubscriber_shouldAddUserWhenSubscriberListIsEmpty() {
+        UUID requestId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        SupportRequest request = new SupportRequest(requestId, UUID.randomUUID(), "test", UUID.randomUUID(), UUID.randomUUID(), Instant.now(), Instant.now());
+        request.setSubscribers(null);
 
-        service.save(request);
+        when(repository.getById(requestId)).thenReturn(Optional.of(request));
 
-        verify(repository, times(1)).create(request);
+        service.addSubscriber(requestId, userId);
+
+        assertNotNull(request.getSubscribers());
+        assertTrue(request.getSubscribers().contains(userId));
     }
 
     @Test
-    void findById_shouldReturnCustomerRequest() {
-        UUID id = UUID.randomUUID();
-        SupportRequest request = new SupportRequest(
-            id,
-            UUID.randomUUID(),
-            "Test text",
-            UUID.randomUUID(),
-            UUID.randomUUID(),
-            Instant.now(),
-            Instant.now()
-        );
-        when(repository.getById(id)).thenReturn(Optional.of(request));
+    void addSubscriber_shouldNotAddDuplicateSubscriber() {
+        UUID requestId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        List<UUID> subscribers = new ArrayList<>();
+        subscribers.add(userId);
+        SupportRequest request = new SupportRequest(requestId, UUID.randomUUID(), "test", UUID.randomUUID(), UUID.randomUUID(), Instant.now(), Instant.now());
+        request.setSubscribers(subscribers);
 
-        SupportRequest result = service.findById(id);
+        when(repository.getById(requestId)).thenReturn(Optional.of(request));
 
-        assertEquals(request, result);
-        verify(repository, times(1)).getById(id);
+        service.addSubscriber(requestId, userId);
+
+        assertEquals(1, request.getSubscribers().size());
+        assertTrue(request.getSubscribers().contains(userId));
     }
 
     @Test
-    void deleteById_shouldCallRepositoryDeleteById() {
-        UUID id = UUID.randomUUID();
+    void addSubscriber_shouldAddNewSubscriberToExistingList() {
+        UUID requestId = UUID.randomUUID();
+        UUID userId1 = UUID.randomUUID();
+        UUID userId2 = UUID.randomUUID();
+        List<UUID> subscribers = new ArrayList<>();
+        subscribers.add(userId1);
+        SupportRequest request = new SupportRequest(requestId, UUID.randomUUID(), "test", UUID.randomUUID(), UUID.randomUUID(), Instant.now(), Instant.now());
+        request.setSubscribers(subscribers);
 
-        service.deleteById(id);
+        when(repository.getById(requestId)).thenReturn(Optional.of(request));
 
-        verify(repository, times(1)).deleteById(id);
+        service.addSubscriber(requestId, userId2);
+
+        assertEquals(2, request.getSubscribers().size());
+        assertTrue(request.getSubscribers().contains(userId2));
+    }
+
+    @Test
+    void removeSubscriber_shouldRemoveUserFromSubscribers() {
+        UUID requestId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        List<UUID> subscribers = new ArrayList<>();
+        subscribers.add(userId);
+        SupportRequest request = new SupportRequest(requestId, UUID.randomUUID(), "test", UUID.randomUUID(), UUID.randomUUID(), Instant.now(), Instant.now());
+        request.setSubscribers(subscribers);
+
+        when(repository.getById(requestId)).thenReturn(Optional.of(request));
+
+        service.removeSubscriber(requestId, userId);
+
+        assertFalse(request.getSubscribers().contains(userId));
+    }
+
+    @Test
+    void removeSubscriber_shouldHandleNullSubscribersList() {
+        UUID requestId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        SupportRequest request = new SupportRequest(requestId, UUID.randomUUID(), "test", UUID.randomUUID(), UUID.randomUUID(), Instant.now(), Instant.now());
+        request.setSubscribers(null);
+
+        when(repository.getById(requestId)).thenReturn(Optional.of(request));
+
+        // Should not throw exception
+        service.removeSubscriber(requestId, userId);
+        assertNull(request.getSubscribers());
     }
 }

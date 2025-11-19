@@ -18,4 +18,8 @@ public interface ValidationService {
     List<ValidationResult> runBlogPostValidation(UUID userId);
 
     ValidationReportDto generateValidationReport(UUID userId);
+
+    List<ValidationResult> runSupportResponseValidation(UUID userId);
+
+    List<ValidationResult> runSupportRequestValidation(UUID userId);
 }

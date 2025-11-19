@@ -14,6 +14,8 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
    1. Create a new branch for your feature named `feature/your-feature-name` or `fix/your-bug-fix`
    1. Implement the feature or bug fix
    1. **Update the feature list**
+   1. Merge the latest `main` into your branch and run `mvn clean install` (for code coverage build failures check 
+      the [Test Coverage](#test-coverage) section)
    1. Create a pull request to merge your changes back to main
    1. Inform repository owner for review
 
@@ -23,11 +25,26 @@ A Spring Boot service that helps create, manage, validate and moderate content. 
 
 Please update for each new feature:
 
-| date (YY-MM-DD) | contributor email | feature summary | feature description                                                                                                           | issue link                                                               |
-|-----------------|-------------------|------------|-------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------|
-| 2025-11-12      |denis.h@turing.com | Add ednpoint to run validations against all blog posts | Endpoint `api/users/:id/validate-blogposts` that runs validations against all blog posts owned by the user and persists them. | [#52](https://github.com/Turing-dev-community/content-manager/issues/52) |
-| 2025-11-13      |denis.h@turing.com | Validation Reports | Added new endpoint `/api/users/:id/validation-report` that provides a summary report of validation results for all content owned by a user. | [#53](https://github.com/Turing-dev-community/content-manager/issues/57) |
-| 2025-11-14      |denis.h@turing.com | Introduce a Generic Content Model | More flexible content creation by providing a generic content model that allows custom content types and fields | [#61](https://github.com/Turing-dev-community/content-manager/issues/61) |
+| date (YY-MM-DD) | contributor email       | feature summary | feature description                                                                                                           | issue link                                                               |
+|-----------------|-------------------------|------------|-------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------|
+| 2025-11-12      | denis.h@turing.com      | Add ednpoint to run validations against all blog posts | Endpoint `api/users/:id/validate-blogposts` that runs validations against all blog posts owned by the user and persists them. | [#52](https://github.com/Turing-dev-community/content-manager/issues/52) |
+| 2025-11-13      | denis.h@turing.com      | Validation Reports | Added new endpoint `/api/users/:id/validation-report` that provides a summary report of validation results for all content owned by a user. | [#53](https://github.com/Turing-dev-community/content-manager/issues/57) |
+| 2025-11-14      | denis.h@turing.com      | Introduce a Generic Content Model | More flexible content creation by providing a generic content model that allows custom content types and fields | [#61](https://github.com/Turing-dev-community/content-manager/issues/61) |
+| 2025-11-14      | riddhi.s@turing.com     | Add pagination to GET /api/blogposts               | Add `page` and `size` query params to blog post list endpoint. Return paginated response with metadata.                       | [#55](https://github.com/Turing-dev-community/content-manager/issues/55) |
+| 2025-11-17      | riddhi.s@turing.com     | Add ProductOffer content type | New marketplace-ready content type with pricing, stock, delivery fields. Model + repository + schema. No API yet. | [#74](https://github.com/Turing-dev-community/content-manager/issues/74) |
+| 2025-11-15      | riddhi.s@turing.com     | Allow users to validate customer support responses | Endpoint `/api/users/{id}/validate-supportresponses` that runs validations against all `SupportResponse` entries owned by the user and persists results. Fixes circular `NOT NULL` dependency in DB schema. | [#67](https://github.com/Turing-dev-community/content-manager/issues/67) |
+| 2025-11-17      | pushpendra.s@turing.com | Add Comments to Blog Posts                                    | Enhance the BlogPost functionality to support a list of comments. Each blog post may contain multiple comments, and each comment should include.                     | [#75](https://github.com/Turing-dev-community/content-manager/issues/75) |
+| 2025-11-17      | pushpendra.s@turing.com | Regex Validator                                        | Implement a new validation step called RegexValidator that validates arbitrary content fields against a provided regular expression.                     | [#72](https://github.com/Turing-dev-community/content-manager/issues/72) |
+| 2025-11-17      | pushpendra.s@turing.com | Downloadable User Content Export                                        | Implement a new API endpoint that allows users to download all their stored blog posts as a single JSON file. The endpoint must return the JSON file as an attachment using the Content-Disposition header. This allows users to back up or migrate their data.                                                                                                                                                                  | [#58](https://github.com/Turing-dev-community/content-manager/issues/58) |
+| 2025-11-17      | ankita.k@turing.com     | Blog Post Version History |Add support for tracking and retrieving the historical versions of a blog post. | [#48](https://github.com/Turing-dev-community/content-manager/issues/48) |
+| 2025-11-17      | ankita.k@turing.com     | Prepare for Basic Authentication |The application will support basic authentication in the future.  | [#54](https://github.com/Turing-dev-community/content-manager/issues/54) |
+| 2025-11-18      | ankita.k@turing.com     | Allow users to validate customer support requests |Add a new endpoint "/api/users/validate-supportrequests" that allows to run validations of the SupportRequest content against previously configured ValidationPipelines.| [#56](https://github.com/Turing-dev-community/content-manager/issues/56) |
+| 2025-11-17      | pushpendra.s@turing.com | Downloadable User Content Export                                        | Implement a new API endpoint that allows users to download all their stored blog posts as a single JSON file. The endpoint must return the JSON file as an attachment using the Content-Disposition header. This allows users to back up or migrate their data.                                                                                                                                                                   | [#58](https://github.com/Turing-dev-community/content-manager/issues/58) |
+| 2025-11-18 | riddhi.s@turing.com | Add global full-text search for blog posts | Global case-sensitive substring search across all blog posts using SQL LIKE on title and content. Endpoint: `GET /api/blog-posts/{id}/search?term=...`. Returns list of matching blog post IDs. | [#85](https://github.com/Turing-dev-community/content-manager/issues/85) |
+| 2025-11-18 | pushpendra.s@turing.com | CSV Content Export | Implement CSV export support for all user-owned BlogPosts. Extend the existing export endpoint to accept a format query parameter that determines whether the response should be JSON (default) or CSV. | [#90](https://github.com/Turing-dev-community/content-manager/issues/90) |
+| 2025-11-18      | ankita.k@turing.com     | Add rate limiting to the APIs |Add in-memory rate limiting to all api endpoints| [#60](https://github.com/Turing-dev-community/content-manager/issues/60) |
+| 2025-11-18 | riddhi.s@turing.com | Add CRUD API for ProductOffer content type | Full REST API for ProductOffer with create, read (by ID/all/user), update, and delete endpoints under `/api/product-offers`. Includes controller, service, DTOs, and 10 tests (6 integration + 4 unit). | [#92](https://github.com/Turing-dev-community/content-manager/issues/92) |
+| 2025-11-18      | pushpendra.s@turing.com     | Extend the existing content export functionality so that a user's Support Requests and Support Responses are also included in the export result  | [#122](https://github.com/Turing-dev-community/content-manager/issues/122)                                                                                                                                                                                      |
 
 
 ### Overview
@@ -35,6 +52,36 @@ Please update for each new feature:
 - **Validation Pipeline**: Configurable validation system with support for length checks and custom validators
 - **Database Support**: H2 for testing, MySQL for production
 - **Profile-based Configuration**: Separate configurations for test and production environments
+
+
+### Test Coverage
+
+#### Run the Test Coverage Tool
+
+The test coverage tool can be triggered via the Maven build the following ways:
+1. `mvn clean install`
+2. `mvn clean test`
+
+The coverage of modified files must be 80% or more (the files that diff from origin/main), otherwise the build will 
+fail. 
+
+The failure message looks like this:
+
+![Build Failure Example](build-failure-example.png)
+
+
+#### Overview of the Tooling
+
+The test coverage is done via the following two tools:
+1. [JaCoCo test coverage lib](https://www.jacoco.org/jacoco/): This is a common tool for spring boot applications. 
+   It takes care of checking the unit test coverage and provides reports.
+2. [DiffTestCoverageChecker](src/main/java/com/dehold/contentmanager/DiffTestCoverageChecker.java): 
+   3. A custom tool that validates test coverage on changed files only (diff coverage). It reads the JaCoCo CSV report and ensures that modified files meet the minimum coverage threshold of 80%. The build will fail if any changed file has insufficient test coverage.
+   4. Motivation: There is an existing code base with varying test coverage. By checking the coverage against the 
+      diff to origin/main, developers are encouraged to improve the test coverage of the files they modify in their 
+      PRs. This is an enforcement of the Boy Scout Rule ("Always leave the codebase cleaner than you found it").
+
+
 
 
 ### How to Check Feature Details and Implementations
@@ -107,19 +154,24 @@ By checking the `web` and `service` layers, you can get a good idea of the detai
   "alias": "string",
   "email": "string",
   "createdAt": "timestamp",
-  "updatedAt": "timestamp"
+  "updatedAt": "timestamp",
+  "username": "string",
+  "password": "string",
+  "enabled": "boolean"
 }
 ```
 
 ### Blog Posts
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/blog-posts/{id}` | Get blog post by ID |
-| POST | `/api/blog-posts` | Create new blog post |
-| PUT | `/api/blog-posts/{id}` | Update existing blog post |
-| DELETE | `/api/blog-posts/{id}` | Delete blog post |
-| GET | `/api/blogposts?userId={userId}` | Filter blog posts by user (optional query parameter) |
+| Method | Endpoint | Description                                         |
+|--------|----------|-----------------------------------------------------|
+| GET    | `/api/blog-posts/{id}` | Get blog post by ID                                 |
+| POST   | `/api/blog-posts` | Create new blog post                                |
+| PUT    | `/api/blog-posts/{id}` | Update existing blog post                           |
+| DELETE | `/api/blog-posts/{id}` | Delete blog post                                    |
+| GET    | `/api/blogposts?userId={userId}` | Filter blog posts by user (optional query parameter) |
+| GET    | `/{id}/history` | get Blog Post History|
+| POST   | `/{id}/restore/{version}` | Restore Blog Post Version |
 
 > **Note:** The endpoint `/api/blogposts/user/{userId}` is now deprecated. Use `/api/blogposts?userId={userId}` instead.
 
@@ -135,6 +187,20 @@ By checking the `web` and `service` layers, you can get a good idea of the detai
 }
 ```
 
+**BlogPostHistory Model:**
+
+```json
+{
+  "id": "c1a8e0c2-4c8d-4cf3-b2e4-9eb1d9c7a1ab",
+  "blogPostId": "8f0d2c8c-9177-4ae1-a9cf-8e2bd3c417ad",
+  "title": "Sample Blog Post Title",
+  "content": "This is the content of the blog post version.",
+  "versionNumber": 3,
+  "createdAt": "2025-02-17T10:15:30Z",
+  "updatedAt": "2025-02-17T10:16:10Z"
+}
+```
+
 ### Customer Support Requests
 
 | Method | Endpoint | Description |
@@ -144,6 +210,7 @@ By checking the `web` and `service` layers, you can get a good idea of the detai
 | POST | `/api/customer-requests` | Create new customer request |
 | PUT | `/api/customer-requests/{id}` | Update existing customer request |
 | DELETE | `/api/customer-requests/{id}` | Delete customer request |
+
 
 **Customer Request Model:**
 ```json
@@ -183,6 +250,7 @@ By checking the `web` and `service` layers, you can get a good idea of the detai
 |--------|----------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | POST   | `/api/validate/blogpost` | Validate a blog post                                                                                                                                                                                                                                                   |
 | POST   | `/api/validate/validate-blogposts?userId={userId}` | Run validation on all blog posts for a specific user (This has an empty body as it validated blog posts that are stored to the db against validation pipelines that are stored in the db for that specific user). The response is listed under "Bulk Validation Response Example" |
+| POST | `/api/users/validate-supportrequests` | Validate Support request |
 
 **Validation Request Model:**
 ```json

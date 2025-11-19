@@ -1,0 +1,31 @@
+meta {
+  name: users-validateSupportResponses
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/users/:userId/validate-supportresponses
+  body: json
+  auth: inherit
+}
+
+params:path {
+  userId: {{USER_ID}}
+}
+
+body:json {
+  {}
+}
+
+assert:status {
+  equals: 200
+}
+
+assert:json {
+  isArray: true
+  length: 1
+  contains: {
+    contentType: "SupportResponse"
+  }
+}

@@ -1,9 +1,12 @@
 package com.dehold.contentmanager.content.blogpost.web;
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
+import com.dehold.contentmanager.content.blogpost.model.BlogPostHistory;
 import com.dehold.contentmanager.content.blogpost.service.BlogPostService;
+import com.dehold.contentmanager.content.blogpost.web.dto.BlogPostSearchResponse;
 import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
+import com.dehold.contentmanager.content.blogpost.model.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +27,7 @@ public class BlogPostController {
     @PostMapping
     public ResponseEntity<BlogPost> createBlogPost(@RequestBody CreateBlogPostRequest request) {
         BlogPost blogPost = blogPostService.createBlogPost(request.getTitle(), request.getContent(),
-                request.getUserId());
+                request.getUserId(), request.getComments());
         return ResponseEntity.status(HttpStatus.CREATED).body(blogPost);
     }
 
@@ -35,9 +38,12 @@ public class BlogPostController {
     }
 
     @GetMapping
-    public ResponseEntity<List<BlogPost>> getBlogPosts(@RequestParam(required = false) UUID userId) {
-        List<BlogPost> blogPosts = userId == null ? blogPostService.getAllBlogPosts() : blogPostService.getBlogPostsByUserId(userId);
-        return ResponseEntity.ok(blogPosts);
+    public ResponseEntity<Page<BlogPost>> getBlogPosts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) UUID userId) {
+        Page<BlogPost> response = blogPostService.findPaginated(page, size, userId);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")
@@ -51,4 +57,32 @@ public class BlogPostController {
         blogPostService.deleteBlogPost(id);
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Downloadable JSON export: returns application/json with
+     * Content-Disposition: attachment; filename="export-<userId>.json"
+     */
+    @GetMapping("/download/{userId}")
+    public ResponseEntity<byte[]> downloadExport(@PathVariable UUID userId, @RequestParam(name = "format", defaultValue = "json") String format) throws Exception {
+        return blogPostService.getBlogPostsByUserIdAndContentType(userId, format);
+    }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<BlogPostHistory>> getBlogPostHistory(@PathVariable UUID id) {
+        List<BlogPostHistory> history = blogPostService.getHistory(id);
+        return ResponseEntity.ok(history);
+    }
+
+    @PostMapping("/{id}/restore/{version}")
+    public ResponseEntity<BlogPost> restoreBlogPostVersion(@PathVariable UUID id, @PathVariable int version) {
+        BlogPost restored = blogPostService.restoreVersion(id, version);
+        return ResponseEntity.ok(restored);
+    }
+
+    @GetMapping("/{id}/search")
+    public ResponseEntity<BlogPostSearchResponse> search(@PathVariable UUID id, @RequestParam(value = "term", required = false) String term) {
+        List<UUID> ids = blogPostService.searchByTerm(term);
+        return ResponseEntity.ok(new BlogPostSearchResponse(ids));
+    }
+
 }

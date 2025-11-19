@@ -2,6 +2,7 @@ package com.dehold.contentmanager.user.web;
 
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.service.BlogPostService;
+import com.dehold.contentmanager.content.customersupport.model.SupportResponse;
 import com.dehold.contentmanager.user.service.UserService;
 import com.dehold.contentmanager.user.web.dto.CreateUserRequest;
 import com.dehold.contentmanager.user.web.dto.UserResponse;
@@ -111,4 +112,26 @@ public class UserController {
                 .toList();
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
+
+    @PostMapping("/{id}/validate-supportresponses")
+    public ResponseEntity<List<ValidationResponse>> validateSupportResponsesForUser(@PathVariable UUID id) {
+        userService.getUser(id); // Check for the user to be existent
+        List<ValidationResult> results = validationService.runSupportResponseValidation(id);
+        List<ValidationResponse> response = results.stream()
+                .map(ValidationResultDto::from)
+                .map(dto -> new ValidationResponse(SupportResponse.class.getSimpleName(), dto))
+                .toList();
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/{id}/validate-supportrequests")
+    public ResponseEntity<List<ValidationResponse>> validateSupportRequests(@PathVariable UUID id) {
+        userService.getUser(id);
+        List<ValidationResult> results = validationService.runSupportRequestValidation(id);
+        List<ValidationResponse> responses = results.stream()
+                .map(result -> new ValidationResponse("SupportRequest", ValidationResultDto.from(result)))
+                .toList();
+        return ResponseEntity.ok(responses);
+    }
+
 }
