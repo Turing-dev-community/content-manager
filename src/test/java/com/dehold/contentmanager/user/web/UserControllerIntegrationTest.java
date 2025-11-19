@@ -1202,6 +1202,22 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
                         response.getBody().getError());
     }
 
+    @Test
+    void getWebhook_forNonExistentWebhook_shouldReturn404() {
+        UUID existingUserId = FIXED_TEST_USER_ID; 
+        
+        UUID nonExistentWebhookId = UUID.randomUUID();
+
+        ResponseEntity<CustomErrorResponse> response = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/users/" + existingUserId + "/webhooks/" + nonExistentWebhookId,
+                CustomErrorResponse.class);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        
+        assertEquals("The entity Webhook with id " + nonExistentWebhookId + " does not exist", 
+                        response.getBody().getError());
+    }
+    
     private Webhook createWebhook(String url) {
         CreateWebhookRequest request = new CreateWebhookRequest();
         request.setUrl(url);
@@ -1209,5 +1225,5 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
                 "http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks",
                 request, Webhook.class).getBody();
     }
-    
+
 }
