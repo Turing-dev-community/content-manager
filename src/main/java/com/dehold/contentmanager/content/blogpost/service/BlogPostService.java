@@ -3,6 +3,7 @@ package com.dehold.contentmanager.content.blogpost.service;
 import com.dehold.contentmanager.content.blogpost.export.ExportCsvConverter;
 import com.dehold.contentmanager.content.blogpost.export.ExportResponse;
 import com.dehold.contentmanager.content.blogpost.export.ExportService;
+import com.dehold.contentmanager.content.blogpost.export.ExportXmlConverter;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.model.Comment;
 import com.dehold.contentmanager.content.blogpost.model.BlogPostHistory;
@@ -128,7 +129,20 @@ public class BlogPostService {
             );
             headers.setContentLength(csvBytes.length);
             return new ResponseEntity<>(csvBytes, headers, HttpStatus.OK);
-        } else {
+        } else if ("xml".equalsIgnoreCase(format)) {
+            byte[] xml = ExportXmlConverter.toXmlBytes(resp);
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_XML);
+            headers.setContentDisposition(
+                    ContentDisposition.attachment()
+                            .filename("export-" + userId + ".xml")
+                            .build());
+            headers.setContentLength(xml.length);
+
+            return new ResponseEntity<>(xml, headers, HttpStatus.OK);
+        }
+        else {
             // default json
             byte[] jsonBytes = objectMapper.writeValueAsBytes(resp);
 
