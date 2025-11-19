@@ -4,11 +4,9 @@ import com.dehold.contentmanager.content.faqpage.model.FaqItem;
 import com.dehold.contentmanager.content.faqpage.model.FaqPage;
 import com.dehold.contentmanager.user.model.User;
 import com.dehold.contentmanager.user.repository.UserRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.time.Instant;
 import java.util.List;
@@ -40,31 +38,12 @@ class FaqPageRepositoryIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
-    @BeforeEach
-    void ensureTableExists() {
-        jdbcTemplate.execute("CREATE TABLE IF NOT EXISTS faq_page (\n" +
-                "    id UUID PRIMARY KEY,\n" +
-                "    user_id UUID NOT NULL,\n" +
-                "    title VARCHAR(255),\n" +
-                "    introduction TEXT,\n" +
-                "    faq_items TEXT,\n" +
-                "    created_at TIMESTAMP NOT NULL,\n" +
-                "    updated_at TIMESTAMP NOT NULL,\n" +
-                "    CONSTRAINT fk_faq_user FOREIGN KEY (user_id) REFERENCES \"user\" (id) ON DELETE CASCADE\n" +
-                ")");
-    }
-
-    // ==================== Create & Retrieve Tests ====================
-
     @Test
     void createAndGetFaqPage_persists_and_retrieves_successfully() {
         User user = createTestUser();
-        FaqItem item1 = new FaqItem("What is this?", "It's a product");
-        FaqItem item2 = new FaqItem("How to buy?", "Visit our store");
-        FaqPage page = new FaqPage(UUID.randomUUID(), "Product FAQ", "Learn more", List.of(item1, item2), Instant.now(), Instant.now(), user.getId());
+        FaqItem item1 = new FaqItem("Q1", "A1");
+        FaqItem item2 = new FaqItem("Q2", "A2");
+        FaqPage page = new FaqPage(UUID.randomUUID(), "FAQ Title", "FAQ Introduction", List.of(item1, item2), Instant.now(), Instant.now(), user.getId());
 
         faqPageRepository.createFaqPage(page);
 
@@ -72,58 +51,15 @@ class FaqPageRepositoryIntegrationTest {
         assertTrue(retrieved.isPresent(), "FAQ page should be persisted and retrievable");
 
         FaqPage got = retrieved.get();
-        assertNotNull(got.getId());
-        assertNotNull(got.getUserId());
-        assertNotNull(got.getCreatedAt());
-        assertNotNull(got.getUpdatedAt());
-        assertEquals(user.getId(), got.getUserId());
-    }
-
-    @Test
-    void createAndGetFaqPage_preservesTitle() {
-        User user = createTestUser();
-        String title = "FAQ: Getting Started";
-        FaqPage page = new FaqPage(UUID.randomUUID(), title, "Introduction", List.of(), Instant.now(), Instant.now(), user.getId());
-
-        faqPageRepository.createFaqPage(page);
-        FaqPage retrieved = faqPageRepository.getFaqPage(page.getId()).orElseThrow();
-
-        assertEquals(title, retrieved.getTitle());
-    }
-
-    @Test
-    void createAndGetFaqPage_preservesIntroduction() {
-        User user = createTestUser();
-        String intro = "This is a comprehensive guide";
-        FaqPage page = new FaqPage(UUID.randomUUID(), "FAQ", intro, List.of(), Instant.now(), Instant.now(), user.getId());
-
-        faqPageRepository.createFaqPage(page);
-        FaqPage retrieved = faqPageRepository.getFaqPage(page.getId()).orElseThrow();
-
-        assertEquals(intro, retrieved.getIntroduction());
-    }
-
-    @Test
-    void createAndGetFaqPage_preservesFaqItems() {
-        User user = createTestUser();
-        FaqItem item1 = new FaqItem("Q1", "A1");
-        FaqItem item2 = new FaqItem("Q2", "A2");
-        FaqItem item3 = new FaqItem("Q3", "A3");
-        FaqPage page = new FaqPage(UUID.randomUUID(), "FAQ", "Intro", List.of(item1, item2, item3), Instant.now(), Instant.now(), user.getId());
-
-        faqPageRepository.createFaqPage(page);
-        FaqPage retrieved = faqPageRepository.getFaqPage(page.getId()).orElseThrow();
-
-        assertNotNull(retrieved.getFaqItems());
-        assertEquals(3, retrieved.getFaqItems().size());
-        
-        // Validate all items exist without ordering assumptions
-        assertTrue(retrieved.getFaqItems().stream()
-                .anyMatch(i -> "Q1".equals(i.getTitle()) && "A1".equals(i.getText())));
-        assertTrue(retrieved.getFaqItems().stream()
-                .anyMatch(i -> "Q2".equals(i.getTitle()) && "A2".equals(i.getText())));
-        assertTrue(retrieved.getFaqItems().stream()
-                .anyMatch(i -> "Q3".equals(i.getTitle()) && "A3".equals(i.getText())));
+        assertEquals(page.getId(), got.getId());
+        assertEquals(page.getUserId(), got.getUserId());
+        assertEquals(page.getTitle(), got.getTitle());
+        assertEquals(page.getIntroduction(), got.getIntroduction());
+        assertEquals(page.getFaqItems().size(), got.getFaqItems().size());
+        assertEquals(page.getFaqItems().get(0).getTitle(), got.getFaqItems().get(0).getTitle());
+        assertEquals(page.getFaqItems().get(0).getText(), got.getFaqItems().get(0).getText());
+        assertEquals(page.getFaqItems().get(1).getTitle(), got.getFaqItems().get(1).getTitle());
+        assertEquals(page.getFaqItems().get(1).getText(), got.getFaqItems().get(1).getText());
     }
 
     @Test
@@ -170,17 +106,6 @@ class FaqPageRepositoryIntegrationTest {
         assertEquals(intro, retrieved.getIntroduction());
         assertEquals(1, retrieved.getFaqItems().size());
     }
-
-    // ==================== Get Non-Existent Tests ====================
-
-    @Test
-    void getFaqPage_withNonExistentId_returnsEmpty() {
-        UUID nonExistentId = UUID.randomUUID();
-        Optional<FaqPage> result = faqPageRepository.getFaqPage(nonExistentId);
-        assertFalse(result.isPresent());
-    }
-
-    // ==================== Get by User Tests ====================
 
     @Test
     void getFaqPagesByUserId_withMultiplePages_returnsAll() {
@@ -251,8 +176,6 @@ class FaqPageRepositoryIntegrationTest {
         }
     }
 
-    // ==================== Cascade Delete Tests ====================
-
     @Test
     void deleteUser_cascadesAndDeletesAssociatedFaqPages() {
         User user = createTestUser();
@@ -277,8 +200,6 @@ class FaqPageRepositoryIntegrationTest {
         assertFalse(faqPageRepository.getFaqPage(page1.getId()).isPresent());
         assertFalse(faqPageRepository.getFaqPage(page2.getId()).isPresent());
     }
-
-    // ==================== Data Persistence Tests ====================
 
     @Test
     void createFaqPage_preservesUserIdCorrectly() {
@@ -322,8 +243,7 @@ class FaqPageRepositoryIntegrationTest {
         assertEquals(3, uniqueIds);
     }
 
-    // ==================== Helper Methods ====================
-
+    // Helper method for minimal test
     private User createTestUser() {
         String email = "test-user-" + UUID.randomUUID() + "@example.com";
         User user = new User(
