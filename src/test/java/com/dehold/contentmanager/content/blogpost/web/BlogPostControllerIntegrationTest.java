@@ -1,6 +1,7 @@
 package com.dehold.contentmanager.content.blogpost.web;
 
 import com.dehold.contentmanager.ContentManagerApplicationTests;
+import com.dehold.contentmanager.content.blogpost.export.ExportResponse;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.model.Page;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
@@ -357,10 +358,11 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         byte[] body = response.getBody();
         assertNotNull(body);
 
-        // parse JSON into a List (tests that the exported payload is a JSON array of blog posts)
-        List<?> blogPosts = objectMapper.readValue(body, List.class);
-        assertNotNull(blogPosts, "Parsed JSON must not be null");
-        assertTrue(blogPosts.size() > 0, "Exported JSON array must contain at least one blog post");
+        // parse ExportResponse (JSON object) and check its blogPosts array
+        ExportResponse exportResp = objectMapper.readValue(body, ExportResponse.class);
+        assertNotNull(exportResp);
+        assertNotNull(exportResp.getBlogPosts());
+        assertTrue(exportResp.getBlogPosts().size() > 0, "Exported blogPosts array must contain at least one blog post");
     }
 
     @Test
@@ -379,27 +381,19 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         byte[] body = response.getBody();
         assertNotNull(body);
 
-        // parse JSON into a List (tests that the exported payload is a JSON array of blog posts)
-        List<?> blogPosts = objectMapper.readValue(body, List.class);
-        assertNotNull(blogPosts, "Parsed JSON must not be null");
-        assertTrue(blogPosts.size() > 0, "Exported JSON array must contain at least one blog post");
+        ExportResponse exportResp = objectMapper.readValue(body, ExportResponse.class);
+        assertNotNull(exportResp);
+        assertNotNull(exportResp.getBlogPosts());
+        assertTrue(exportResp.getBlogPosts().size() > 0, "Exported blogPosts array must contain at least one blog post");
 
-        // further validate structure of first element (should be a map with expected fields)
-        Object first = blogPosts.get(0);
-        assertTrue(first instanceof Map, "Each blog post entry should be a JSON object");
-        @SuppressWarnings("unchecked")
-        Map<String, Object> firstObj = (Map<String, Object>) first;
-
-        // check for common fields
-        assertTrue(firstObj.containsKey("id"), "Exported blog post must contain 'id' field");
-        assertTrue(firstObj.containsKey("title"), "Exported blog post must contain 'title' field");
-        assertTrue(firstObj.containsKey("content"), "Exported blog post must contain 'content' field");
-        assertTrue(firstObj.containsKey("userId"), "Exported blog post must contain 'userId' field");
-
-        // check at least one exported item has the expected userId
-        boolean hasUserMatch = blogPosts.stream().map(o -> (Map<String, Object>) o)
-                .anyMatch(m -> user1Id.toString().equals(String.valueOf(m.get("userId"))));
-        assertTrue(hasUserMatch, "At least one exported blog post must belong to the requested userId");
+        // Inspect first BlogPost DTO (as Map) to assert fields are present if you prefer dynamic checks:
+        Object first = exportResp.getBlogPosts().get(0);
+        assertNotNull(first);
+        // We can map it back to BlogPost class
+        // ensure expected fields exist by converting first element to JSON then to Map (optional)
+        // but simpler: assert the exported blogPosts contain an entry with the same id
+        boolean hasMatch = exportResp.getBlogPosts().stream().anyMatch(p -> createdId.equals(p.getId()));
+        assertTrue(hasMatch, "At least one exported blog post must have the expected id");
     }
 
     @Test
@@ -424,13 +418,14 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         byte[] body = response.getBody();
         assertNotNull(body, "Response body must not be null");
 
-        // parse JSON array
-        List<?> items = objectMapper.readValue(body, List.class);
-        assertNotNull(items, "Parsed JSON must not be null");
-        assertTrue(items.size() > 0, "Expected at least one exported blog post");
+        // parse ExportResponse (JSON object) and assert blogPosts contains our post
+        ExportResponse exportResp = objectMapper.readValue(body, ExportResponse.class);
+        assertNotNull(exportResp);
+        assertNotNull(exportResp.getBlogPosts());
+        assertTrue(exportResp.getBlogPosts().size() > 0);
 
-        // verify at least one item matches our persisted post
-        boolean match = items.stream().map(o -> (Map<String, Object>) o).anyMatch(m -> postId.toString().equals(String.valueOf(m.get("id"))) && "JSON Title".equals(m.get("title")) && user3Id.toString().equals(String.valueOf(m.get("userId"))));
+        boolean match = exportResp.getBlogPosts().stream()
+                .anyMatch(p -> postId.equals(p.getId()) && "JSON Title".equals(p.getTitle()) && user3Id.equals(p.getUserId()));
         assertTrue(match, "Exported JSON must contain the persisted blog post with correct fields");
     }
 
@@ -455,14 +450,17 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         assertNotNull(body);
         String csv = new String(body, StandardCharsets.UTF_8);
 
-        // basic CSV structure: header line and at least one data row
+        // CSV now starts with a section marker line "# BlogPosts", then the header line.
         String[] lines = csv.split("\\r?\\n");
-        assertTrue(lines.length >= 2, "CSV should contain header + at least one data row");
+        assertTrue(lines.length >= 3, "CSV should contain section line, header, and at least one data row");
 
-        // header should contain the expected columns
-        assertEquals("\"id\",\"title\",\"content\",\"createdAt\",\"updatedAt\",\"userId\"", lines[0]);
+        // line 0 is the section label
+        assertEquals("# BlogPosts", lines[0]);
+        // line 1 should be the header
+        assertEquals("\"id\",\"title\",\"content\",\"createdAt\",\"updatedAt\",\"userId\"", lines[1]);
 
-        // second line should contain quoted title; verify presence of title text (quoted/escaped)
+        // subsequent lines include the data row(s)
+        // Check that the CSV contains the escaped title and the userId somewhere
         assertTrue(csv.contains("\"CSV, Title \"\"with quotes\"\"\"") || csv.contains("CSV, Title"), "CSV must contain escaped/quoted title");
         // ensure userId appears in CSV
         assertTrue(csv.contains(user3Id.toString()), "CSV must include the userId for the blog post");
@@ -501,28 +499,33 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
 
     @Test
     void downloadExport_emptyUser_shouldReturnEmptyJsonArray_andCsvHeaderOnly() throws Exception {
-        // JSON: should be an empty array
+        // JSON: should be an ExportResponse with empty blogPosts list
         String urlJson = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=json";
         ResponseEntity<byte[]> respJson = restTemplate.getForEntity(urlJson, byte[].class);
         assertEquals(HttpStatus.OK, respJson.getStatusCode());
         assertEquals(MediaType.APPLICATION_JSON, respJson.getHeaders().getContentType());
-        List<?> items = objectMapper.readValue(respJson.getBody(), List.class);
-        assertNotNull(items);
-        assertEquals(0, items.size(), "Expected empty JSON array for user with no blog posts");
 
-        // CSV: should contain header line but no data rows
+        // parse ExportResponse (object) instead of List
+        ExportResponse exportResp = objectMapper.readValue(respJson.getBody(), ExportResponse.class);
+        assertNotNull(exportResp);
+        assertNotNull(exportResp.getBlogPosts());
+        assertEquals(0, exportResp.getBlogPosts().size(), "Expected empty blogPosts array for user with no blog posts");
+
+        // CSV: should contain header line but no blog-post data rows
         String urlCsv = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=csv";
         ResponseEntity<byte[]> respCsv = restTemplate.getForEntity(urlCsv, byte[].class);
         assertEquals(HttpStatus.OK, respCsv.getStatusCode());
         assertEquals(MediaType.valueOf("text/csv"), respCsv.getHeaders().getContentType());
         String csv = new String(respCsv.getBody(), StandardCharsets.UTF_8);
         String[] lines = csv.split("\\r?\\n");
-        // header line present, but no following data line
-        assertTrue(lines.length >= 1);
-        assertEquals("\"id\",\"title\",\"content\",\"createdAt\",\"updatedAt\",\"userId\"", lines[0]);
-        // either only header or header + empty line
-        assertTrue(lines.length == 1 || (lines.length == 2 && lines[1].isEmpty()));
+        // header line present, but no following data line for BlogPosts section
+        assertTrue(lines.length >= 2);
+        assertEquals("# BlogPosts", lines[0]);
+        assertEquals("\"id\",\"title\",\"content\",\"createdAt\",\"updatedAt\",\"userId\"", lines[1]);
+        // either only header or header + empty line (no data row)
+        assertTrue(lines.length == 2 || (lines.length >= 3 && (lines[2].isEmpty() || lines[2].startsWith("# SupportRequests"))));
     }
+
 
     @Test
     void downloadExport_shouldIncludeFilenameExtension_inContentDisposition() throws Exception {
@@ -565,9 +568,11 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         assertEquals(MediaType.APPLICATION_JSON, response.getHeaders().getContentType());
         byte[] body = response.getBody();
         assertNotNull(body);
-        List<?> items = objectMapper.readValue(body, List.class);
-        assertNotNull(items);
-        assertTrue(items.size() > 0, "Fallback JSON should contain the persisted blog post");
+
+        ExportResponse exportResp = objectMapper.readValue(body, ExportResponse.class);
+        assertNotNull(exportResp);
+        assertNotNull(exportResp.getBlogPosts());
+        assertTrue(exportResp.getBlogPosts().size() > 0, "Fallback JSON should contain the persisted blog post");
     }
 
     @Test
@@ -597,16 +602,31 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
 
     @Test
     void downloadExport_emptyUser_shouldReturnEmptyFile() throws Exception {
-        // JSON: should be an empty array
+        // JSON: default endpoint without ?format returns combined ExportResponse JSON
         String urlJson = "http://localhost:" + port + "/api/blogposts/download/" + user3Id;
         ResponseEntity<byte[]> respJson = restTemplate.getForEntity(urlJson, byte[].class);
 
         assertEquals(HttpStatus.OK, respJson.getStatusCode());
         assertEquals(MediaType.APPLICATION_JSON, respJson.getHeaders().getContentType());
 
-        List<?> items = objectMapper.readValue(respJson.getBody(), List.class);
-        assertNotNull(items);
-        assertEquals(0, items.size(), "Expected empty JSON array for user with no blog posts");
+        // parse ExportResponse
+        ExportResponse exportResp = objectMapper.readValue(respJson.getBody(), ExportResponse.class);
+        assertNotNull(exportResp);
+        assertNotNull(exportResp.getBlogPosts());
+        assertEquals(0, exportResp.getBlogPosts().size(), "Expected empty blogPosts array for user with no blog posts");
+
+        // CSV empty-case: still returns headers and section labels
+        String urlCsv = "http://localhost:" + port + "/api/blogposts/download/" + user3Id + "?format=csv";
+        ResponseEntity<byte[]> respCsv = restTemplate.getForEntity(urlCsv, byte[].class);
+        assertEquals(HttpStatus.OK, respCsv.getStatusCode());
+        assertEquals(MediaType.valueOf("text/csv"), respCsv.getHeaders().getContentType());
+        String csv = new String(respCsv.getBody(), StandardCharsets.UTF_8);
+        String[] lines = csv.split("\\r?\\n");
+
+        // Expect at least section label and header present, but no data rows for blog posts
+        assertTrue(lines.length >= 2);
+        assertEquals("# BlogPosts", lines[0]);
+        assertEquals("\"id\",\"title\",\"content\",\"createdAt\",\"updatedAt\",\"userId\"", lines[1]);
     }
 
     @Test

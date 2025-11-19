@@ -44,6 +44,7 @@ Please update for each new feature:
 | 2025-11-18 | pushpendra.s@turing.com | CSV Content Export | Implement CSV export support for all user-owned BlogPosts. Extend the existing export endpoint to accept a format query parameter that determines whether the response should be JSON (default) or CSV. | [#90](https://github.com/Turing-dev-community/content-manager/issues/90) |
 | 2025-11-18      | ankita.k@turing.com     | Add rate limiting to the APIs |Add in-memory rate limiting to all api endpoints| [#60](https://github.com/Turing-dev-community/content-manager/issues/60) |
 | 2025-11-18 | riddhi.s@turing.com | Add CRUD API for ProductOffer content type | Full REST API for ProductOffer with create, read (by ID/all/user), update, and delete endpoints under `/api/product-offers`. Includes controller, service, DTOs, and 10 tests (6 integration + 4 unit). | [#92](https://github.com/Turing-dev-community/content-manager/issues/92) |
+| 2025-11-18      | pushpendra.s@turing.com     | Extend the existing content export functionality so that a user's Support Requests and Support Responses are also included in the export result  | [#122](https://github.com/Turing-dev-community/content-manager/issues/122)                                                                                                                                                                                      |
 
 ### Overview
 - **Content Management**: Create, read, update, and delete various content types
