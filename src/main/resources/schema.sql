@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS webhook (
         CHECK (url ~ '^https?://.+')
 );
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) NOT NULL PRIMARY KEY,
     password VARCHAR(500) NOT NULL,
     enabled BOOLEAN NOT NULL
