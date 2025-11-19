@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.security.Principal;
+import java.util.Optional;
 
 @Component
 public class RateLimitInterceptor implements HandlerInterceptor {
@@ -17,17 +18,14 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     }
 
     private String extractKey(HttpServletRequest request) {
-        // 1) If user is authenticated, prefer a stable identifier from Principal
         Principal principal = request.getUserPrincipal();
         if (principal != null && principal.getName() != null) {
             return "user:" + principal.getName();
         }
-        // 2) Try custom header (if you use API keys or X-User-Id in tests)
         String headerUser = request.getHeader("X-User-Id");
         if (headerUser != null && !headerUser.isBlank()) {
             return "userIdHeader:" + headerUser;
         }
-        // 3) fallback to IP address — note: behind proxies you may want X-Forwarded-For
         String ip = request.getHeader("X-Forwarded-For");
         if (ip == null || ip.isBlank()) {
             ip = request.getRemoteAddr();
@@ -38,19 +36,43 @@ public class RateLimitInterceptor implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
 
-        // Apply rate limiting only to API paths; you can further refine by path if needed
         String path = request.getRequestURI();
         if (!path.startsWith("/api/")) {
             return true;
         }
 
-        String key = extractKey(request);
-        TokenBucket bucket = rateLimitService.getBucketForKey(key);
+        String userKey = extractKey(request);
 
+        // If we have config service available, try to find best matching config
+        RateLimitConfigService cfgService = rateLimitService.getConfigService();
+        if (cfgService != null) {
+            Optional<RateLimitConfig> maybe = cfgService.findBestMatchForPath(path);
+            if (maybe.isPresent()) {
+                RateLimitConfig cfg = maybe.get();
+                String composedKey = "cfg:" + cfg.getPathPattern() + ":key:" + userKey;
+                TokenBucket bucket = rateLimitService.getBucketForKeyWithParams(
+                        composedKey,
+                        cfg.getCapacity(),
+                        cfg.getRefillTokens(),
+                        cfg.getRefillIntervalMillis()
+                );
+
+                if (!bucket.tryConsume(1)) {
+                    response.setStatus(429);
+                    response.setHeader("Retry-After", String.valueOf(cfg.getRefillIntervalMillis() / 1000));
+                    response.getWriter().write("{\"error\":\"Too Many Requests\"}");
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        // fallback to global defaults
+        TokenBucket bucket = rateLimitService.getBucketForKey("global:" + userKey);
         boolean allowed = bucket.tryConsume(1);
         if (!allowed) {
             response.setStatus(429);
-            response.setHeader("Retry-After", "60"); // best-effort hint
+            response.setHeader("Retry-After", String.valueOf(rateLimitService.getDefaultRefillIntervalMillis() / 1000));
             response.getWriter().write("{\"error\":\"Too Many Requests\"}");
             return false;
         }
