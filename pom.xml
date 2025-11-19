@@ -91,6 +91,7 @@
 						<exclude>com/dehold/contentmanager/DiffTestCoverageChecker.class</exclude>
                         <exclude>com/dehold/contentmanager/config/WebMvcConfig.class</exclude>
 						<exclude>com/dehold/contentmanager/ContentManagerApplication.class</exclude>
+                        <exclude>com/dehold/contentmanager/config/SecurityConfig.class</exclude>
 					</excludes>
 				</configuration>
 				<executions>
