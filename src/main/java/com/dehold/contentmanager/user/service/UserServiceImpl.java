@@ -29,6 +29,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User createUser(CreateUserRequest dto) {
+        String encodedPassword = passwordEncoder.encode(dto.getPassword());
         User user = new User(
                 UUID.randomUUID(),
                 dto.getAlias(),
@@ -36,10 +37,13 @@ public class UserServiceImpl implements UserService {
                 Instant.now(),
                 Instant.now(),
                 dto.getUsername(),
-                passwordEncoder.encode(dto.getPassword()), // encode password
+                encodedPassword,
                 true
         );
         userRepository.createUser(user);
+        // Insert into Spring Security tables
+        userRepository.insertSecurityUser(dto.getUsername(), encodedPassword);
+        userRepository.insertAuthority(dto.getUsername(), "ROLE_USER");
         return user;
     }
 
@@ -52,6 +56,9 @@ public class UserServiceImpl implements UserService {
     @Override
     public User updateUser(UUID id, UpdateUserRequest dto) {
         User existingUser = getUser(id);
+        String newPassword = dto.getPassword() != null
+                ? passwordEncoder.encode(dto.getPassword())
+                : existingUser.getPassword();
         User updatedUser = new User(
                 existingUser.getId(),
                 dto.getAlias() != null ? dto.getAlias() : existingUser.getAlias(),
@@ -59,16 +66,25 @@ public class UserServiceImpl implements UserService {
                 existingUser.getCreatedAt(),
                 Instant.now(),
                 dto.getUsername(),
-                dto.getPassword(),
+                newPassword,
                 true
         );
         userRepository.updateUser(updatedUser);
+        if (!existingUser.getUsername().equals(updatedUser.getUsername())) {
+            userRepository.updateUsersAndAuthorityUsername(existingUser.getUsername(), updatedUser.getUsername());
+        }
+        userRepository.updateUsersPassword(updatedUser.getUsername(), newPassword);
+
         return updatedUser;
     }
 
     @Override
     public void deleteUser(UUID id) {
         userRepository.deleteUser(id);
+        // Delete security entries
+        User user = getUser(id);
+        userRepository.deleteSecurityAuthorities(user.getUsername());
+        userRepository.deleteSecurityUser(user.getUsername());
     }
 
     public List<ValidationPipelineModel> getValidationPipelineByUserIdAndContentType(UUID userId,

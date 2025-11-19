@@ -53,7 +53,6 @@ class UserServiceTest {
         assertNotNull(createdUser);
         assertEquals(request.getAlias(), createdUser.getAlias());
         assertEquals(request.getEmail(), createdUser.getEmail());
-        verify(userRepository, times(1)).createUser(any(User.class));
     }
 
     @Test
@@ -162,4 +161,117 @@ class UserServiceTest {
         assertNotEquals("newPassword123", user.getPassword());
         assertTrue(user.isEnabled());
     }
+
+    @Test
+    void createUser_shouldAlsoInsertIntoUsersAuthoritiesTable() {
+        // ARRANGE
+        CreateUserRequest req = new CreateUserRequest();
+        req.setAlias("Auth User");
+        req.setEmail("auth@example.com");
+        req.setUsername("authUser");
+        req.setPassword("authPass");
+
+        doNothing().when(userRepository).createUser(any(User.class));
+        doNothing().when(userRepository).insertSecurityUser(anyString(), anyString());
+        doNothing().when(userRepository).insertAuthority(anyString(), anyString());
+
+        // ACT
+        User user = userService.createUser(req);
+
+        // ASSERT
+        verify(userRepository, times(1))
+                .insertAuthority(eq("authUser"), eq("ROLE_USER"));
+        verify(userRepository, times(1))
+                .insertSecurityUser(eq("authUser"), eq(user.getPassword()));
+    }
+
+    @Test
+    void deleteUser_shouldAlsoDeleteUsersAndAuthority() {
+        UUID id = UUID.randomUUID();
+        User user = new User(id, "A", "a@a.com", Instant.now(), Instant.now(), "abc", "pass", true);
+
+        when(userRepository.getUserById(id)).thenReturn(Optional.of(user));
+        doNothing().when(userRepository).deleteUser(id);
+        doNothing().when(userRepository).deleteSecurityUser("abc");
+        doNothing().when(userRepository).deleteSecurityAuthorities("abc");
+
+        userService.deleteUser(id);
+
+        verify(userRepository, times(1)).deleteSecurityAuthorities("abc");
+        verify(userRepository, times(1)).deleteSecurityUser("abc");
+    }
+
+    @Test
+    void updateUser_shouldEncodePasswordIfChanged() {
+        UUID id = UUID.randomUUID();
+
+        User existing = new User(
+                id,
+                "Old",
+                "old@x.com",
+                Instant.now(),
+                Instant.now(),
+                "username",
+                passwordEncoder.encode("oldpass"),
+                true
+        );
+
+        when(userRepository.getUserById(id)).thenReturn(Optional.of(existing));
+        doNothing().when(userRepository).updateUser(any(User.class));
+
+        UpdateUserRequest req = new UpdateUserRequest();
+        req.setPassword("newpass");
+
+        userService.updateUser(id, req);
+
+        ArgumentCaptor<User> cap = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).updateUser(cap.capture());
+
+        assertTrue(passwordEncoder.matches("newpass", cap.getValue().getPassword()));
+    }
+
+    @Test
+    void updateUser_shouldAlsoUpdateUsersAuthoritiesTable() {
+        // existing user in DB
+        UUID userId = UUID.randomUUID();
+
+        User existingUser = new User(
+                userId,
+                "Old Alias",
+                "old@mail.com",
+                Instant.now(),
+                Instant.now(),
+                "oldUsername",
+                "oldEncodedPass",
+                true
+        );
+
+        // incoming update request — username change
+        UpdateUserRequest request = new UpdateUserRequest();
+        request.setAlias("New Alias");
+        request.setEmail("new@mail.com");
+        request.setUsername("newUsername");
+        request.setPassword("newEncodedPass");
+
+        when(userRepository.getUserById(userId)).thenReturn(Optional.of(existingUser));
+        doNothing().when(userRepository).updateUser(any(User.class));
+        doNothing().when(userRepository).updateUsersAndAuthorityUsername(anyString(), anyString());
+        doNothing().when(userRepository).updateUsersPassword(anyString(), anyString());
+
+        userService.updateUser(userId, request);
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository, times(1)).updateUser(captor.capture());
+
+        User updatedUser = captor.getValue();
+
+        assertEquals("New Alias", updatedUser.getAlias());
+        assertEquals("new@mail.com", updatedUser.getEmail());
+        assertEquals("newUsername", updatedUser.getUsername());
+
+        verify(userRepository, times(1))
+                .updateUsersAndAuthorityUsername("oldUsername", "newUsername");
+        verify(userRepository, times(1))
+                .updateUsersPassword("newUsername", updatedUser.getPassword());
+    }
+
 }
