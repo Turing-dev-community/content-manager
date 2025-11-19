@@ -48,6 +48,7 @@ Please update for each new feature:
 | 2025-11-19      | pushpendra.s@turing.com     | Export XML formate | Extend the existing content export functionality to support XML formate                                                                                                                                                                                        | [#101](https://github.com/Turing-dev-community/content-manager/issues/101) |
 | 2025-11-19 | riddhi.s@turing.com | User webhook support | Users can register, list, update and delete their own webhook URLs to receive real-time notifications. Full CRUD via `/api/users/{userId}/webhooks`, strict URL validation, ownership enforced, returns 400 on invalid URL and 404 on missing user/webhook. | [#95](https://github.com/Turing-dev-community/content-manager/issues/95) |
 
+| 2025-11-19      | pushpendra.s@turing.com     | Export content by contentType                                                                                                                | Introduce support for exporting only a specific content type for a given user.                                                                                                                                                                                        | [#99](https://github.com/Turing-dev-community/content-manager/issues/99)   |
 
 ### Overview
 - **Content Management**: Create, read, update, and delete various content types

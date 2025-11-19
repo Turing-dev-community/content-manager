@@ -33,5 +33,26 @@ public class ExportService {
         List<SupportResponse> supportResponses = supportResponseRepository.getAllSupportResponsesByUserId(userId);
         return new ExportResponse(blogPosts, supportRequests, supportResponses);
     }
+
+    public ExportResponse exportForUserByType(UUID userId, ContentExportType contentType) {
+        if (contentType == null) {
+            return exportAllForUser(userId);
+        }
+
+        switch (contentType) {
+            case BLOGPOST:
+                List<BlogPost> blogPosts = blogPostRepository.getBlogPostsByUserId(userId);
+                return new ExportResponse(blogPosts, List.of(), List.of());
+            case SUPPORT_REQUEST:
+                List<SupportRequest> reqs = supportRequestRepository.findByUserId(userId);
+                return new ExportResponse(List.of(), reqs, List.of());
+            case SUPPORT_RESPONSE:
+                List<SupportResponse> resps = supportResponseRepository.getAllSupportResponsesByUserId(userId);
+                return new ExportResponse(List.of(), List.of(), resps);
+            default:
+                // fallback to all
+                return exportAllForUser(userId);
+        }
+    }
 }
 
