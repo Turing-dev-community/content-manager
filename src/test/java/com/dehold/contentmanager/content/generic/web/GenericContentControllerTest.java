@@ -61,10 +61,48 @@ class GenericContentControllerTest extends ContentManagerApplicationTests {
 
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertNotNull(response.getBody().getId());
-        assertEquals(request.getType(), response.getBody().getType());
-        assertEquals(request.getUserId(), response.getBody().getUserId());
-        assertEquals("Introduction to Spring Boot", response.getBody().getFieldNameToValue().get("title").getValue());
+
+        GenericContentModel responseBody = response.getBody();
+        assertNotNull(responseBody.getId());
+        assertEquals(user1Id, responseBody.getUserId());
+        assertEquals("article", responseBody.getType());
+        assertNull(responseBody.getParentId());
+        assertNotNull(responseBody.getCreatedAt());
+        assertNotNull(responseBody.getUpdatedAt());
+
+        Map<String, ContentFieldValue> fields = responseBody.getFieldNameToValue();
+        assertNotNull(fields);
+        assertEquals(5, fields.size());
+
+        ContentFieldValue titleField = fields.get("title");
+        assertNotNull(titleField);
+        assertEquals("title", titleField.getName());
+        assertEquals(ValueType.STRING, titleField.getValueType());
+        assertEquals("Introduction to Spring Boot", titleField.getValue());
+
+        ContentFieldValue viewCountField = fields.get("viewCount");
+        assertNotNull(viewCountField);
+        assertEquals("viewCount", viewCountField.getName());
+        assertEquals(ValueType.INTEGER, viewCountField.getValueType());
+        assertEquals(1250, viewCountField.getValue());
+
+        ContentFieldValue ratingField = fields.get("rating");
+        assertNotNull(ratingField);
+        assertEquals("rating", ratingField.getName());
+        assertEquals(ValueType.DECIMAL, ratingField.getValueType());
+        assertEquals(4.5, ratingField.getValue());
+
+        ContentFieldValue publishedField = fields.get("published");
+        assertNotNull(publishedField);
+        assertEquals("published", publishedField.getName());
+        assertEquals(ValueType.BOOLEAN, publishedField.getValueType());
+        assertEquals(true, publishedField.getValue());
+
+        ContentFieldValue descriptionField = fields.get("description");
+        assertNotNull(descriptionField);
+        assertEquals("description", descriptionField.getName());
+        assertEquals(ValueType.STRING, descriptionField.getValueType());
+        assertEquals("A comprehensive guide", descriptionField.getValue());
     }
 
     @Test
@@ -79,8 +117,48 @@ class GenericContentControllerTest extends ContentManagerApplicationTests {
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(content.getId(), response.getBody().getId());
-        assertEquals(content.getType(), response.getBody().getType());
+
+        GenericContentModel responseBody = response.getBody();
+        assertEquals(content.getId(), responseBody.getId());
+        assertEquals(user1Id, responseBody.getUserId());
+        assertEquals("article", responseBody.getType());
+        assertNull(responseBody.getParentId());
+        assertNotNull(responseBody.getCreatedAt());
+        assertNotNull(responseBody.getUpdatedAt());
+
+        Map<String, ContentFieldValue> fields = responseBody.getFieldNameToValue();
+        assertNotNull(fields);
+        assertEquals(5, fields.size());
+
+        ContentFieldValue titleField = fields.get("title");
+        assertNotNull(titleField);
+        assertEquals("title", titleField.getName());
+        assertEquals(ValueType.STRING, titleField.getValueType());
+        assertEquals("Introduction to Spring Boot", titleField.getValue());
+
+        ContentFieldValue viewCountField = fields.get("viewCount");
+        assertNotNull(viewCountField);
+        assertEquals("viewCount", viewCountField.getName());
+        assertEquals(ValueType.INTEGER, viewCountField.getValueType());
+        assertEquals(1250, viewCountField.getValue());
+
+        ContentFieldValue ratingField = fields.get("rating");
+        assertNotNull(ratingField);
+        assertEquals("rating", ratingField.getName());
+        assertEquals(ValueType.DECIMAL, ratingField.getValueType());
+        assertEquals(4.5, ratingField.getValue());
+
+        ContentFieldValue publishedField = fields.get("published");
+        assertNotNull(publishedField);
+        assertEquals("published", publishedField.getName());
+        assertEquals(ValueType.BOOLEAN, publishedField.getValueType());
+        assertEquals(true, publishedField.getValue());
+
+        ContentFieldValue descriptionField = fields.get("description");
+        assertNotNull(descriptionField);
+        assertEquals("description", descriptionField.getName());
+        assertEquals(ValueType.STRING, descriptionField.getValueType());
+        assertEquals("A comprehensive guide", descriptionField.getValue());
     }
 
     @Test
@@ -142,7 +220,7 @@ class GenericContentControllerTest extends ContentManagerApplicationTests {
     }
 
     @Test
-    void getContent_shouldReturnNotFound() {
+    void givenEntityNotExists_getContent_shouldReturnNotFound() {
         UUID nonExistentId = UUID.randomUUID();
 
         ResponseEntity<String> response = restTemplate.getForEntity(
