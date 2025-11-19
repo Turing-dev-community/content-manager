@@ -171,7 +171,7 @@ public class BlogPostCombinedExportIntegrationTest extends ContentManagerApplica
         BlogPost bp = new BlogPost(UUID.randomUUID(), "Fallback", "Body", Instant.now(), Instant.now(), userId);
         blogPostRepository.createBlogPost(bp);
 
-        String url = "http://localhost:" + port + "/api/blogposts/download/" + userId + "?format=xml";
+        String url = "http://localhost:" + port + "/api/blogposts/download/" + userId + "?format=yml";
         ResponseEntity<byte[]> resp = restTemplate.getForEntity(url, byte[].class);
 
         assertEquals(HttpStatus.OK, resp.getStatusCode());
