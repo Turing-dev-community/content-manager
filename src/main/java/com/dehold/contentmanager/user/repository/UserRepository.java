@@ -71,4 +71,20 @@ public class UserRepository {
         String sql = "DELETE FROM \"user\" WHERE id = ?";
         jdbcTemplate.update(sql, id);
     }
+
+    public void insertAuthority(String username, String role) {
+        String sql = "INSERT INTO authorities (username, authority) VALUES (?, ?)";
+        jdbcTemplate.update(sql, username, role);
+    }
+
+    public void updateAuthorityUsername(String oldUsername, String newUsername) {
+        String authoritiesSql = "UPDATE authorities SET username = ? WHERE username = ?";
+        jdbcTemplate.update(authoritiesSql, newUsername, oldUsername);
+    }
+
+    public void deleteSecurityAuthorities(String username) {
+        String sql = "DELETE FROM authorities WHERE username = ?";
+        jdbcTemplate.update(sql, username);
+    }
+
 }
