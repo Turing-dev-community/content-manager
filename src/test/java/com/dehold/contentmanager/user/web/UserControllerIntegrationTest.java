@@ -1507,4 +1507,45 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
                 response.getBody().getError());
     }
 
+    @Test
+    void givenNoContentOfSpecifiedType_validateGenericContentForUser_shouldReturnEmptyResults() {
+        User user = new User(UUID.randomUUID(), "Generic Content User", "genericuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        Map<String, ContentFieldValue> fields = new HashMap<>();
+        fields.put("description", new ContentFieldValue("description", ValueType.STRING, "Some content"));
+
+        GenericContentModel otherTypeContent = new GenericContentModel(
+                UUID.randomUUID(),
+                user.getId(),
+                "otherContentType",
+                fields,
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        genericModelRepository.save(otherTypeContent);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("customContent");
+        pipelineDto.setDescription("Test pipeline for custom content validation");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "description",
+                        Map.of("minLength", "10", "maxLength", "500"), true)
+        ));
+
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto, ValidationPipelineModel.class);
+
+        ResponseEntity<ValidationResponse[]> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent?contentType=customContent",
+                null, ValidationResponse[].class);
+
+        assertEquals(200, response.getStatusCode().value());
+        ValidationResponse[] results = response.getBody();
+        assertNotNull(results);
+        assertEquals(0, results.length);
+    }
+
 }
