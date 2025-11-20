@@ -118,8 +118,8 @@ class ValidationServiceGenerateReportTest {
 
         Map<String, String> global = dto.getErrorCodeToErrorCount();
         assertNotNull(global);
-//        assertEquals(2, global.get("LENGTH_VALIDATION_FAILED").intValue());
-//        assertEquals(1, global.get("PHONE_NUMBER_FORBIDDEN_VALIDATION_FAILED").intValue());
+        assertEquals("2", global.get("LENGTH_VALIDATION_FAILED"));
+        assertEquals("1", global.get("PHONE_NUMBER_FORBIDDEN_VALIDATION_FAILED"));
 
         // detailed maps should be present
         Map<String, Integer> perContent = dto.getErrorCountsPerContentTypes();
