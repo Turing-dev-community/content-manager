@@ -1286,4 +1286,59 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
         assertEquals(0, result.getErrors().size());
     }
 
+    @Test
+    void givenInvalidCustomContentAndPersistedValidationPipeline_validateGenericContentForUser_shouldReturnValidationResultWithErrors() {
+        User user = new User(UUID.randomUUID(), "Generic Content User", "genericuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        Map<String, ContentFieldValue> fields = new HashMap<>();
+        fields.put("description", new ContentFieldValue("description", ValueType.STRING, "Short"));
+        fields.put("status", new ContentFieldValue("status", ValueType.STRING, "active"));
+
+        GenericContentModel genericContent = new GenericContentModel(
+                UUID.randomUUID(),
+                user.getId(),
+                "customContent",
+                fields,
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        genericModelRepository.save(genericContent);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("customContent");
+        pipelineDto.setDescription("Test pipeline for custom content validation");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "description",
+                        Map.of("minLength", "10", "maxLength", "500"), true)
+        ));
+
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto, ValidationPipelineModel.class);
+
+        ResponseEntity<ValidationResponse[]> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent?contentType=customContent",
+                null, ValidationResponse[].class);
+
+        assertEquals(200, response.getStatusCode().value());
+        ValidationResponse[] results = response.getBody();
+        assertNotNull(results);
+        assertEquals(1, results.length);
+
+        ValidationResponse validationResponse = results[0];
+        assertEquals("customContent", validationResponse.getContentType());
+        ValidationResultDto result = validationResponse.getValidationResult();
+        assertEquals("customContent", result.getContentType());
+        assertEquals(user.getId(), result.getUserId());
+        assertFalse(result.isValid());
+        assertEquals(1, result.getErrors().size());
+
+        assertTrue(result.getErrors().stream().anyMatch(
+                e -> e.code().equals(LengthValidator.ERROR_CODE) &&
+                        e.message().equals(LengthValidator.errorMessageTooShort("description"))
+        ));
+    }
+
 }
