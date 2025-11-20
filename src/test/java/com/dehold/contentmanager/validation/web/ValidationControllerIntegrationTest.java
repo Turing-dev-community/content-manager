@@ -450,6 +450,7 @@ class ValidationControllerIntegrationTest  extends ContentManagerApplicationTest
         regexStep.setStepType(ValidationStepType.REGEX_VALIDATION);
         regexStep.setFieldName("content");
         regexStep.setParameters(Map.of("pattern", "(free money|click here)"));
+        regexStep.setEnabled(true);
 
         var pipelineDto = new ValidationPipelineCreateDto();
         pipelineDto.setUserId(userId);
