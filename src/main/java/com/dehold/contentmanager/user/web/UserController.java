@@ -149,7 +149,7 @@ public class UserController {
             @PathVariable UUID id,
             @RequestParam(required = true) String contentType) {
         userService.getUser(id);
-        List<ValidationResult> results = validationService.runSupportRequestValidation(id);
+        List<ValidationResult> results = validationService.runGenericContentValidation(id, contentType);
         List<ValidationResponse> responses = results.stream()
                 .map(result -> new ValidationResponse("SupportRequest", ValidationResultDto.from(result)))
                 .toList();
