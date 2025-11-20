@@ -1,7 +1,6 @@
 package com.dehold.contentmanager.validation.step;
 
 import com.dehold.contentmanager.content.Content;
-import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.model.ValidationStepModel;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
 import com.dehold.contentmanager.validation.service.ForbiddenWordsService;
@@ -39,6 +38,14 @@ public class ValidationStepFactory {
             }
             case PHONE_NUMBER_FORBIDDEN_VALIDATION ->
                     createPhoneNumberValidator(fieldExtractor, fieldName);
+            
+            case REGEX_VALIDATION -> {
+                String pattern = params.get("pattern");
+                if (pattern == null || pattern.isBlank()) {
+                    throw new IllegalArgumentException("Regex pattern is required for REGEX_VALIDATION");
+                }
+                yield createRegexValidator(fieldExtractor, fieldName, pattern);
+            }
         };
     }
 
@@ -55,6 +62,13 @@ public class ValidationStepFactory {
     private <T extends Content> PhoneNumberForbiddenValidator<T> createPhoneNumberValidator(
             Function<T, String> getter, String fieldName) {
         return new PhoneNumberForbiddenValidator<>(getter, fieldName);
+    }
+
+    private <T extends Content> RegexValidator<T> createRegexValidator(
+        Function<T, String> getter,
+        String fieldName,
+        String pattern) {
+        return new RegexValidator<>(getter, fieldName, pattern);
     }
 }
 
