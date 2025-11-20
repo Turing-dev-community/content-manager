@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.dehold.contentmanager.content.customersupport.service.SupportResponseService;
 
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -136,7 +137,7 @@ public class ValidationServiceImpl implements ValidationService {
         Map<String, String> perContentCountsStr = perContentCounts.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> String.valueOf(e.getValue())));
 
-        Map<String, Map<String, String>> perContentAndCodeStr = new java.util.LinkedHashMap<>();
+        Map<String, Map<String, String>> perContentAndCodeStr = new LinkedHashMap<>();
         for (Map.Entry<String, Map<String, Integer>> e : perContentAndCode.entrySet()) {
             Map<String, String> inner = e.getValue().entrySet().stream()
                     .collect(Collectors.toMap(Map.Entry::getKey, ie -> String.valueOf(ie.getValue())));
