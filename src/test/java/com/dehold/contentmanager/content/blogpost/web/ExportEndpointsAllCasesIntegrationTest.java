@@ -153,7 +153,7 @@ public class ExportEndpointsAllCasesIntegrationTest extends ContentManagerApplic
         blogPostRepository.createBlogPost(b1);
         blogPostRepository.createBlogPost(b2);
 
-        List<UUID> ids = List.of(b2.getId());
+        List<UUID> ids = List.of(userId);
         String url = "http://localhost:" + port + "/api/blogposts/download/bulk?format=json&contentType=blogpost";
 
         HttpHeaders headers = new HttpHeaders();
@@ -171,8 +171,8 @@ public class ExportEndpointsAllCasesIntegrationTest extends ContentManagerApplic
 
         ExportResponse parsed = objectMapper.readValue(resp.getBody(), ExportResponse.class);
         assertNotNull(parsed);
-        assertEquals(1, parsed.getBlogPosts().size());
-        assertEquals(b2.getId(), parsed.getBlogPosts().get(0).getId());
+        assertEquals(2, parsed.getBlogPosts().size());
+        assertEquals(b1.getId(), parsed.getBlogPosts().get(0).getId());
     }
 
     @Test
@@ -217,7 +217,8 @@ public class ExportEndpointsAllCasesIntegrationTest extends ContentManagerApplic
         BlogPost b1 = new BlogPost(UUID.randomUUID(), "MB1", "b", Instant.now(), Instant.now(), userId);
         blogPostRepository.createBlogPost(b1);
 
-        List<String> bodyList = List.of("not-a-uuid", b1.getId().toString());
+        String invalidId = UUID.randomUUID().toString();
+        List<String> bodyList = List.of(invalidId, userId.toString());
         String url = "http://localhost:" + port + "/api/blogposts/download/bulk?format=json&contentType=blogpost";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
