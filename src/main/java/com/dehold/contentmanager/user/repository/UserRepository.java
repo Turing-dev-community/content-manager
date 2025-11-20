@@ -72,35 +72,18 @@ public class UserRepository {
         jdbcTemplate.update(sql, id);
     }
 
-    public void insertSecurityUser(String username, String encodedPassword) {
-        String sql = "INSERT INTO users (username, password, enabled) VALUES (?, ?, ?)";
-        jdbcTemplate.update(sql, username, encodedPassword, true);
-    }
-
     public void insertAuthority(String username, String role) {
         String sql = "INSERT INTO authorities (username, authority) VALUES (?, ?)";
         jdbcTemplate.update(sql, username, role);
     }
 
-    public void updateUsersAndAuthorityUsername(String oldUsername, String newUsername) {
+    public void updateAuthorityUsername(String oldUsername, String newUsername) {
         String authoritiesSql = "UPDATE authorities SET username = ? WHERE username = ?";
-        String usersSql = "UPDATE users SET username = ? WHERE username = ?";
         jdbcTemplate.update(authoritiesSql, newUsername, oldUsername);
-        jdbcTemplate.update(usersSql, newUsername, oldUsername);
-    }
-
-    public void updateUsersPassword(String username, String encodedPassword) {
-        String usersSql = "UPDATE users SET password=? WHERE username=?";
-        jdbcTemplate.update(usersSql, encodedPassword, username);
     }
 
     public void deleteSecurityAuthorities(String username) {
         String sql = "DELETE FROM authorities WHERE username = ?";
-        jdbcTemplate.update(sql, username);
-    }
-
-    public void deleteSecurityUser(String username) {
-        String sql = "DELETE FROM users WHERE username = ?";
         jdbcTemplate.update(sql, username);
     }
 

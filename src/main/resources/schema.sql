@@ -128,18 +128,6 @@ CREATE TABLE IF NOT EXISTS comments (
     CONSTRAINT fk_blog_post FOREIGN KEY (blog_post_id) REFERENCES blog_post (id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS webhook (
-    id UUID PRIMARY KEY,
-    user_id UUID NOT NULL,
-    url VARCHAR(512) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_webhook_user
-        FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE,
-    CONSTRAINT chk_webhook_url
-        CHECK (url ~ '^https?://.+')
-);
-
 CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(50) NOT NULL PRIMARY KEY,
     password VARCHAR(500) NOT NULL,
@@ -147,9 +135,14 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE TABLE authorities (
-    username VARCHAR(50) NOT NULL,
-    authority VARCHAR(50) NOT NULL,
-    CONSTRAINT fk_authorities_users FOREIGN KEY(username) REFERENCES users(username)
+    username VARCHAR(255) NOT NULL,
+    authority VARCHAR(255) NOT NULL,
+     FOREIGN KEY (username) REFERENCES "user"(username) ON DELETE CASCADE
+--    CONSTRAINT fk_auth_user FOREIGN KEY (username)
+--        REFERENCES "user"(username)
+--        ON DELETE CASCADE,
+--    CONSTRAINT ix_auth UNIQUE (username, authority)
 );
+CREATE UNIQUE INDEX ix_auth_username
+  on authorities (username,authority);
 
-CREATE UNIQUE INDEX ix_auth_username ON authorities (username, authority);

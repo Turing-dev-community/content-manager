@@ -9,6 +9,7 @@ import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.service.ValidationPipelineService;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -42,7 +43,6 @@ public class UserServiceImpl implements UserService {
         );
         userRepository.createUser(user);
         // Insert into Spring Security tables
-        userRepository.insertSecurityUser(dto.getUsername(), encodedPassword);
         userRepository.insertAuthority(dto.getUsername(), "ROLE_USER");
         return user;
     }
@@ -53,9 +53,13 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> EntityNotFoundException.of("User", id.toString()));
     }
 
+    @Transactional
     @Override
     public User updateUser(UUID id, UpdateUserRequest dto) {
         User existingUser = getUser(id);
+        String newUserName = (dto.getUsername() != null && !dto.getUsername().equals(existingUser.getUsername()))
+                ? dto.getUsername()
+                : existingUser.getUsername();
         String newPassword = dto.getPassword() != null
                 ? passwordEncoder.encode(dto.getPassword())
                 : existingUser.getPassword();
@@ -65,16 +69,12 @@ public class UserServiceImpl implements UserService {
                 dto.getEmail() != null ? dto.getEmail() : existingUser.getEmail(),
                 existingUser.getCreatedAt(),
                 Instant.now(),
-                dto.getUsername(),
+                newUserName,
                 newPassword,
                 true
         );
         userRepository.updateUser(updatedUser);
-        if (!existingUser.getUsername().equals(updatedUser.getUsername())) {
-            userRepository.updateUsersAndAuthorityUsername(existingUser.getUsername(), updatedUser.getUsername());
-        }
-        userRepository.updateUsersPassword(updatedUser.getUsername(), newPassword);
-
+        userRepository.updateAuthorityUsername(existingUser.getUsername(), newUserName);
         return updatedUser;
     }
 
@@ -84,7 +84,6 @@ public class UserServiceImpl implements UserService {
         // Delete security entries
         User user = getUser(id);
         userRepository.deleteSecurityAuthorities(user.getUsername());
-        userRepository.deleteSecurityUser(user.getUsername());
     }
 
     public List<ValidationPipelineModel> getValidationPipelineByUserIdAndContentType(UUID userId,

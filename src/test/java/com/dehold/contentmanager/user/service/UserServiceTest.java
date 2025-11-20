@@ -172,7 +172,6 @@ class UserServiceTest {
         req.setPassword("authPass");
 
         doNothing().when(userRepository).createUser(any(User.class));
-        doNothing().when(userRepository).insertSecurityUser(anyString(), anyString());
         doNothing().when(userRepository).insertAuthority(anyString(), anyString());
 
         // ACT
@@ -181,8 +180,6 @@ class UserServiceTest {
         // ASSERT
         verify(userRepository, times(1))
                 .insertAuthority(eq("authUser"), eq("ROLE_USER"));
-        verify(userRepository, times(1))
-                .insertSecurityUser(eq("authUser"), eq(user.getPassword()));
     }
 
     @Test
@@ -192,13 +189,11 @@ class UserServiceTest {
 
         when(userRepository.getUserById(id)).thenReturn(Optional.of(user));
         doNothing().when(userRepository).deleteUser(id);
-        doNothing().when(userRepository).deleteSecurityUser("abc");
         doNothing().when(userRepository).deleteSecurityAuthorities("abc");
 
         userService.deleteUser(id);
 
         verify(userRepository, times(1)).deleteSecurityAuthorities("abc");
-        verify(userRepository, times(1)).deleteSecurityUser("abc");
     }
 
     @Test
@@ -231,7 +226,7 @@ class UserServiceTest {
     }
 
     @Test
-    void updateUser_shouldAlsoUpdateUsersAuthoritiesTable() {
+    void updateUser_shouldAlsoUpdateAuthoritiesTable() {
         // existing user in DB
         UUID userId = UUID.randomUUID();
 
@@ -255,8 +250,7 @@ class UserServiceTest {
 
         when(userRepository.getUserById(userId)).thenReturn(Optional.of(existingUser));
         doNothing().when(userRepository).updateUser(any(User.class));
-        doNothing().when(userRepository).updateUsersAndAuthorityUsername(anyString(), anyString());
-        doNothing().when(userRepository).updateUsersPassword(anyString(), anyString());
+        doNothing().when(userRepository).updateAuthorityUsername(anyString(), anyString());
 
         userService.updateUser(userId, request);
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
@@ -269,9 +263,7 @@ class UserServiceTest {
         assertEquals("newUsername", updatedUser.getUsername());
 
         verify(userRepository, times(1))
-                .updateUsersAndAuthorityUsername("oldUsername", "newUsername");
-        verify(userRepository, times(1))
-                .updateUsersPassword("newUsername", updatedUser.getPassword());
+                .updateAuthorityUsername("oldUsername", "newUsername");
     }
 
 }
