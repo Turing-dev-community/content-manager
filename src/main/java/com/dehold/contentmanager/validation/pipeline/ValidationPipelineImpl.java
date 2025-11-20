@@ -1,6 +1,7 @@
 package com.dehold.contentmanager.validation.pipeline;
 
 import com.dehold.contentmanager.content.Content;
+import com.dehold.contentmanager.content.generic.model.GenericContentModel;
 import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.step.ValidationStep;
@@ -24,9 +25,13 @@ public final class ValidationPipelineImpl<T extends Content> implements Validati
                 validationErrors.addAll(result.getErrors());
             }
         }
-        return validationErrors.isEmpty() ? ValidationResult.valid(content.getClass().getSimpleName(),
-                content.getId(), content.getUserId()) :
-                ValidationResult.invalid(content.getClass().getSimpleName(),
-                        content.getId(), content.getUserId(), validationErrors);
+
+        String contentType = content instanceof GenericContentModel
+                ? ((GenericContentModel) content).getType()
+                : content.getClass().getSimpleName();
+
+        return validationErrors.isEmpty()
+                ? ValidationResult.valid(contentType, content.getId(), content.getUserId())
+                : ValidationResult.invalid(contentType, content.getId(), content.getUserId(), validationErrors);
     }
 }
