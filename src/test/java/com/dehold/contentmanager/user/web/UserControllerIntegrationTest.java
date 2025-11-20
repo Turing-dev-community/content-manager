@@ -25,6 +25,10 @@ import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.model.SupportResponse;
 import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
 import com.dehold.contentmanager.content.customersupport.repository.SupportResponseRepository;
+import com.dehold.contentmanager.content.generic.model.ContentFieldValue;
+import com.dehold.contentmanager.content.generic.model.GenericContentModel;
+import com.dehold.contentmanager.content.generic.model.ValueType;
+import com.dehold.contentmanager.content.generic.repository.GenericModelRepository;
 import com.dehold.contentmanager.content.webhook.model.Webhook;
 import com.dehold.contentmanager.content.webhook.web.dto.CreateWebhookRequest;
 import com.dehold.contentmanager.content.webhook.web.dto.UpdateWebhookRequest;
@@ -69,6 +73,9 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     @Autowired
     private SupportResponseRepository supportResponseRepository;
+
+    @Autowired
+    private GenericModelRepository genericModelRepository;
 
     private static final UUID FIXED_TEST_USER_ID = UUID.fromString("06c4f0e4-20d7-4886-841b-ebe0ca3622a5");
 
@@ -1217,6 +1224,9 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
         assertEquals("The entity Webhook with id " + nonExistentWebhookId + " does not exist", 
                         response.getBody().getError());
     }
+
+
+
     
     private Webhook createWebhook(String url) {
         CreateWebhookRequest request = new CreateWebhookRequest();
@@ -1224,6 +1234,56 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
         return restTemplate.postForEntity(
                 "http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks",
                 request, Webhook.class).getBody();
+    }
+
+    @Test
+    void givenValidCustomContentAndPersistedValidationPipeline_validateGenericContentForUser_shouldReturnValidationResult() {
+        User user = new User(UUID.randomUUID(), "Generic Content User", "genericuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        Map<String, ContentFieldValue> fields = new HashMap<>();
+        fields.put("description", new ContentFieldValue("description", ValueType.STRING, "This is a valid custom content description"));
+        fields.put("status", new ContentFieldValue("status", ValueType.STRING, "active"));
+
+        GenericContentModel genericContent = new GenericContentModel(
+                UUID.randomUUID(),
+                user.getId(),
+                "customContent",
+                fields,
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        genericModelRepository.save(genericContent);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("customContent");
+        pipelineDto.setDescription("Test pipeline for custom content validation");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "description",
+                        Map.of("minLength", "10", "maxLength", "500"), true)
+        ));
+
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto, ValidationPipelineModel.class);
+
+        ResponseEntity<ValidationResponse[]> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent?contentType=customContent",
+                null, ValidationResponse[].class);
+
+        assertEquals(200, response.getStatusCode().value());
+        ValidationResponse[] results = response.getBody();
+        assertNotNull(results);
+        assertEquals(1, results.length);
+
+        ValidationResponse validationResponse = results[0];
+        assertEquals("customContent", validationResponse.getContentType());
+        ValidationResultDto result = validationResponse.getValidationResult();
+        assertEquals("customContent", result.getContentType());
+        assertEquals(user.getId(), result.getUserId());
+        assertTrue(result.isValid());
+        assertEquals(0, result.getErrors().size());
     }
 
 }
