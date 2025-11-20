@@ -50,6 +50,7 @@ Please update for each new feature:
 | 2025-11-20 | riddhi.s@turing.com | Add Retry Logic for SupportRequest Fetching | Implemented retry mechanism (`@Retryable`) for transient database failures in `SupportRequestService` methods (`findAll`, `findById`), with a fallback (`@Recover`) to return `503 Service Unavailable` on max retries. | [#109](https://github.com/Turing-dev-community/content-manager/issues/109) |
 | 2025-11-19 | pushpendra.s@turing.com | Export content by contentType | Introduce support for exporting only a specific content type for a given user. | [#99](https://github.com/Turing-dev-community/content-manager/issues/99) |
 | 2025-11-19      | ankita.k@turing.com     | Implement basic authentication | Implement jdbc basic auth. Secure the endpints that allow to update or delete users | [#129](https://github.com/Turing-dev-community/content-manager/issues/129) |
+| 2025-11-20 | riddhi.s@turing.com | Add Caching to SupportRequest API | Implemented high-performance in-memory caching using Caffeine for findAll and findById in SupportRequestService.Cache is automatically invalidated (@CacheEvict) on createCustomerRequest, updateCustomerRequest, and deleteById to ensure data consistency and reduce database load.  | [#112](https://github.com/Turing-dev-community/content-manager/issues/112) |
 ### Overview
 - **Content Management**: Create, read, update, and delete various content types
 - **Validation Pipeline**: Configurable validation system with support for length checks and custom validators
