@@ -6,6 +6,7 @@ import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
 import com.dehold.contentmanager.content.customersupport.repository.SupportResponseRepository;
 import com.dehold.contentmanager.content.customersupport.service.SupportResponseService;
+import com.dehold.contentmanager.content.generic.service.GenericContentService;
 import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.pipeline.ValidationPipeline;
@@ -42,6 +43,7 @@ class ValidationServiceTest {
     private BlogPostService blogPostService;
     private SupportRequestRepository supportRepo;
     private SupportResponseService supportResponseService;
+    private GenericContentService genericContentService;
 
     @BeforeEach
     void setUp() {
@@ -50,13 +52,15 @@ class ValidationServiceTest {
         blogPostService = mock(BlogPostService.class);
         supportRepo = mock(SupportRequestRepository.class);
         supportResponseService = mock(SupportResponseService.class);
+        genericContentService = mock(GenericContentService.class);
 
         validationService = new ValidationServiceImpl(
                 repository,
                 pipelineFactory,
                 blogPostService,
                 supportResponseService,
-                supportRepo
+                supportRepo,
+                genericContentService
         );
     }
 
