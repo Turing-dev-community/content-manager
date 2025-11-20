@@ -6,10 +6,27 @@ public class ValidationReportDto {
     int totalErrorCount;
     Map<String, String> errorCodeToErrorCount;
 
+    // detailed fields
+    private Map<String, Integer> errorCountsPerContentTypes;
+    private Map<String, Map<String, Integer>> errorCountsPerContentTypesAndErrorCode;
+
+
     public ValidationReportDto(int totalErrorCount, Map<String, String> errorCodeToErrorCount) {
         this.totalErrorCount = totalErrorCount;
         this.errorCodeToErrorCount = errorCodeToErrorCount;
     }
+
+    public ValidationReportDto(int totalErrorCount,
+                               Map<String, String> errorCodeToErrorCount,
+                               Map<String, Integer> errorCountsPerContentTypes,
+                               Map<String, Map<String, Integer>> errorCountsPerContentTypesAndErrorCode) {
+        this.totalErrorCount = totalErrorCount;
+        this.errorCodeToErrorCount = errorCodeToErrorCount;
+        this.errorCountsPerContentTypes = errorCountsPerContentTypes;
+        this.errorCountsPerContentTypesAndErrorCode = errorCountsPerContentTypesAndErrorCode;
+    }
+
+    public ValidationReportDto() {}
 
     public int getTotalErrorCount() {
         return totalErrorCount;
@@ -27,5 +44,20 @@ public class ValidationReportDto {
         this.errorCodeToErrorCount = errorCodeToErrorCount;
     }
 
+    public Map<String, Integer> getErrorCountsPerContentTypes() {
+        return errorCountsPerContentTypes;
+    }
+
+    public void setErrorCountsPerContentTypes(Map<String, Integer> errorCountsPerContentTypes) {
+        this.errorCountsPerContentTypes = errorCountsPerContentTypes;
+    }
+
+    public Map<String, Map<String, Integer>> getErrorCountsPerContentTypesAndErrorCode() {
+        return errorCountsPerContentTypesAndErrorCode;
+    }
+
+    public void setErrorCountsPerContentTypesAndErrorCode(Map<String, Map<String, Integer>> errorCountsPerContentTypesAndErrorCode) {
+        this.errorCountsPerContentTypesAndErrorCode = errorCountsPerContentTypesAndErrorCode;
+    }
 
 }
