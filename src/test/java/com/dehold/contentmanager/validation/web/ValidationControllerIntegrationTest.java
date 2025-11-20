@@ -15,7 +15,6 @@ import com.dehold.contentmanager.validation.web.dto.ValidationResultDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationStepDto;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -358,6 +357,127 @@ class ValidationControllerIntegrationTest  extends ContentManagerApplicationTest
         assertEquals(1, titleErrors);
         assertEquals(1, contentErrors);
         assertEquals(1, bothErrors);
+    }
+
+    @Test
+    void givenBlogPostWithForbiddenPattern_whenValidateBlogPosts_thenReturnsRegexValidationError() {
+        UUID userId = UUID.randomUUID();
+        String userEmail = "regex-test-" + UUID.randomUUID() + "@example.com";
+
+        jdbcTemplate.update(
+                "INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) " +
+                "VALUES (?, ?, ?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                userId, "Regex Test User", userEmail, "regexuser-" + UUID.randomUUID(), "TestPass123"
+        );
+
+        BlogPost blogPost = new BlogPost(
+                UUID.randomUUID(),
+                "Click here to win",
+                "This post contains FREE MONEY and click here links!",
+                Instant.now(),
+                Instant.now(),
+                userId
+        );
+        restTemplate.postForEntity("http://localhost:" + port + "/api/blogposts", blogPost, BlogPost.class);
+
+        var pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(userId);
+        pipelineDto.setContentType("blogpost");
+        pipelineDto.setDescription("Block spam patterns");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(
+                null,
+                ValidationStepType.REGEX_VALIDATION,
+                "content",
+                Map.of("pattern", "(free money|click here)"),  // ← SIMPLE, BULLETPROOF
+                true
+                )
+        ));
+
+        var pipelineResponse = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto,
+                ValidationPipelineModel.class
+        );
+        assertEquals(201, pipelineResponse.getStatusCode().value());
+
+        var validationResponse = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + userId + "/validate-blogposts",
+                null,
+                ValidationResponse[].class
+        );
+
+        assertEquals(200, validationResponse.getStatusCode().value());
+        ValidationResponse[] results = validationResponse.getBody();
+        assertNotNull(results);
+        assertEquals(1, results.length);
+
+        ValidationResponse response = results[0];
+        assertEquals("BlogPost", response.getContentType());
+        ValidationResultDto result = response.getValidationResult();
+
+        assertFalse(result.isValid());  
+        assertEquals(1, result.getErrors().size());
+
+        ValidationError error = result.getErrors().get(0);
+        assertEquals("REGEX_VALIDATION_FAILED", error.code());
+        assertTrue(error.message().contains("content"));
+        assertTrue(error.message().contains("forbidden pattern"));
+    }
+
+    @Test
+    void givenBlogPostWithNoForbiddenPattern_whenValidateBlogPosts_thenReturnsValidResult() {
+        UUID userId = UUID.randomUUID();
+
+        jdbcTemplate.update(
+                "INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) " +
+                "VALUES (?, ?, ?, ?, ?, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+                userId, "Clean User", "clean-" + UUID.randomUUID() + "@example.com",
+                "cleanuser-" + UUID.randomUUID(), "TestPass123"
+        );
+
+        BlogPost cleanPost = new BlogPost(
+                UUID.randomUUID(),
+                "Safe Title",
+                "This post is totally clean and safe.",
+                Instant.now(),
+                Instant.now(),
+                userId
+        );
+        restTemplate.postForEntity("http://localhost:" + port + "/api/blogposts", cleanPost, BlogPost.class);
+
+        ValidationStepDto regexStep = new ValidationStepDto();
+        regexStep.setStepType(ValidationStepType.REGEX_VALIDATION);
+        regexStep.setFieldName("content");
+        regexStep.setParameters(Map.of("pattern", "(free money|click here)"));
+
+        var pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(userId);
+        pipelineDto.setContentType("blogpost");
+        pipelineDto.setDescription("Block spam");
+        pipelineDto.setSteps(List.of(regexStep));
+
+        var pipelineResponse = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto,
+                ValidationPipelineModel.class
+        );
+        assertEquals(201, pipelineResponse.getStatusCode().value());
+
+        var response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + userId + "/validate-blogposts",
+                null,
+                ValidationResponse[].class
+        );
+
+        assertEquals(200, response.getStatusCode().value());
+        ValidationResponse[] results = response.getBody();
+        assertNotNull(results);
+        assertEquals(1, results.length);
+
+        ValidationResultDto result = results[0].getValidationResult();
+        assertTrue(result.isValid(), "Should be valid — no forbidden pattern found");
+        assertEquals(0, result.getErrors().size());
     }
 
 }
