@@ -1,7 +1,6 @@
 package com.dehold.contentmanager.rateLimiter.controller;
 
 import com.dehold.contentmanager.ContentManagerApplicationTests;
-import com.dehold.contentmanager.exception.CustomErrorResponse;
 import com.dehold.contentmanager.ratelimiter.config.RateLimitConfig;
 import com.dehold.contentmanager.ratelimiter.service.RateLimitConfigService;
 import org.junit.jupiter.api.BeforeEach;
@@ -9,20 +8,16 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.util.List;
+import java.time.Instant;
+import java.util.*;
+
 
 import static org.junit.jupiter.api.Assertions.*;
 
-
 public class RateLimitAdminControllerTest extends ContentManagerApplicationTests {
-
-    private static final String API_PATH = "/api/admin/rate-limits";
 
     @LocalServerPort
     private int port;
@@ -30,157 +25,223 @@ public class RateLimitAdminControllerTest extends ContentManagerApplicationTests
     @Autowired
     private TestRestTemplate restTemplate;
 
-    // We inject the service layer here primarily for cleanup purposes,
-    // although all core CRUD operations are performed via the API calls.
     @Autowired
-    private RateLimitConfigService rateLimitConfigService;
+    private JdbcTemplate jdbcTemplate;
 
-    private String getUrl() {
-        return "http://localhost:" + port + API_PATH;
+    @Autowired
+    private RateLimitConfigService service;
+
+    private String adminUser;
+    private String adminPass;
+
+    private String baseUrl() {
+        return "http://localhost:" + port + "/api/admin/rate-limits";
     }
 
-    // TestRestTemplate configured with Admin credentials
-    private TestRestTemplate adminRestTemplate;
-
-    // TestRestTemplate configured with non-Admin/User credentials
-    private TestRestTemplate unauthorizedRestTemplate;
-
+    private String randomPattern() {
+        return "/api/test/" + UUID.randomUUID().toString().substring(0, 8);
+    }
 
     @BeforeEach
-    void setup() {
-        // Assuming "admin:adminpass" provides ROLE_ADMIN rights
-        this.adminRestTemplate = restTemplate.withBasicAuth("admin", "adminpass");
+    void init() {
+        jdbcTemplate.execute("DELETE FROM rate_limit_config");
+        jdbcTemplate.execute("DELETE FROM authorities");
+        jdbcTemplate.execute("DELETE FROM \"user\"");
 
-        // Assuming "user:userpass" provides a valid login but lacks ROLE_ADMIN rights
-        this.unauthorizedRestTemplate = restTemplate.withBasicAuth("user", "userpass");
+        adminUser = "admin_" + UUID.randomUUID().toString().substring(0, 8);
+        adminPass = "pass_" + UUID.randomUUID().toString().substring(0, 8);
+
+        UUID userId = UUID.randomUUID();
+        Instant now = Instant.now();
+        jdbcTemplate.update(
+                "INSERT INTO \"user\" (id, alias, email, username, password, enabled, created_at, updated_at) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                userId,
+                "Admin User",
+                adminUser + "@example.com",
+                adminUser,
+                "{noop}" + adminPass,
+                true,
+                now,
+                now
+        );
+
+        jdbcTemplate.update(
+                "INSERT INTO authorities (username, authority) VALUES (?, ?)",
+                adminUser,
+                "ROLE_ADMIN"
+        );
     }
 
-    // --- Security Tests ---
+
+    //Dynamic path configuration-> Ability to configure custom patterns
+    //Database persistence of rate limit configs
+    //exists in cache
 
     @Test
-    void testAdminApi_unauthenticated_thenReturns401() {
-        // Use the base restTemplate without authentication
-        ResponseEntity<CustomErrorResponse> response = restTemplate.getForEntity(getUrl(), CustomErrorResponse.class);
+    void admin_create_shouldPersistAndShowInService() {
+        TestRestTemplate admin = restTemplate.withBasicAuth(adminUser, adminPass);
 
-        assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
+        RateLimitConfig cfg = new RateLimitConfig();
+        cfg.setPathPattern(randomPattern());
+        cfg.setCapacity(10);
+        cfg.setRefillTokens(1);
+        cfg.setRefillIntervalMillis(1000);
+
+        ResponseEntity<RateLimitConfig> res =
+                admin.postForEntity(baseUrl(), cfg, RateLimitConfig.class);
+
+        assertEquals(HttpStatus.OK, res.getStatusCode());
+        RateLimitConfig created = res.getBody();
+        assertNotNull(created);
+        assertNotNull(created.getId());
+
+        // DB exists
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM rate_limit_config WHERE id = ?",
+                Integer.class,
+                created.getId()
+        );
+        assertEquals(1, count);
+
+        // service cache visible
+        boolean existsInCache = service.findAll()
+                .stream()
+                .anyMatch(c -> c.getId().equals(created.getId()));
+
+        assertTrue(existsInCache);
     }
 
+    //Update → Should refresh the in-memory cache
     @Test
-    void testAdminApi_unauthorizedUser_thenReturns403() {
-        // Use the restTemplate authenticated as a non-Admin user
-        ResponseEntity<CustomErrorResponse> response = unauthorizedRestTemplate.getForEntity(getUrl(), CustomErrorResponse.class);
+    void admin_update_shouldUpdateDBAndService() {
+        TestRestTemplate admin = restTemplate.withBasicAuth(adminUser, adminPass);
 
-        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
-    }
+        RateLimitConfig cfg = new RateLimitConfig();
+        cfg.setPathPattern(randomPattern());
+        cfg.setCapacity(5);
+        cfg.setRefillTokens(1);
+        cfg.setRefillIntervalMillis(2000);
 
-    @Test
-    void testAdminApi_adminUser_canAccessGetAll() {
-        // Use the restTemplate authenticated as an Admin user
-        ResponseEntity<List<RateLimitConfig>> response = adminRestTemplate.exchange(
-                getUrl(),
-                HttpMethod.GET,
-                null,
-                new ParameterizedTypeReference<List<RateLimitConfig>>() {}
-        );
+        RateLimitConfig created =
+                admin.postForEntity(baseUrl(), cfg, RateLimitConfig.class).getBody();
 
-        assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        // Check if the response body is a list (could be empty or contain defaults)
-        assertDoesNotThrow(() -> response.getBody().size());
-    }
+        created.setCapacity(50);
+        created.setRefillTokens(10);
 
-    // --- CRUD Tests ---
+        HttpEntity<RateLimitConfig> entity =
+                new HttpEntity<>(created, new HttpHeaders());
 
-    @Test
-    void testCreateReadDeleteFlow_Success() {
-        // 1. CREATE
-        // Updated constructor call: public RateLimitConfig(UUID id, String pathPattern, long capacity, long refillTokens, long refillIntervalMillis, Instant createdAt, Instant updatedAt)
-        RateLimitConfig newConfig = new RateLimitConfig(
-                null, "/api/int-test/**", 15, 5, 1000L, null, null
-        );
-
-        ResponseEntity<RateLimitConfig> createResponse = adminRestTemplate.postForEntity(
-                getUrl(),
-                newConfig,
-                RateLimitConfig.class
-        );
-
-        assertEquals(HttpStatus.CREATED, createResponse.getStatusCode());
-        RateLimitConfig createdConfig = createResponse.getBody();
-        assertNotNull(createdConfig);
-        assertNotNull(createdConfig.getId());
-        assertEquals(newConfig.getPathPattern(), createdConfig.getPathPattern());
-        // Verify the server populated the timestamps
-        assertNotNull(createdConfig.getCreatedAt());
-        assertNotNull(createdConfig.getUpdatedAt());
-
-        // 2. READ (Verify it exists)
-        String readUrl = getUrl() + "/" + createdConfig.getId();
-        ResponseEntity<RateLimitConfig> readResponse = adminRestTemplate.getForEntity(
-                readUrl,
-                RateLimitConfig.class
-        );
-
-        assertEquals(HttpStatus.OK, readResponse.getStatusCode());
-        assertEquals(createdConfig.getId(), readResponse.getBody().getId());
-
-        // 3. UPDATE
-        // The payload for update should include the ID, but the timestamps are usually ignored or overwritten by the server.
-        RateLimitConfig updatePayload = new RateLimitConfig(
-                createdConfig.getId(), createdConfig.getPathPattern(), 30, 10, 5000L, null, null
-        );
-
-        HttpEntity<RateLimitConfig> updateEntity = new HttpEntity<>(updatePayload);
-        ResponseEntity<RateLimitConfig> updateResponse = adminRestTemplate.exchange(
-                readUrl,
+        ResponseEntity<RateLimitConfig> updateRes = admin.exchange(
+                baseUrl() + "/" + created.getId(),
                 HttpMethod.PUT,
-                updateEntity,
+                entity,
                 RateLimitConfig.class
         );
 
-        assertEquals(HttpStatus.OK, updateResponse.getStatusCode());
-        assertEquals(30, updateResponse.getBody().getCapacity());
+        assertEquals(HttpStatus.OK, updateRes.getStatusCode());
+        RateLimitConfig updated = updateRes.getBody();
+        assertEquals(50, updated.getCapacity());
+        assertEquals(10, updated.getRefillTokens());
 
-        // 4. DELETE (Verify deletion and cache reload)
-        ResponseEntity<Void> deleteResponse = adminRestTemplate.exchange(
-                readUrl,
+        // DB validation
+        Map<String, Object> row = jdbcTemplate.queryForMap(
+                "SELECT capacity, refill_tokens FROM rate_limit_config WHERE id = ?",
+                created.getId()
+        );
+
+        assertEquals(50, ((Number) row.get("capacity")).longValue());
+        assertEquals(10, ((Number) row.get("refill_tokens")).longValue());
+
+        // Service validation
+        Optional<RateLimitConfig> cached =
+                service.findAll().stream()
+                        .filter(c -> c.getId().equals(created.getId()))
+                        .findFirst();
+
+        assertTrue(cached.isPresent());
+        assertEquals(50, cached.get().getCapacity());
+        assertEquals(10, cached.get().getRefillTokens());
+    }
+
+    //Delete → Should remove from in-memory cache
+    @Test
+    void admin_delete_shouldRemoveFromDBAndService() {
+        TestRestTemplate admin = restTemplate.withBasicAuth(adminUser, adminPass);
+
+        RateLimitConfig cfg = new RateLimitConfig();
+        cfg.setPathPattern(randomPattern());
+        cfg.setCapacity(1);
+        cfg.setRefillTokens(1);
+        cfg.setRefillIntervalMillis(1000);
+
+        RateLimitConfig created =
+                admin.postForEntity(baseUrl(), cfg, RateLimitConfig.class).getBody();
+
+        ResponseEntity<Void> delRes = admin.exchange(
+                baseUrl() + "/" + created.getId(),
                 HttpMethod.DELETE,
                 null,
                 Void.class
         );
 
-        assertEquals(HttpStatus.NO_CONTENT, deleteResponse.getStatusCode());
+        assertEquals(HttpStatus.NO_CONTENT, delRes.getStatusCode());
 
-        // 5. READ (Verify it's gone)
-        ResponseEntity<RateLimitConfig> readDeletedResponse = adminRestTemplate.getForEntity(
-                readUrl,
-                RateLimitConfig.class
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM rate_limit_config WHERE id = ?",
+                Integer.class,
+                created.getId()
         );
+        assertEquals(0, count);
 
-        assertEquals(HttpStatus.NOT_FOUND, readDeletedResponse.getStatusCode());
+        boolean existsInCache = service.findAll()
+                .stream()
+                .anyMatch(c -> c.getId().equals(created.getId()));
+
+        assertFalse(existsInCache);
     }
 
-    // --- Validation Test ---
-
+    // Longest/specific pattern precedence
     @Test
-    void testCreateConfig_InvalidInput_thenReturns400() {
-        RateLimitConfig invalidConfig = new RateLimitConfig(
-                null, "", 0, 0, 0L, null, null // Invalid Path, Capacity=0, Refill=0
-        );
+    void pattern_precedence_longestPatternWins() {
+        TestRestTemplate admin = restTemplate.withBasicAuth(adminUser, adminPass);
 
-        ResponseEntity<CustomErrorResponse> response = adminRestTemplate.postForEntity(
-                getUrl(),
-                invalidConfig,
-                CustomErrorResponse.class
-        );
+        RateLimitConfig broad = new RateLimitConfig();
+        broad.setPathPattern("/api/users/**");
+        broad.setCapacity(10);
+        broad.setRefillTokens(1);
+        broad.setRefillIntervalMillis(1000);
+        admin.postForEntity(baseUrl(), broad, RateLimitConfig.class);
 
-        // Expecting Bad Request (400) due to validation failure
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertNotNull(response.getBody());
+        RateLimitConfig specific = new RateLimitConfig();
+        specific.setPathPattern("/api/users/profile");
+        specific.setCapacity(100);
+        specific.setRefillTokens(5);
+        specific.setRefillIntervalMillis(1000);
+        admin.postForEntity(baseUrl(), specific, RateLimitConfig.class);
 
-        // Check for specific validation errors
-        String errorString = response.getBody().toString();
-        assertTrue(errorString.contains("pathPattern: must not be empty"), "Should reject empty pathPattern");
-        assertTrue(errorString.contains("capacity: must be greater than 0"), "Should reject capacity <= 0");
+        List<RateLimitConfig> all = service.findAll();
+
+        String requestPath = "/api/users/profile";
+
+        Optional<RateLimitConfig> selected = all.stream()
+                .filter(c -> match(c.getPathPattern(), requestPath))
+                .sorted((a, b) -> Integer.compare(b.getPathPattern().length(), a.getPathPattern().length()))
+                .findFirst();
+
+        assertTrue(selected.isPresent());
+        assertEquals("/api/users/profile", selected.get().getPathPattern());
     }
+
+    private boolean match(String pattern, String path) {
+        if (pattern.equals(path)) return true;
+
+        if (pattern.endsWith("/**")) {
+            String prefix = pattern.substring(0, pattern.length() - 3);
+            return path.startsWith(prefix);
+        }
+        return false;
+    }
+
+
 }

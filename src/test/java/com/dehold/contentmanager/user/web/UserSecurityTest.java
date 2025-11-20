@@ -51,15 +51,6 @@ public class UserSecurityTest extends ContentManagerApplicationTests {
         jdbcTemplate.execute("DELETE FROM \"user\"");
     }
 
-    @TestConfiguration // or @Configuration
-    static class TestSecurityConfig {
-        @Bean
-        public PasswordEncoder passwordEncoder() {
-            // Must match the encoder used to store the password in the database
-            return new BCryptPasswordEncoder();
-        }
-    }
-
     @Test
     void givenNotAuthorized_whenUserExists_then401() {
 
