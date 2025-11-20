@@ -9,6 +9,7 @@ import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.model.Page;
 import com.dehold.contentmanager.exception.EntityNotFoundException;
+import com.dehold.contentmanager.common.exception.InvalidStateTransitionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -573,7 +574,7 @@ class BlogPostServiceTest {
 
         when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(nonDraftPost));
 
-        assertThrows(IllegalStateException.class, () -> blogPostService.submitForReview(blogPostId));
+        assertThrows(InvalidStateTransitionException.class, () -> blogPostService.submitForReview(blogPostId));
         verify(blogPostRepository, never()).updateBlogPost(any());
     }
 
@@ -585,7 +586,7 @@ class BlogPostServiceTest {
 
         when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(nonPendingPost));
 
-        assertThrows(IllegalStateException.class, () -> blogPostService.approveBlogPost(blogPostId));
+        assertThrows(InvalidStateTransitionException.class, () -> blogPostService.approveBlogPost(blogPostId));
         verify(blogPostRepository, never()).updateBlogPost(any());
     }
 
@@ -597,7 +598,7 @@ class BlogPostServiceTest {
 
         when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(nonPendingPost));
 
-        assertThrows(IllegalStateException.class, () -> blogPostService.rejectBlogPost(blogPostId));
+        assertThrows(InvalidStateTransitionException.class, () -> blogPostService.rejectBlogPost(blogPostId));
         verify(blogPostRepository, never()).updateBlogPost(any());
     }
 }

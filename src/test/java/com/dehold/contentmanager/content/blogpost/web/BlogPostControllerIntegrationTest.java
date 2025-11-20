@@ -27,7 +27,6 @@ import org.springframework.http.MediaType;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -893,7 +892,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
             String.class
         );
 
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertTrue(response.getBody().contains("Only DRAFT posts can be submitted for review."));
     }
 
@@ -909,7 +908,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
             String.class
         );
 
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertTrue(response.getBody().contains("Only PENDING_REVIEW posts can be approved."));
     }
 
@@ -925,7 +924,7 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
             String.class
         );
 
-        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertTrue(response.getBody().contains("Only PENDING_REVIEW posts can be rejected."));
     }
 

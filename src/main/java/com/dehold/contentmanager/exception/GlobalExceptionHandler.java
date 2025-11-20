@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import com.dehold.contentmanager.common.exception.InvalidStateTransitionException;
 
 import java.time.Instant;
 
@@ -49,6 +50,20 @@ public class GlobalExceptionHandler {
             ex.getMessage(),
             request.getDescription(false).replace("uri=", "")
         );
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(InvalidStateTransitionException.class)
+    public ResponseEntity<CustomErrorResponse> handleInvalidStateTransition(
+            InvalidStateTransitionException ex, WebRequest request) {
+
+        CustomErrorResponse errorResponse = new CustomErrorResponse(
+                Instant.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                ex.getMessage(),
+                request.getDescription(false).replace("uri=", "")
+        );
+
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 }

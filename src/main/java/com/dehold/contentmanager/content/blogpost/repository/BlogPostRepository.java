@@ -24,13 +24,14 @@ public class BlogPostRepository {
 
     public void createBlogPost(BlogPost blogPost) {
         jdbcTemplate.update(
-                "INSERT INTO blog_post (id, title, content, created_at, updated_at, user_id) VALUES (?, ?, ?, ?, ?, ?)",
-                blogPost.getId(),
-                blogPost.getTitle(),
-                blogPost.getContent(),
-                blogPost.getCreatedAt(),
-                blogPost.getUpdatedAt(),
-                blogPost.getUserId()
+            "INSERT INTO blog_post (id, title, content, created_at, updated_at, state, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            blogPost.getId(),
+            blogPost.getTitle(),
+            blogPost.getContent(),
+            blogPost.getCreatedAt(),
+            blogPost.getUpdatedAt(),
+            blogPost.getState() == null ? "DRAFT" : blogPost.getState().name(),
+            blogPost.getUserId()
         );
         if (blogPost.getComments() != null) {
             for (Comment c : blogPost.getComments()) {
@@ -72,10 +73,11 @@ public class BlogPostRepository {
 
     public void updateBlogPost(BlogPost blogPost) {
         jdbcTemplate.update(
-                "UPDATE blog_post SET title = ?, content = ?, updated_at = ? WHERE id = ?",
+                "UPDATE blog_post SET title = ?, content = ?, updated_at = ?, state = ? WHERE id = ?",
                 blogPost.getTitle(),
                 blogPost.getContent(),
                 blogPost.getUpdatedAt(),
+                blogPost.getState() == null ? "DRAFT" : blogPost.getState().name(),
                 blogPost.getId()
         );
     }
@@ -85,7 +87,7 @@ public class BlogPostRepository {
     }
 
     private BlogPost mapRowToBlogPost(ResultSet rs, int rowNum) throws SQLException {
-        return new BlogPost(
+        BlogPost bp = new BlogPost(
                 UUID.fromString(rs.getString("id")),
                 rs.getString("title"),
                 rs.getString("content"),
@@ -93,6 +95,15 @@ public class BlogPostRepository {
                 rs.getTimestamp("updated_at").toInstant(),
                 UUID.fromString(rs.getString("user_id"))
         );
+        try {
+            String state = rs.getString("state");
+            if (state != null) {
+                bp.setState(BlogPost.State.valueOf(state));
+            }
+        } catch (IllegalArgumentException ignored) {
+            // unknown state in DB - leave default
+        }
+        return bp;
     }
 
     private Comment mapRowToComment(ResultSet rs, int rowNum) throws SQLException {
