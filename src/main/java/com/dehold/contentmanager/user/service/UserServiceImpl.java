@@ -9,6 +9,7 @@ import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.service.ValidationPipelineService;
 import org.springframework.stereotype.Service;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -29,6 +30,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User createUser(CreateUserRequest dto) {
+        String encodedPassword = passwordEncoder.encode(dto.getPassword());
         User user = new User(
                 UUID.randomUUID(),
                 dto.getAlias(),
@@ -36,10 +38,12 @@ public class UserServiceImpl implements UserService {
                 Instant.now(),
                 Instant.now(),
                 dto.getUsername(),
-                passwordEncoder.encode(dto.getPassword()), // encode password
+                encodedPassword,
                 true
         );
         userRepository.createUser(user);
+        // Insert into Spring Security tables
+        userRepository.insertAuthority(dto.getUsername(), "ROLE_USER");
         return user;
     }
 
@@ -49,26 +53,37 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> EntityNotFoundException.of("User", id.toString()));
     }
 
+    @Transactional
     @Override
     public User updateUser(UUID id, UpdateUserRequest dto) {
         User existingUser = getUser(id);
+        String newUserName = (dto.getUsername() != null && !dto.getUsername().equals(existingUser.getUsername()))
+                ? dto.getUsername()
+                : existingUser.getUsername();
+        String newPassword = dto.getPassword() != null
+                ? passwordEncoder.encode(dto.getPassword())
+                : existingUser.getPassword();
         User updatedUser = new User(
                 existingUser.getId(),
                 dto.getAlias() != null ? dto.getAlias() : existingUser.getAlias(),
                 dto.getEmail() != null ? dto.getEmail() : existingUser.getEmail(),
                 existingUser.getCreatedAt(),
                 Instant.now(),
-                dto.getUsername(),
-                dto.getPassword(),
+                newUserName,
+                newPassword,
                 true
         );
         userRepository.updateUser(updatedUser);
+        userRepository.updateAuthorityUsername(existingUser.getUsername(), newUserName);
         return updatedUser;
     }
 
     @Override
     public void deleteUser(UUID id) {
         userRepository.deleteUser(id);
+        // Delete security entries
+        User user = getUser(id);
+        userRepository.deleteSecurityAuthorities(user.getUsername());
     }
 
     public List<ValidationPipelineModel> getValidationPipelineByUserIdAndContentType(UUID userId,
