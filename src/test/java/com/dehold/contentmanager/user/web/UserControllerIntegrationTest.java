@@ -1272,7 +1272,7 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
                 "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent?contentType=customContent",
                 null, ValidationResponse[].class);
 
-        assertEquals(200, response.getStatusCode().value());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
         ValidationResponse[] results = response.getBody();
         assertNotNull(results);
         assertEquals(1, results.length);
@@ -1322,7 +1322,7 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
                 "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent?contentType=customContent",
                 null, ValidationResponse[].class);
 
-        assertEquals(200, response.getStatusCode().value());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
         ValidationResponse[] results = response.getBody();
         assertNotNull(results);
         assertEquals(1, results.length);
@@ -1379,7 +1379,7 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
                 "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent?contentType=customContent",
                 null, ValidationResponse[].class);
 
-        assertEquals(200, response.getStatusCode().value());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
         ValidationResponse[] results = response.getBody();
         assertNotNull(results);
         assertEquals(1, results.length);
@@ -1455,7 +1455,7 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
                 "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent?contentType=customContent",
                 null, ValidationResponse[].class);
 
-        assertEquals(200, response.getStatusCode().value());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
         ValidationResponse[] results = response.getBody();
         assertNotNull(results);
         assertEquals(2, results.length);
@@ -1501,7 +1501,7 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
                 "http://localhost:" + port + "/api/users/" + nonExistentUserId + "/validate-genericcontent?contentType=customContent",
                 null, CustomErrorResponse.class);
 
-        assertEquals(404, response.getStatusCode().value());
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("The entity User with id " + nonExistentUserId + " does not exist",
                 response.getBody().getError());
@@ -1542,10 +1542,22 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
                 "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent?contentType=customContent",
                 null, ValidationResponse[].class);
 
-        assertEquals(200, response.getStatusCode().value());
+        assertEquals(HttpStatus.OK, response.getStatusCode());
         ValidationResponse[] results = response.getBody();
         assertNotNull(results);
         assertEquals(0, results.length);
+    }
+
+    @Test
+    void givenMissingContentTypeQueryParam_validateGenericContentForUser_shouldReturn400() {
+        User user = new User(UUID.randomUUID(), "Generic Content User", "genericuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent",
+                null, String.class);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     }
 
 }
