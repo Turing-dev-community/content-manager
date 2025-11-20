@@ -2,6 +2,7 @@ package com.dehold.contentmanager.content.customersupport.service;
 
 import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
+import com.dehold.contentmanager.exception.EntityNotFoundException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -12,6 +13,7 @@ import org.springframework.dao.TransientDataAccessResourceException;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.cache.CacheManager;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -32,6 +34,9 @@ class SupportRequestServiceTest {
 
     @Autowired
     private SupportRequestService service;
+
+    @Autowired 
+    private CacheManager cacheManager;
 
     @BeforeEach
     void setUp() {
@@ -137,6 +142,9 @@ class SupportRequestServiceTest {
 
     @Test
     void findAll_withTransientFailure_shouldSucceedOnSecondAttempt() {
+
+        clearCaches();
+
         SupportRequest request = new SupportRequest(UUID.randomUUID(), UUID.randomUUID(), "test", UUID.randomUUID(), UUID.randomUUID(), Instant.now(), Instant.now());
         List<SupportRequest> successfulResult = List.of(request);
 
@@ -154,6 +162,9 @@ class SupportRequestServiceTest {
 
     @Test
     void findAll_withTransientFailure_shouldThrowServiceUnavailableAfterMaxRetries() {
+
+        clearCaches();
+
         when(repository.findAll())
         .thenThrow(new TransientDataAccessResourceException("DB network issue 1"))
         .thenThrow(new TransientDataAccessResourceException("DB network issue 2"))
@@ -188,6 +199,9 @@ class SupportRequestServiceTest {
 
     @Test
     void findById_withTransientFailure_shouldSucceedOnSecondAttempt() {
+
+        clearCaches();
+
         UUID id = UUID.randomUUID();
         SupportRequest successfulRequest = new SupportRequest(id, UUID.randomUUID(), "test_retry_success", UUID.randomUUID(), UUID.randomUUID(), Instant.now(), Instant.now());
         
@@ -206,6 +220,8 @@ class SupportRequestServiceTest {
     @Test
     void findById_withTransientFailure_shouldThrowServiceUnavailableAfterMaxRetries() {
 
+        clearCaches();
+
         UUID id = UUID.randomUUID();
 
         when(repository.getById(id))
@@ -223,6 +239,124 @@ class SupportRequestServiceTest {
         assertTrue(exception.getReason().contains("The support request system is temporarily unavailable due to high load. Please try again shortly.")); 
        
         verify(repository, times(4)).getById(id);
+    }
+
+    @Test
+    void findAll_shouldCacheResultOnSecondCall() {
+        clearCaches(); // Required for reliable findAll cache testing
+
+        List<SupportRequest> cachedList = List.of(
+            new SupportRequest(UUID.randomUUID(), UUID.randomUUID(), "a", UUID.randomUUID(), UUID.randomUUID(), Instant.now(), Instant.now())
+        );
+        
+        when(repository.findAll()).thenReturn(cachedList);
+
+        List<SupportRequest> result1 = service.findAll();
+        
+        List<SupportRequest> result2 = service.findAll(); 
+
+        assertEquals(1, result1.size());
+       
+        assertSame(result1, result2, "Second result list should be the same cached instance."); 
+        
+        verify(repository, times(1)).findAll();
+    }
+
+    @Test
+    void findById_shouldCacheResultOnSecondCall() {
+        clearCaches(); 
+
+        UUID id = UUID.randomUUID();
+        SupportRequest cachedRequest = new SupportRequest(id, UUID.randomUUID(), "cached_data", UUID.randomUUID(), UUID.randomUUID(), Instant.now(), Instant.now());
+        
+        when(repository.getById(id)).thenReturn(Optional.of(cachedRequest));
+
+        SupportRequest result1 = service.findById(id);
+        
+        SupportRequest result2 = service.findById(id); 
+
+        assertNotNull(result1);
+       
+        assertSame(result1, result2, "Second result should be the same cached instance."); 
+        
+        verify(repository, times(1)).getById(id);
+    }
+
+    @Test
+    void createCustomerRequest_shouldEvictFindAllCache() {
+        clearCaches(); 
+
+        SupportRequest newRequest = new SupportRequest(UUID.randomUUID(), UUID.randomUUID(), "new", UUID.randomUUID(), UUID.randomUUID(), Instant.now(), Instant.now());
+        List<SupportRequest> initialList = List.of();
+        
+        when(repository.findAll())
+            .thenReturn(initialList)    
+            .thenReturn(List.of(newRequest)); 
+
+        service.findAll();
+        
+        service.createCustomerRequest(newRequest); 
+        
+        service.findAll(); 
+
+        verify(repository, times(2)).findAll();
+    }
+
+    @Test
+    void updateCustomerRequest_shouldEvictFindByIdCache() {
+        clearCaches(); 
+
+        UUID id = UUID.randomUUID();
+        SupportRequest originalRequest = new SupportRequest(id, UUID.randomUUID(), "original", UUID.randomUUID(), UUID.randomUUID(), Instant.now(), Instant.now());
+        SupportRequest updatedRequest = new SupportRequest(id, UUID.randomUUID(), "UPDATED", UUID.randomUUID(), UUID.randomUUID(), Instant.now(), Instant.now());
+
+        when(repository.getById(id))
+            .thenReturn(Optional.of(originalRequest)) 
+            .thenReturn(Optional.of(updatedRequest));  
+        
+        SupportRequest result1 = service.findById(id);
+        
+        service.findById(id); 
+        
+        service.updateCustomerRequest(updatedRequest);
+        
+        SupportRequest result3 = service.findById(id); 
+
+        assertEquals("original", result1.getText(), "Cache should hold original data.");
+        assertEquals("UPDATED", result3.getText(), "New fetch should contain updated data.");
+        
+        verify(repository, times(2)).getById(id);
+    }
+
+    @Test
+    void deleteById_shouldEvictFindByIdCache() {
+        clearCaches(); 
+
+        UUID id = UUID.randomUUID();
+        SupportRequest requestToCache = new SupportRequest(id, UUID.randomUUID(), "will_be_deleted", UUID.randomUUID(), UUID.randomUUID(), Instant.now(), Instant.now());
+
+        when(repository.getById(id))
+            .thenReturn(Optional.of(requestToCache)) 
+            .thenReturn(Optional.empty());            
+        
+        service.findById(id);
+        
+        service.deleteById(id); 
+        
+        assertThrows(EntityNotFoundException.class, () -> {
+            service.findById(id);
+        }, "After eviction, re-fetching the deleted ID should hit the DB and fail.");
+        
+        verify(repository, times(2)).getById(id);
+    }
+
+    private void clearCaches() {
+        if (cacheManager.getCache("supportRequests") != null) {
+            cacheManager.getCache("supportRequests").clear();
+        }
+        if (cacheManager.getCache("supportRequestById") != null) {
+            cacheManager.getCache("supportRequestById").clear();
+        }
     }
 
 }
