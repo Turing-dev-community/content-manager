@@ -9,7 +9,7 @@ import com.dehold.contentmanager.content.generic.model.GenericContentModel;
 import java.util.Map;
 
 public class ContentTypeRegistry {
-    private static final Map<String, Class<? extends Content>> FIXED_TYPES = Map.of(
+    private static final Map<String, Class<? extends Content>> CONTENT_TYPES = Map.of(
             "blogpost", BlogPost.class,
             "supportresponse", SupportResponse.class,
             "supportrequest", SupportRequest.class
@@ -17,6 +17,6 @@ public class ContentTypeRegistry {
 
     public static Class<? extends Content> getContentClass(String contentType) {
         String normalizedType = contentType.toLowerCase();
-        return FIXED_TYPES.getOrDefault(normalizedType, GenericContentModel.class);
+        return CONTENT_TYPES.getOrDefault(normalizedType, GenericContentModel.class);
     }
 }
