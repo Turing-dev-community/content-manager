@@ -27,7 +27,7 @@ public class SupportRequestService {
     }
     
     @Retryable(
-        include = {TransientDataAccessException.class, DataAccessException.class},
+        include = {TransientDataAccessException.class},
         exclude = {EntityNotFoundException.class},
         maxAttempts = 4,
         backoff = @Backoff(delay = 500, multiplier = 2.0, random = true)
@@ -37,7 +37,7 @@ public class SupportRequestService {
     }
 
     @Retryable(
-        include = {TransientDataAccessException.class, DataAccessException.class},
+        include = {TransientDataAccessException.class},
         exclude = {EntityNotFoundException.class},
         maxAttempts = 4,
         backoff = @Backoff(delay = 500, multiplier = 2.0, random = true)
@@ -51,7 +51,7 @@ public class SupportRequestService {
     public List<SupportRequest> recoverFindAll(TransientDataAccessException e) { 
         throw new ResponseStatusException(
             HttpStatus.SERVICE_UNAVAILABLE,
-            "Support requests temporarily unavailable. Please try again later.",
+            "The support request system is temporarily unavailable due to high load. Please try again shortly.",
             e
         );
     }
@@ -60,7 +60,7 @@ public class SupportRequestService {
     public SupportRequest recoverFindById(TransientDataAccessException e, UUID id) {
         throw new ResponseStatusException(
             HttpStatus.SERVICE_UNAVAILABLE,
-            "Failed to fetch support request. Please try again later.",
+            "The support request system is temporarily unavailable due to high load. Please try again shortly.",
             e
         );
     }

@@ -5,12 +5,12 @@ import com.dehold.contentmanager.content.customersupport.repository.SupportReque
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockitoAnnotations;
 import org.springframework.dao.TransientDataAccessResourceException;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when;
 @SpringBootTest
 class SupportRequestServiceTest {
 
-    @MockBean
+    @MockitoBean
     private SupportRequestRepository repository;
 
     @Autowired
@@ -165,7 +165,7 @@ class SupportRequestServiceTest {
         });
 
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, exception.getStatusCode());
-        assertTrue(exception.getReason().contains("Support requests temporarily unavailable"));
+        assertTrue(exception.getReason().contains("The support request system is temporarily unavailable due to high load. Please try again shortly."));
 
         verify(repository, times(4)).findAll();
     }
@@ -220,7 +220,7 @@ class SupportRequestServiceTest {
 
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, exception.getStatusCode());
         
-        assertTrue(exception.getReason().contains("Failed to fetch support request")); 
+        assertTrue(exception.getReason().contains("The support request system is temporarily unavailable due to high load. Please try again shortly.")); 
        
         verify(repository, times(4)).getById(id);
     }
