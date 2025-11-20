@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -67,7 +68,16 @@ public class BlogPostController {
             @PathVariable UUID userId,
             @RequestParam(name = "format", defaultValue = "json") String format,
             @RequestParam(name = "contentType", required = false) String contentTypeParam) throws Exception {
-        return blogPostService.getBlogPostsByUserIdAndContentType(userId, format, contentTypeParam);
+        return blogPostService.getBlogPostsByUserIdAndContentType(Collections.singletonList(userId), format, contentTypeParam, false);
+    }
+
+    @PostMapping("/download/bulk")
+    public ResponseEntity<byte[]> bulkDownloadByIds(
+            @RequestParam(name = "format", defaultValue = "json") String format,
+            @RequestParam(name = "contentType", required = true) String contentTypeParam,
+            @RequestBody(required = true) List<UUID> idStrings
+    ) throws Exception {
+        return blogPostService.getBlogPostsByUserIdAndContentType(idStrings, format, contentTypeParam, true);
     }
 
     @GetMapping("/{id}/history")
