@@ -135,19 +135,19 @@ public class UserController {
     }
 
     @PostMapping("/{id}/validate-supportrequests")
-    public ResponseEntity<List<ValidationResponse>> validateSupportRequests(
-            @PathVariable UUID id,
-            @RequestParam(required = true) String contentType) {
+    public ResponseEntity<List<ValidationResponse>> validateSupportRequests(@PathVariable UUID id) {
         userService.getUser(id);
-        List<ValidationResult> results = validationService.runGenericContentValidation(id, contentType);
+        List<ValidationResult> results = validationService.runSupportRequestValidation(id);
         List<ValidationResponse> responses = results.stream()
-                .map(result -> new ValidationResponse(contentType, ValidationResultDto.from(result)))
+                .map(result -> new ValidationResponse("SupportRequest", ValidationResultDto.from(result)))
                 .toList();
         return ResponseEntity.ok(responses);
     }
 
     @PostMapping("/{id}/validate-genericcontent")
-    public ResponseEntity<List<ValidationResponse>> validateGenericContent(@PathVariable UUID id) {
+    public ResponseEntity<List<ValidationResponse>> validateGenericContent(
+            @PathVariable UUID id,
+            @RequestParam(required = true) String contentType) {
         userService.getUser(id);
         List<ValidationResult> results = validationService.runSupportRequestValidation(id);
         List<ValidationResponse> responses = results.stream()
