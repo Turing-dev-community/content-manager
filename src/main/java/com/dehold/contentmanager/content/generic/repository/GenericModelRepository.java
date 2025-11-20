@@ -64,6 +64,15 @@ public class GenericModelRepository {
         return Optional.of(list.getFirst());
     }
 
+    public java.util.List<GenericContentModel> findByUserIdAndContentType(UUID userId, String contentType) {
+        return jdbcTemplate.query(
+                "SELECT * FROM generic_content WHERE user_id = ? AND type = ?",
+                ROW_MAPPER,
+                userId,
+                contentType
+        );
+    }
+
     private void insert(GenericContentModel model) {
         if (model.getCreatedAt() == null) model.setCreatedAt(Instant.now());
         if (model.getUpdatedAt() == null) model.setUpdatedAt(model.getCreatedAt());

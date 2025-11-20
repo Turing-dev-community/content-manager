@@ -22,4 +22,6 @@ public interface ValidationService {
     List<ValidationResult> runSupportResponseValidation(UUID userId);
 
     List<ValidationResult> runSupportRequestValidation(UUID userId);
+
+    List<ValidationResult> runGenericContentValidation(UUID userId, String contentType);
 }
