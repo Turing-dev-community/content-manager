@@ -4,7 +4,8 @@ import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
 import com.dehold.contentmanager.exception.EntityNotFoundException;
 
-import org.springframework.dao.DataAccessException;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.TransientDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.retry.annotation.Backoff;
@@ -32,6 +33,7 @@ public class SupportRequestService {
         maxAttempts = 4,
         backoff = @Backoff(delay = 500, multiplier = 2.0, random = true)
     )
+    @Cacheable(value = "supportRequests")
     public List<SupportRequest> findAll() {
         return repository.findAll();
     }
@@ -42,6 +44,7 @@ public class SupportRequestService {
         maxAttempts = 4,
         backoff = @Backoff(delay = 500, multiplier = 2.0, random = true)
     )
+    @Cacheable(value = "supportRequestById", key = "#id")
     public SupportRequest findById(UUID id) {
         return repository.getById(id)
                 .orElseThrow(() -> EntityNotFoundException.of("CustomerRequest", id.toString()));
@@ -65,15 +68,22 @@ public class SupportRequestService {
         );
     }
 
+    @Recover
+    public SupportRequest recoverFindById(EntityNotFoundException e, UUID id) {
+        throw e; 
+    }
+
     // Keep the optional version for internal use if needed
     public Optional<SupportRequest> findByIdOptional(UUID id) {
         return repository.getById(id);
     }
 
+    @CacheEvict(value = "supportRequests", allEntries = true)
     public void createCustomerRequest(SupportRequest supportRequest) {
         repository.create(supportRequest);
     }
 
+    @CacheEvict(value = {"supportRequests", "supportRequestById"}, key = "#supportRequest.id")
     public void updateCustomerRequest(SupportRequest supportRequest) {
         repository.update(supportRequest);
     }
@@ -82,6 +92,7 @@ public class SupportRequestService {
         repository.create(supportRequest);
     }
 
+    @CacheEvict(value = {"supportRequests", "supportRequestById"}, key = "#id")
     public void deleteById(UUID id) {
         repository.deleteById(id);
     }
