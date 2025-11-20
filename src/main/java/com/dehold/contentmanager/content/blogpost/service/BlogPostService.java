@@ -191,4 +191,17 @@ public class BlogPostService {
     public List<UUID> searchByTerm(String term) {
         return blogPostRepository.searchByTerm(term);
     }
+
+    public void softDeleteBlogPost(UUID id) {
+        // ensure post exists (including soft-deleted)
+        blogPostRepository.getBlogPost(id, true)
+                .orElseThrow(() -> EntityNotFoundException.of("BlogPost", id.toString()));
+
+        blogPostRepository.softDelete(id);
+    }
+
+    public BlogPost getBlogPost(UUID id, boolean includeSoftDeleted) {
+        return blogPostRepository.getBlogPost(id, includeSoftDeleted)
+                .orElseThrow(() -> EntityNotFoundException.of("BlogPost", id.toString()));
+    }
 }

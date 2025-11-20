@@ -33,9 +33,11 @@ public class BlogPostController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BlogPost> getBlogPost(@PathVariable UUID id) {
-        BlogPost blogPost = blogPostService.getBlogPost(id);
-        return ResponseEntity.ok(blogPost);
+    public ResponseEntity<BlogPost> getBlogPost(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "false") boolean includeSoftDeleted) {
+
+        return ResponseEntity.ok(blogPostService.getBlogPost(id, includeSoftDeleted));
     }
 
     @GetMapping
@@ -98,4 +100,9 @@ public class BlogPostController {
         return ResponseEntity.ok(new BlogPostSearchResponse(ids));
     }
 
+    @PatchMapping("/{id}/soft-delete")
+    public ResponseEntity<Void> softDelete(@PathVariable UUID id) {
+        blogPostService.softDeleteBlogPost(id);
+        return ResponseEntity.noContent().build();
+    }
 }

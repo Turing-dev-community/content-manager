@@ -24,13 +24,15 @@ public class BlogPostRepository {
 
     public void createBlogPost(BlogPost blogPost) {
         jdbcTemplate.update(
-                "INSERT INTO blog_post (id, title, content, created_at, updated_at, user_id) VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO blog_post (id, title, content, created_at, updated_at, user_id, soft_deleted, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 blogPost.getId(),
                 blogPost.getTitle(),
                 blogPost.getContent(),
                 blogPost.getCreatedAt(),
                 blogPost.getUpdatedAt(),
-                blogPost.getUserId()
+                blogPost.getUserId(),
+                blogPost.isSoftDeleted(),
+                blogPost.getDeletedAt()
         );
         if (blogPost.getComments() != null) {
             for (Comment c : blogPost.getComments()) {
@@ -85,7 +87,8 @@ public class BlogPostRepository {
     }
 
     private BlogPost mapRowToBlogPost(ResultSet rs, int rowNum) throws SQLException {
-        return new BlogPost(
+
+        BlogPost bp = new BlogPost(
                 UUID.fromString(rs.getString("id")),
                 rs.getString("title"),
                 rs.getString("content"),
@@ -93,7 +96,25 @@ public class BlogPostRepository {
                 rs.getTimestamp("updated_at").toInstant(),
                 UUID.fromString(rs.getString("user_id"))
         );
+
+        // ------- SAFE soft-delete handling (optional columns) --------
+        try {
+            boolean softDeleted = rs.getBoolean("soft_deleted");
+            bp.setSoftDeleted(softDeleted);
+
+            if (softDeleted) {
+                var deletedAtTs = rs.getTimestamp("deleted_at");
+                bp.setDeletedAt(deletedAtTs != null ? deletedAtTs.toInstant() : null);
+            }
+        } catch (SQLException ignored) {
+            // Column doesn't exist in query or schema → default values
+            bp.setSoftDeleted(false);
+            bp.setDeletedAt(null);
+        }
+
+        return bp;
     }
+
 
     private Comment mapRowToComment(ResultSet rs, int rowNum) throws SQLException {
         return new Comment(
@@ -174,5 +195,25 @@ public class BlogPostRepository {
     
         String pattern = "%" + term.trim() + "%";
         return jdbcTemplate.queryForList(sql, UUID.class, pattern, pattern);
+    }
+
+    public void softDelete(UUID id) {
+        jdbcTemplate.update(
+                "UPDATE blog_post SET soft_deleted = TRUE, deleted_at = ? WHERE id = ?",
+                Instant.now(), id
+        );
+    }
+
+    public Optional<BlogPost> getBlogPost(UUID id, boolean includeSoftDeleted) {
+        String sql = includeSoftDeleted ?
+                "SELECT * FROM blog_post WHERE id = ?" :
+                "SELECT * FROM blog_post WHERE id = ? AND soft_deleted = FALSE";
+
+        return jdbcTemplate.query(sql, this::mapRowToBlogPost, id)
+                .stream().findFirst()
+                .map(bp -> {
+                    bp.setComments(loadCommentsForPost(bp.getId()));
+                    return bp;
+                });
     }
 }
