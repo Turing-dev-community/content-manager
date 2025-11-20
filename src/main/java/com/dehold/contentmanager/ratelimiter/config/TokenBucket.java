@@ -1,4 +1,4 @@
-package com.dehold.contentmanager.ratelimiter;
+package com.dehold.contentmanager.ratelimiter.config;
 
 import java.util.concurrent.atomic.AtomicLong;
 
