@@ -151,7 +151,7 @@ public class UserController {
         userService.getUser(id);
         List<ValidationResult> results = validationService.runGenericContentValidation(id, contentType);
         List<ValidationResponse> responses = results.stream()
-                .map(result -> new ValidationResponse("SupportRequest", ValidationResultDto.from(result)))
+                .map(result -> new ValidationResponse(contentType, ValidationResultDto.from(result)))
                 .toList();
         return ResponseEntity.ok(responses);
     }
