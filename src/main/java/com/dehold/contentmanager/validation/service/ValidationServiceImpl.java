@@ -191,7 +191,7 @@ public class ValidationServiceImpl implements ValidationService {
 
     @Override
     public List<ValidationResult> runGenericContentValidation(UUID userId, String contentType) {
-        List<GenericContentModel> genericContentModels = null; // TODO
+        List<GenericContentModel> genericContentModels = genericContentService.findByUserIdAndContentType(userId, contentType);
 
         List<ValidationResult> allResults = new LinkedList<>();
         for (GenericContentModel genericContent : genericContentModels) {

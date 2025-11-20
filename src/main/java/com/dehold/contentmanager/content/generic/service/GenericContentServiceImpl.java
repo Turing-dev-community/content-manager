@@ -5,6 +5,7 @@ import com.dehold.contentmanager.content.generic.repository.GenericModelReposito
 import com.dehold.contentmanager.exception.EntityNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -45,5 +46,10 @@ public class GenericContentServiceImpl implements GenericContentService {
     @Override
     public boolean existsById(UUID id) {
         return repository.existsById(id);
+    }
+
+    @Override
+    public List<GenericContentModel> findByUserIdAndContentType(UUID userId, String contentType) {
+        return repository.findByUserIdAndContentType(userId, contentType);
     }
 }
