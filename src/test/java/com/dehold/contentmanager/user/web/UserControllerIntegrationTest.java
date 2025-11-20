@@ -1493,4 +1493,18 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
         ));
     }
 
+    @Test
+    void givenNonExistentUser_validateGenericContentForUser_shouldReturn404() {
+        UUID nonExistentUserId = UUID.randomUUID();
+
+        ResponseEntity<CustomErrorResponse> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + nonExistentUserId + "/validate-genericcontent?contentType=customContent",
+                null, CustomErrorResponse.class);
+
+        assertEquals(404, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals("The entity User with id " + nonExistentUserId + " does not exist",
+                response.getBody().getError());
+    }
+
 }
