@@ -1,5 +1,7 @@
-package com.dehold.contentmanager.ratelimiter;
+package com.dehold.contentmanager.ratelimiter.controller;
 
+import com.dehold.contentmanager.ratelimiter.config.RateLimitConfig;
+import com.dehold.contentmanager.ratelimiter.service.RateLimitConfigService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;

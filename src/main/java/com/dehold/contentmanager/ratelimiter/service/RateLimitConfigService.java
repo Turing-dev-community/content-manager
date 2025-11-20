@@ -1,10 +1,11 @@
-package com.dehold.contentmanager.ratelimiter;
+package com.dehold.contentmanager.ratelimiter.service;
 
+import com.dehold.contentmanager.ratelimiter.config.RateLimitConfig;
+import com.dehold.contentmanager.ratelimiter.repository.RateLimitConfigRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class RateLimitConfigService {

@@ -1,12 +1,12 @@
-package com.dehold.contentmanager.ratelimiter;
+package com.dehold.contentmanager.ratelimiter.repository;
 
+import com.dehold.contentmanager.ratelimiter.config.RateLimitConfig;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

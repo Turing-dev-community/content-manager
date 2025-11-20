@@ -1,5 +1,7 @@
-package com.dehold.contentmanager.ratelimiter;
+package com.dehold.contentmanager.ratelimiter.config;
 
+import com.dehold.contentmanager.ratelimiter.service.RateLimitConfigService;
+import com.dehold.contentmanager.ratelimiter.service.RateLimitService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;

@@ -1,3 +1,15 @@
+# --- Default Configuration (Active when no specific profile is set) ---
+server:
+  port: 8080
+
+# Define rate limit defaults at the root level, available regardless of profile
+rate-limit:
+  capacity: 100
+  refill-tokens: 100
+  refill-interval-millis: 60000 # 1 minute
+
+# --- Profile: content-manager (Production/External MySQL) ---
+---
 spring:
   config:
     activate:
@@ -34,10 +46,5 @@ spring:
     init:
       mode: always
       schema-locations: classpath:schema.sql
-
-  rate-limit:
-    capacity: 100
-    refillTokens: 100
-    refillIntervalMillis: 60000
 
 
