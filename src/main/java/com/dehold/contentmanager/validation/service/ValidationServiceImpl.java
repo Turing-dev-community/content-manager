@@ -6,6 +6,8 @@ import com.dehold.contentmanager.content.blogpost.service.BlogPostService;
 import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.model.SupportResponse;
 import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
+import com.dehold.contentmanager.content.generic.model.GenericContentModel;
+import com.dehold.contentmanager.content.generic.service.GenericContentService;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
 import com.dehold.contentmanager.validation.pipeline.ValidationPipeline;
 import com.dehold.contentmanager.validation.pipeline.ValidationPipelineBuilder;
@@ -41,17 +43,22 @@ public class ValidationServiceImpl implements ValidationService {
     private final SupportResponseService supportResponseService;
 
     @Autowired
+    private final GenericContentService genericContentService;
+
+    @Autowired
     private final BlogPostService blogPostService;
 
     private final SupportRequestRepository supportRequestRepository;
 
     public ValidationServiceImpl(ValidationResultRepository validationResultRepository,
-                                 ValidationPipelineFactory validationPipelineFactory, BlogPostService blogPostService, SupportResponseService supportResponseService, SupportRequestRepository supportRequestRepository) {
+                                 ValidationPipelineFactory validationPipelineFactory, BlogPostService blogPostService
+            , SupportResponseService supportResponseService, SupportRequestRepository supportRequestRepository, GenericContentService genericContentService) {
         this.supportResponseService = supportResponseService;
         this.blogPostService = blogPostService;
         this.validationPipelineFactory = validationPipelineFactory;
         this.validationResultRepository = validationResultRepository;
         this.supportRequestRepository = supportRequestRepository;
+        this.genericContentService = genericContentService;
     }
 
     @Override
@@ -178,6 +185,24 @@ public class ValidationServiceImpl implements ValidationService {
             }
         }
         //persist the results
+        persistsResults(allResults);
+        return allResults;
+    }
+
+    @Override
+    public List<ValidationResult> runGenericContentValidation(UUID userId, String contentType) {
+        List<GenericContentModel> genericContentModels = genericContentService.findByUserIdAndContentType(userId, contentType);
+
+        List<ValidationResult> allResults = new LinkedList<>();
+        for (GenericContentModel genericContent : genericContentModels) {
+            List<ValidationPipeline<GenericContentModel>> pipelines =
+                    validationPipelineFactory.createValidationPipelineForUserAndContentType(userId, contentType);
+
+            for (ValidationPipeline<GenericContentModel> pipeline : pipelines) {
+                ValidationResult result = pipeline.run(genericContent);
+                allResults.add(result);
+            }
+        }
         persistsResults(allResults);
         return allResults;
     }

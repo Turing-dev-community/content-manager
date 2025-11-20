@@ -144,6 +144,18 @@ public class UserController {
         return ResponseEntity.ok(responses);
     }
 
+    @PostMapping("/{id}/validate-genericcontent")
+    public ResponseEntity<List<ValidationResponse>> validateGenericContent(
+            @PathVariable UUID id,
+            @RequestParam(required = true) String contentType) {
+        userService.getUser(id);
+        List<ValidationResult> results = validationService.runGenericContentValidation(id, contentType);
+        List<ValidationResponse> responses = results.stream()
+                .map(result -> new ValidationResponse(contentType, ValidationResultDto.from(result)))
+                .toList();
+        return ResponseEntity.ok(responses);
+    }
+
     @PostMapping("/{userId}/webhooks")
     public ResponseEntity<Webhook> createWebhook(
             @PathVariable UUID userId,
