@@ -179,7 +179,7 @@ class NumericRangeValidatorTest {
         assertFalse(result.isValid());
         assertEquals(1, result.getErrors().size());
         assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
-        assertTrue(result.getErrors().getFirst().message().contains("at most 100.0"));
+        assertEquals("The field 'content' must be at most 100.0.", result.getErrors().getFirst().message());
     }
 
     @Test
