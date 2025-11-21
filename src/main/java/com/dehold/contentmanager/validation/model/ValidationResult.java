@@ -38,17 +38,6 @@ public class ValidationResult {
         this.runId = null;
     }
 
-    public ValidationResult(UUID id, UUID userId, String contentType, UUID contentId, boolean isValid, List<ValidationError> errors, Instant createdAt, UUID runId) {
-        this.id = id;
-        this.userId = userId;
-        this.contentType = contentType;
-        this.contentId = contentId;
-        this.isValid = isValid;
-        this.errors = errors;
-        this.createdAt = createdAt;
-        this.runId = runId;
-    }
-
     public static ValidationResult valid(String contentType, UUID contentId, UUID userId) {
         return new ValidationResult(contentType, contentId, userId, true, List.of());
     }

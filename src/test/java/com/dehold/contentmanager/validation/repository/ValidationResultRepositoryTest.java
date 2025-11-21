@@ -59,4 +59,88 @@ class ValidationResultRepositoryTest {
                 any(UUID.class)
         );
     }
+
+    @Test
+    void whenUpsertInsertsNewRecord_thenJdbcTemplateMergeCalledWithCorrectValues() {
+        UUID id = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID contentId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        String contentType = "supportrequest";
+
+        Instant createdAt = Instant.now();
+        ValidationResult vr = ValidationResult.fromPersistence(
+                id, userId, contentType, contentId, true, Collections.emptyList(), createdAt
+        );
+
+        validationResultRepository.upsert(vr, runId);
+
+        verify(jdbcTemplate, times(1)).update(
+                startsWith("MERGE INTO validation_result"),
+                eq(id),
+                eq(userId),
+                eq(contentId),
+                eq(contentType),
+                eq(true),
+                eq("[]"),
+                eq(createdAt),
+                eq(runId)
+        );
+    }
+
+    @Test
+    void whenUpsertCalledTwiceWithDifferentRunIds_thenTwoSeparateCallsAreMade() {
+        UUID id = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID contentId = UUID.randomUUID();
+        String contentType = "supportrequest";
+        Instant createdAt = Instant.now();
+
+        ValidationResult vr = ValidationResult.fromPersistence(
+                id, userId, contentType, contentId, true, Collections.emptyList(), createdAt
+        );
+
+        UUID run1 = UUID.randomUUID();
+        UUID run2 = UUID.randomUUID();
+
+        validationResultRepository.upsert(vr, run1);
+        validationResultRepository.upsert(vr, run2);
+
+        verify(jdbcTemplate, times(2)).update(
+                startsWith("MERGE INTO validation_result"),
+                any(), any(), any(), any(), any(), any(), any(), any()
+        );
+    }
+
+    //Duplicate UPSERT calls get merged, not duplicated
+    @Test
+    void whenUpsertCalledTwiceWithSameIdentifiers_thenRepositoryShouldNotCreateDuplicates() {
+
+        UUID id = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID contentId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        String contentType = "supportrequest";
+
+        Instant createdAt = Instant.now();
+
+        ValidationResult vr1 = ValidationResult.fromPersistence(
+                id, userId, contentType, contentId, true, Collections.emptyList(), createdAt
+        );
+
+        ValidationResult vr2 = ValidationResult.fromPersistence(
+                id, userId, contentType, contentId, false, Collections.emptyList(), createdAt
+        );
+
+        validationResultRepository.upsert(vr1, runId);
+        validationResultRepository.upsert(vr2, runId); // same identifiers
+
+        // MERGE should be invoked twice (insert once, update once)
+        verify(jdbcTemplate, times(2)).update(
+                startsWith("MERGE INTO validation_result"),
+                any(), any(), any(), any(), any(), any(), any(), any()
+        );
+    }
+
+
 }
