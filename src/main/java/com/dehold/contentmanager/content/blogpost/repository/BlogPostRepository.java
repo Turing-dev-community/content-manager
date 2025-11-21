@@ -87,6 +87,7 @@ public class BlogPostRepository {
     }
 
     private BlogPost mapRowToBlogPost(ResultSet rs, int rowNum) throws SQLException {
+
         BlogPost bp = new BlogPost(
                 UUID.fromString(rs.getString("id")),
                 rs.getString("title"),
@@ -95,16 +96,39 @@ public class BlogPostRepository {
                 rs.getTimestamp("updated_at").toInstant(),
                 UUID.fromString(rs.getString("user_id"))
         );
+
+        // --- restore persisted state if present in the result set ---
         try {
-            String state = rs.getString("state");
-            if (state != null) {
-                bp.setState(BlogPost.State.valueOf(state));
+            String stateStr = rs.getString("state");
+            if (stateStr != null && !stateStr.isBlank()) {
+                try {
+                    bp.setState(BlogPost.State.valueOf(stateStr));
+                } catch (IllegalArgumentException e) {
+                    // unknown state stored in DB — fallback to DRAFT
+                    bp.setState(BlogPost.State.DRAFT);
+                }
             }
-        } catch (IllegalArgumentException ignored) {
-            // unknown state in DB - leave default
+        } catch (SQLException ignored) {
+            // Column might not exist in older schemas — keep default DRAFT
         }
+        // ------- SAFE soft-delete handling (optional columns) --------
+        try {
+            boolean softDeleted = rs.getBoolean("soft_deleted");
+            bp.setSoftDeleted(softDeleted);
+
+            if (softDeleted) {
+                var deletedAtTs = rs.getTimestamp("deleted_at");
+                bp.setDeletedAt(deletedAtTs != null ? deletedAtTs.toInstant() : null);
+            }
+        } catch (SQLException ignored) {
+            // Column doesn't exist in query or schema → default values
+            bp.setSoftDeleted(false);
+            bp.setDeletedAt(null);
+        }
+
         return bp;
     }
+
 
     private Comment mapRowToComment(ResultSet rs, int rowNum) throws SQLException {
         return new Comment(
@@ -186,4 +210,55 @@ public class BlogPostRepository {
         String pattern = "%" + term.trim() + "%";
         return jdbcTemplate.queryForList(sql, UUID.class, pattern, pattern);
     }
+
+    public void softDelete(UUID id) {
+        jdbcTemplate.update(
+                "UPDATE blog_post SET soft_deleted = TRUE, deleted_at = ? WHERE id = ?",
+                Instant.now(), id
+        );
+    }
+
+    public Optional<BlogPost> getBlogPost(UUID id, boolean includeSoftDeleted) {
+        String sql = includeSoftDeleted ?
+                "SELECT * FROM blog_post WHERE id = ?" :
+                "SELECT * FROM blog_post WHERE id = ? AND soft_deleted = FALSE";
+
+        return jdbcTemplate.query(sql, this::mapRowToBlogPost, id)
+                .stream().findFirst()
+                .map(bp -> {
+                    bp.setComments(loadCommentsForPost(bp.getId()));
+                    return bp;
+                });
+    }
+
+    public List<BlogPost> getPaginatedBlogPosts(int limit, int offset, UUID userId, boolean includeSoftDeleted) {
+        StringBuilder sql = new StringBuilder("SELECT * FROM blog_post WHERE 1=1");
+
+        if (userId != null) {
+            sql.append(" AND user_id = '").append(userId).append("'");
+        }
+        if (!includeSoftDeleted) {
+            sql.append(" AND soft_deleted = false");
+        }
+
+        sql.append(" ORDER BY created_at ASC LIMIT ? OFFSET ?");
+
+        List<BlogPost> posts = jdbcTemplate.query(sql.toString(), this::mapRowToBlogPost, limit, offset);
+        posts.forEach(p -> p.setComments(loadCommentsForPost(p.getId())));
+        return posts;
+    }
+
+    public long countBlogPosts(UUID userId, boolean includeSoftDeleted) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM blog_post WHERE 1=1");
+
+        if (userId != null) {
+            sql.append(" AND user_id = '").append(userId).append("'");
+        }
+        if (!includeSoftDeleted) {
+            sql.append(" AND soft_deleted = false");
+        }
+
+        return jdbcTemplate.queryForObject(sql.toString(), Long.class);
+    }
+
 }

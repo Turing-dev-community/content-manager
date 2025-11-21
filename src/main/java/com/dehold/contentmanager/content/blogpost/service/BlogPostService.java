@@ -1,5 +1,6 @@
 package com.dehold.contentmanager.content.blogpost.service;
 
+import com.dehold.contentmanager.content.blogpost.export.ContentExportType;
 import com.dehold.contentmanager.content.blogpost.export.ExportCsvConverter;
 import com.dehold.contentmanager.content.blogpost.export.ExportResponse;
 import com.dehold.contentmanager.content.blogpost.export.ExportService;
@@ -9,11 +10,16 @@ import com.dehold.contentmanager.content.blogpost.model.Comment;
 import com.dehold.contentmanager.content.blogpost.model.BlogPostHistory;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostHistoryRepository;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
+import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
+import com.dehold.contentmanager.content.customersupport.model.SupportResponse;
 import com.dehold.contentmanager.exception.EntityNotFoundException;
 import com.dehold.contentmanager.common.exception.InvalidStateTransitionException;
 import com.dehold.contentmanager.content.blogpost.model.Page;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -21,7 +27,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,7 +48,7 @@ public class BlogPostService {
         this.objectMapper = objectMapper;
         this.exportService = exportService;
     }
-
+    @CacheEvict(value = {"blogPosts", "blogPostsByUser"}, allEntries = true)
     public BlogPost createBlogPost(String title, String content, UUID userId, List<Comment> comments) {
         BlogPost blogPost = new BlogPost(
                 UUID.randomUUID(),
@@ -55,15 +63,22 @@ public class BlogPostService {
         return blogPost;
     }
 
+    @Cacheable(value = "blogPostById", key = "#id")
     public BlogPost getBlogPost(UUID id) {
         return blogPostRepository.getBlogPost(id)
                 .orElseThrow(() -> EntityNotFoundException.of("BlogPost", id.toString()));
     }
 
+    @Cacheable("blogPosts")
     public List<BlogPost> getAllBlogPosts() {
         return blogPostRepository.getAllBlogPosts();
     }
 
+    @CacheEvict(value = {
+            "blogPosts",
+            "blogPostsByUser",
+            "blogPostById"
+    }, key = "#id", allEntries = true)
     public BlogPost updateBlogPost(UUID id, String title, String content) {
         BlogPost blogPost = getBlogPost(id); // This will now throw EntityNotFoundException if not found
         blogPost.setTitle(title);
@@ -73,10 +88,20 @@ public class BlogPostService {
         return blogPost;
     }
 
+    @CacheEvict(value = {
+            "blogPosts",
+            "blogPostsByUser",
+            "blogPostById"
+    }, allEntries = true)
     public void deleteBlogPost(UUID id) {
         blogPostRepository.deleteBlogPost(id);
     }
 
+    @CacheEvict(value = {
+            "blogPosts",
+            "blogPostsByUser",
+            "blogPostById"
+    }, key = "#id", allEntries = true)
     public BlogPost updateBlogPostVersion(UUID id, String title, String content) {
         // Step 1: Retrieve current post (throws EntityNotFoundException if not found)
         BlogPost existingPost = getBlogPost(id);
@@ -97,11 +122,13 @@ public class BlogPostService {
         return existingPost;
     }
 
-
+    @Cacheable(value = "blogPostsByUser", key = "#userId")
     public List<BlogPost> getBlogPostsByUserId(UUID userId) {
         return blogPostRepository.getBlogPostsByUserId(userId);
     }
 
+    
+    @Cacheable(value = "blogPostsPaginated", key = "#page + '-' + #size + '-' + (#userId != null ? #userId : 'all')")
     public Page<BlogPost> findPaginated(int page, int size, UUID userId) {
         if (page < 0) {
             throw new IllegalArgumentException("Page must be non-negative");
@@ -115,55 +142,69 @@ public class BlogPostService {
         return new Page<>(posts, page, size, total);
     }
 
-    public ResponseEntity<byte[]> getBlogPostsByUserIdAndContentType(UUID userId, String format) throws Exception {
-        ExportResponse resp = exportService.exportAllForUser(userId);
+    // EXPORT — not cached (dynamic, large payload)
+    public ResponseEntity<byte[]> getBlogPostsByUserIdAndContentType(List<UUID> userIds, String format, String contentTypeParam, boolean multiUser) throws Exception {
+
+        // parse contentType param
+        ContentExportType contentType = ContentExportType.fromStringIgnoreCase(contentTypeParam);
+        if (contentTypeParam != null && contentType == null) {
+            String msg = "Invalid contentType: " + contentTypeParam + ". Supported: blogpost, supportrequest, supportresponse";
+            return ResponseEntity.badRequest().contentType(MediaType.TEXT_PLAIN).body(msg.getBytes(StandardCharsets.UTF_8));
+        }
+
+        // Aggregate export results
+        List<BlogPost> posts = new ArrayList<>();
+        List<SupportRequest> reqs = new ArrayList<>();
+        List<SupportResponse> resps = new ArrayList<>();
+
+        for (UUID uid : userIds) {
+            ExportResponse partial = exportService.exportForUserByType(uid, contentType);
+            if (partial != null) {
+                if (partial.getBlogPosts() != null) posts.addAll(partial.getBlogPosts());
+                if (partial.getSupportRequests() != null) reqs.addAll(partial.getSupportRequests());
+                if (partial.getSupportResponses() != null) resps.addAll(partial.getSupportResponses());
+            }
+        }
+
+        ExportResponse combined = new ExportResponse(posts, reqs, resps);
+
+        String filename;
+        if (!multiUser && userIds.size() == 1) {
+            // keep filename identical for single-user export
+            filename = "export-" + userIds.get(0) + "." + format.toLowerCase();
+        } else {
+            // BULK / MULTI-USER → use bulk filename
+            filename = "export-bulk-users." + format.toLowerCase();
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        byte[] payload;
 
         if ("csv".equalsIgnoreCase(format)) {
-            byte[] csvBytes = ExportCsvConverter.toCsvBytes(resp);
-
-            HttpHeaders headers = new HttpHeaders();
+            payload = ExportCsvConverter.toCsvBytes(combined);
             headers.setContentType(MediaType.valueOf("text/csv"));
-            headers.setContentDisposition(
-                    ContentDisposition.attachment()
-                            .filename("export-" + userId + ".csv")
-                            .build()
-            );
-            headers.setContentLength(csvBytes.length);
-            return new ResponseEntity<>(csvBytes, headers, HttpStatus.OK);
         } else if ("xml".equalsIgnoreCase(format)) {
-            byte[] xml = ExportXmlConverter.toXmlBytes(resp);
-
-            HttpHeaders headers = new HttpHeaders();
+            payload = ExportXmlConverter.toXmlBytes(combined);
             headers.setContentType(MediaType.APPLICATION_XML);
-            headers.setContentDisposition(
-                    ContentDisposition.attachment()
-                            .filename("export-" + userId + ".xml")
-                            .build());
-            headers.setContentLength(xml.length);
-
-            return new ResponseEntity<>(xml, headers, HttpStatus.OK);
-        }
-        else {
-            // default json
-            byte[] jsonBytes = objectMapper.writeValueAsBytes(resp);
-
-            HttpHeaders headers = new HttpHeaders();
+        } else {
+            // default = JSON
+            payload = objectMapper.writeValueAsBytes(combined);
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setContentDisposition(
-                    ContentDisposition.attachment()
-                            .filename("export-" + userId + ".json")
-                            .build()
-            );
-            headers.setContentLength(jsonBytes.length);
-
-            return new ResponseEntity<>(jsonBytes, headers, HttpStatus.OK);
         }
+
+        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+        headers.setContentLength(payload.length);
+
+        return new ResponseEntity<>(payload, headers, HttpStatus.OK);
     }
 
+    // HISTORY — not cached (rarely used, changes often)
     public List<BlogPostHistory> getHistory(UUID blogPostId) {
         return blogPostHistoryRepository.getHistoryByBlogPostId(blogPostId);
     }
 
+    // RESTORE — evicts cache
+    @CacheEvict(value = {"blogPosts", "blogPostsByUser", "blogPostById"}, key = "#blogPostId", allEntries = true)
     public BlogPost restoreVersion(UUID blogPostId, int versionNumber) {
         BlogPostHistory version = blogPostHistoryRepository.getHistoryByBlogPostId(blogPostId)
                 .stream()
@@ -174,9 +215,48 @@ public class BlogPostService {
         return getBlogPost(blogPostId);
     }
 
+    @Cacheable(
+        value = "blogPostSearch",
+        key = "#term != null ? #term.trim() : 'EMPTY'",
+        condition = "#term != null && !#term.trim().isEmpty()"
+    )
     public List<UUID> searchByTerm(String term) {
         return blogPostRepository.searchByTerm(term);
     }
+
+    @CacheEvict(value = {"blogPosts", "blogPostsByUser", "blogPostsPaginated", "blogPostById"}, allEntries = true)
+    public void softDeleteBlogPost(UUID id) {
+        // ensure post exists (including soft-deleted)
+        blogPostRepository.getBlogPost(id, true)
+                .orElseThrow(() -> EntityNotFoundException.of("BlogPost", id.toString()));
+
+        blogPostRepository.softDelete(id);
+    }
+
+    @Cacheable(value = "blogPostById", key = "#id + '-' + #includeSoftDeleted")
+    public BlogPost getBlogPost(UUID id, boolean includeSoftDeleted) {
+        return blogPostRepository.getBlogPost(id, includeSoftDeleted)
+                .orElseThrow(() -> EntityNotFoundException.of("BlogPost", id.toString()));
+    }
+
+    @Cacheable(value = "blogPostsPaginated", 
+               key = "#page + '-' + #size + '-' + (#userId != null ? #userId : 'all') + '-' + #includeSoftDeleted")
+    public Page<BlogPost> findPaginated(int page, int size, UUID userId, boolean includeSoftDeleted) {
+        if (page < 0) {
+            throw new IllegalArgumentException("Page must be non-negative");
+        }
+        if (size < 1 || size > 100) {
+            throw new IllegalArgumentException("Size must be between 1 and 100");
+        }
+
+        int offset = page * size;
+
+        List<BlogPost> posts = blogPostRepository.getPaginatedBlogPosts(size, offset, userId, includeSoftDeleted);
+        long total = blogPostRepository.countBlogPosts(userId, includeSoftDeleted);
+
+        return new Page<>(posts, page, size, total);
+    }
+
 
     public BlogPost submitForReview(UUID id) {
         BlogPost blogPost = getBlogPost(id);

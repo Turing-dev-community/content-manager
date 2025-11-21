@@ -17,9 +17,11 @@ public interface ValidationService {
 
     List<ValidationResult> runBlogPostValidation(UUID userId);
 
-    ValidationReportDto generateValidationReport(UUID userId);
+    ValidationReportDto generateValidationReport(UUID userId, boolean detailed);
 
     List<ValidationResult> runSupportResponseValidation(UUID userId);
 
     List<ValidationResult> runSupportRequestValidation(UUID userId);
+
+    List<ValidationResult> runGenericContentValidation(UUID userId, String contentType);
 }

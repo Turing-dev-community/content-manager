@@ -1,13 +1,15 @@
 package com.dehold.contentmanager.rateLimiter;
 
 import com.dehold.contentmanager.ContentManagerApplicationTests;
-import com.dehold.contentmanager.ratelimiter.RateLimitInterceptor;
-import com.dehold.contentmanager.ratelimiter.RateLimitService;
-import com.dehold.contentmanager.ratelimiter.TokenBucket;
+
+import com.dehold.contentmanager.ratelimiter.config.RateLimitInterceptor;
+import com.dehold.contentmanager.ratelimiter.config.TokenBucket;
+import com.dehold.contentmanager.ratelimiter.service.RateLimitService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -37,10 +39,11 @@ public class RateLimitInterceptorTest  extends ContentManagerApplicationTests {
 
     private MockMvc mockMvc;
 
+    @Autowired
+    private RateLimitService service;
+
     @BeforeEach
     void setup() {
-        // Create RateLimitService with small bucket (for easy testing)
-        RateLimitService service = new RateLimitService(100, 100, 60000);
 
         // Register interceptor manually
         RateLimitInterceptor interceptor = new RateLimitInterceptor(service);
@@ -138,15 +141,19 @@ public class RateLimitInterceptorTest  extends ContentManagerApplicationTests {
         RateLimitService service = mock(RateLimitService.class);
         TokenBucket bucket = mock(TokenBucket.class);
 
+        // Use ArgumentCaptor to capture the key passed to the service
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+
+        // Mock the service to return a bucket for ANY string key (to prevent NPE)
+        when(service.getBucketForKey(anyString())).thenReturn(bucket);
         when(bucket.tryConsume(1)).thenReturn(true);
-        when(service.getBucketForKey("user:john")).thenReturn(bucket);
 
         RateLimitInterceptor interceptor = new RateLimitInterceptor(service);
 
         HttpServletRequest req = mock(HttpServletRequest.class);
         HttpServletResponse res = mock(HttpServletResponse.class);
 
-        Principal p = () -> "john";
+        Principal p = () -> "john"; // The expected username
 
         when(req.getRequestURI()).thenReturn("/api/test");
         when(req.getUserPrincipal()).thenReturn(p);
@@ -154,16 +161,26 @@ public class RateLimitInterceptorTest  extends ContentManagerApplicationTests {
         boolean allowed = interceptor.preHandle(req, res, new Object());
 
         assertTrue(allowed);
-        verify(service).getBucketForKey("user:john");
+
+        // Verify that getBucketForKey was called and capture the argument
+        verify(service).getBucketForKey(keyCaptor.capture());
+
+        // Assert the captured key is the expected format "user:{principalName}"
+        assertEquals("global:user:john", keyCaptor.getValue());
     }
+
 
     @Test
     void shouldFallbackToIpIfNoPrincipalAndNoHeader() throws Exception {
         RateLimitService service = mock(RateLimitService.class);
         TokenBucket bucket = mock(TokenBucket.class);
 
+        // Use ArgumentCaptor to capture the key passed to the service
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+
+        // Mock the service to return a bucket for ANY string key (to prevent NPE)
+        when(service.getBucketForKey(anyString())).thenReturn(bucket);
         when(bucket.tryConsume(1)).thenReturn(true);
-        when(service.getBucketForKey("ip:10.0.0.5")).thenReturn(bucket);
 
         RateLimitInterceptor interceptor = new RateLimitInterceptor(service);
 
@@ -176,6 +193,11 @@ public class RateLimitInterceptorTest  extends ContentManagerApplicationTests {
         boolean allowed = interceptor.preHandle(req, res, new Object());
 
         assertTrue(allowed);
-        verify(service).getBucketForKey("ip:10.0.0.5");
+
+        // Verify that getBucketForKey was called and capture the argument
+        verify(service).getBucketForKey(keyCaptor.capture());
+
+        // Assert the captured key is the expected format "ip:{remoteAddr}"
+        assertEquals("global:ip:10.0.0.5", keyCaptor.getValue());
     }
 }

@@ -2,6 +2,8 @@ package com.dehold.contentmanager.validation.pipeline;
 
 import com.dehold.contentmanager.content.Content;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
+import com.dehold.contentmanager.content.generic.model.ContentFieldValue;
+import com.dehold.contentmanager.content.generic.model.GenericContentModel;
 import com.dehold.contentmanager.validation.model.ContentTypeRegistry;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.model.ValidationStepModel;
@@ -54,9 +56,18 @@ public class ValidationPipelineFactory {
     }
 
     private <T extends Content> Function<T, String> getFieldExtractor(String fieldName, String contentType) {
-        Class<? extends Content> contentClass = ContentTypeRegistry.CONTENT_TYPES.get(contentType.toLowerCase());
-        if (contentClass == null) {
-            throw new IllegalArgumentException("Unknown content type: " + contentType);
+        Class<? extends Content> contentClass = ContentTypeRegistry.getContentClass(contentType);
+
+        if (contentClass.equals(GenericContentModel.class)) {
+            return (Function<T, String>) (content -> {
+                GenericContentModel genericContent = (GenericContentModel) content;
+                ContentFieldValue fieldValue = genericContent.getFieldNameToValue().get(fieldName);
+                if (fieldValue == null) {
+                    return null;
+                }
+                Object value = fieldValue.getValue();
+                return value != null ? value.toString() : null;
+            });
         }
 
         String getterMethodName = "get" + capitalize(fieldName);

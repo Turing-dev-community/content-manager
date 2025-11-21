@@ -23,6 +23,8 @@ public class BlogPost implements Content {
     private Instant updatedAt;
     private UUID userId; // Foreign key to User
     private List<Comment> comments = new ArrayList<>();
+    private boolean softDeleted;
+    private Instant deletedAt;
     private State state = State.DRAFT; // Default state is DRAFT
 
     public BlogPost() {
@@ -40,6 +42,18 @@ public class BlogPost implements Content {
     public BlogPost(UUID id, String title, String content, Instant createdAt, Instant updatedAt, UUID userId, List<Comment> comments) {
         this(id, title, content, createdAt, updatedAt, userId);
         if (comments != null) this.comments = comments;
+    }
+
+    public BlogPost(UUID id, String title, String content, Instant createdAt, Instant updatedAt, UUID userId, List<Comment> comments, boolean softDeleted, Instant deletedAt) {
+        this.id = id;
+        this.title = title;
+        this.content = content;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+        this.userId = userId;
+        this.comments = comments;
+        this.softDeleted = softDeleted;
+        this.deletedAt = deletedAt;
     }
 
     @Override
@@ -97,6 +111,22 @@ public class BlogPost implements Content {
 
     public void setComments(List<Comment> comments) {
         this.comments = comments;
+    }
+
+    public boolean isSoftDeleted() {
+        return softDeleted;
+    }
+
+    public void setSoftDeleted(boolean softDeleted) {
+        this.softDeleted = softDeleted;
+    }
+
+    public Instant getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(Instant deletedAt) {
+        this.deletedAt = deletedAt;
     }
 
     public State getState() {
