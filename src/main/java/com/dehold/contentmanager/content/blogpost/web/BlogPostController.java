@@ -33,17 +33,20 @@ public class BlogPostController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BlogPost> getBlogPost(@PathVariable UUID id) {
-        BlogPost blogPost = blogPostService.getBlogPost(id);
-        return ResponseEntity.ok(blogPost);
+    public ResponseEntity<BlogPost> getBlogPost(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "false") boolean includeSoftDeleted) {
+
+        return ResponseEntity.ok(blogPostService.getBlogPost(id, includeSoftDeleted));
     }
 
     @GetMapping
     public ResponseEntity<Page<BlogPost>> getBlogPosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) UUID userId) {
-        Page<BlogPost> response = blogPostService.findPaginated(page, size, userId);
+            @RequestParam(required = false) UUID userId,
+            @RequestParam(defaultValue = "false") boolean includeSoftDeleted) {
+        Page<BlogPost> response = blogPostService.findPaginated(page, size, userId, includeSoftDeleted);
         return ResponseEntity.ok(response);
     }
 
@@ -98,4 +101,9 @@ public class BlogPostController {
         return ResponseEntity.ok(new BlogPostSearchResponse(ids));
     }
 
+    @PatchMapping("/{id}/soft-delete")
+    public ResponseEntity<Void> softDelete(@PathVariable UUID id) {
+        blogPostService.softDeleteBlogPost(id);
+        return ResponseEntity.noContent().build();
+    }
 }
