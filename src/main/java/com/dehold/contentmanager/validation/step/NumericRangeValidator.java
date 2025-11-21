@@ -33,7 +33,7 @@ public class NumericRangeValidator<T extends Content> implements ValidationStep<
         try {
             double numericValue = Double.parseDouble(value);
 
-            if (minValue != null && numericValue < minValue) {
+            if (minValue != null && numericValue <= minValue) {
                 return ValidationResult.invalid(
                         content.getClass().getSimpleName(),
                         content.getId(),
@@ -42,7 +42,7 @@ public class NumericRangeValidator<T extends Content> implements ValidationStep<
                 );
             }
 
-            if (maxValue != null && numericValue > maxValue) {
+            if (maxValue != null && numericValue >= maxValue) {
                 return ValidationResult.invalid(
                         content.getClass().getSimpleName(),
                         content.getId(),
@@ -69,11 +69,11 @@ public class NumericRangeValidator<T extends Content> implements ValidationStep<
     }
 
     public static String errorMessageTooSmall(String fieldName, Double minValue) {
-        return String.format("The field '%s' must be at least %s.", fieldName, minValue);
+        return String.format("The field '%s' must be greater than %s.", fieldName, minValue);
     }
 
     public static String errorMessageTooLarge(String fieldName, Double maxValue) {
-        return String.format("The field '%s' must be at most %s.", fieldName, maxValue);
+        return String.format("The field '%s' must be less than %s.", fieldName, maxValue);
     }
 
     public static String errorMessageNotNumeric(String fieldName) {

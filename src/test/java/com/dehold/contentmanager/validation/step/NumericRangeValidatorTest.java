@@ -35,7 +35,7 @@ class NumericRangeValidatorTest {
         assertFalse(result.isValid());
         assertEquals(1, result.getErrors().size());
         assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
-        assertEquals("The field 'content' must be at least 0.0.", result.getErrors().getFirst().message());
+        assertEquals("The field 'content' must be greater than 0.0.", result.getErrors().getFirst().message());
     }
 
     @Test
@@ -49,7 +49,7 @@ class NumericRangeValidatorTest {
         assertFalse(result.isValid());
         assertEquals(1, result.getErrors().size());
         assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
-        assertEquals("The field 'content' must be at most 100.0.", result.getErrors().getFirst().message());
+        assertEquals("The field 'content' must be less than 100.0.", result.getErrors().getFirst().message());
     }
 
     @Test
@@ -75,7 +75,7 @@ class NumericRangeValidatorTest {
         assertFalse(result.isValid());
         assertEquals(1, result.getErrors().size());
         assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
-        assertEquals("The field 'content' must be at least 5.0.", result.getErrors().getFirst().message());
+        assertEquals("The field 'content' must be greater than 5.0.", result.getErrors().getFirst().message());
     }
 
     @Test
@@ -89,7 +89,7 @@ class NumericRangeValidatorTest {
         assertFalse(result.isValid());
         assertEquals(1, result.getErrors().size());
         assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
-        assertEquals("The field 'content' must be at most 100.0.", result.getErrors().getFirst().message());
+        assertEquals("The field 'content' must be less than 100.0.", result.getErrors().getFirst().message());
     }
 
     @Test
@@ -165,7 +165,7 @@ class NumericRangeValidatorTest {
         assertFalse(result.isValid());
         assertEquals(1, result.getErrors().size());
         assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
-        assertEquals("The field 'content' must be at least 10.0.", result.getErrors().getFirst().message());
+        assertEquals("The field 'content' must be greater than 10.0.", result.getErrors().getFirst().message());
     }
 
     @Test
@@ -179,31 +179,35 @@ class NumericRangeValidatorTest {
         assertFalse(result.isValid());
         assertEquals(1, result.getErrors().size());
         assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
-        assertEquals("The field 'content' must be at most 100.0.", result.getErrors().getFirst().message());
+        assertEquals("The field 'content' must be less than 100.0.", result.getErrors().getFirst().message());
     }
 
     @Test
-    void givenValueAtMinimumBoundary_whenValidate_thenReturnValidResult() {
+    void givenValueAtMinimumBoundary_whenValidate_thenReturnInvalidResult() {
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Title", "0", Instant.now(), Instant.now(), UUID.randomUUID());
         Function<BlogPost, String> getter = BlogPost::getContent;
         NumericRangeValidator<BlogPost> validator = new NumericRangeValidator<>(getter, "content", 0.0, 100.0);
 
         ValidationResult result = validator.validate(blogPost);
 
-        assertTrue(result.isValid());
-        assertEquals(0, result.getErrors().size());
+        assertFalse(result.isValid());
+        assertEquals(1, result.getErrors().size());
+        assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
+        assertEquals("The field 'content' must be greater than 0.0.", result.getErrors().getFirst().message());
     }
 
     @Test
-    void givenValueAtMaximumBoundary_whenValidate_thenReturnValidResult() {
+    void givenValueAtMaximumBoundary_whenValidate_thenReturnInvalidResult() {
         BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Title", "100", Instant.now(), Instant.now(), UUID.randomUUID());
         Function<BlogPost, String> getter = BlogPost::getContent;
         NumericRangeValidator<BlogPost> validator = new NumericRangeValidator<>(getter, "content", 0.0, 100.0);
 
         ValidationResult result = validator.validate(blogPost);
 
-        assertTrue(result.isValid());
-        assertEquals(0, result.getErrors().size());
+        assertFalse(result.isValid());
+        assertEquals(1, result.getErrors().size());
+        assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
+        assertEquals("The field 'content' must be less than 100.0.", result.getErrors().getFirst().message());
     }
 
     @Test
