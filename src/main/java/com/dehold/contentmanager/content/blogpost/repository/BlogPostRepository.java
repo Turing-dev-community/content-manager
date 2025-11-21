@@ -24,7 +24,7 @@ public class BlogPostRepository {
 
     public void createBlogPost(BlogPost blogPost) {
         jdbcTemplate.update(
-            "INSERT INTO blog_post (id, title, content, created_at, updated_at, state, user_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO blog_post (id, title, content, created_at, updated_at, state, user_id, soft_deleted, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             blogPost.getId(),
             blogPost.getTitle(),
             blogPost.getContent(),
