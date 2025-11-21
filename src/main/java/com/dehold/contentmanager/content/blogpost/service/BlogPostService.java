@@ -22,12 +22,18 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class BlogPostService {
@@ -152,6 +158,54 @@ public class BlogPostService {
             // BULK / MULTI-USER → use bulk filename
             filename = "export-bulk-users." + format.toLowerCase();
         }
+
+        HttpHeaders headers = new HttpHeaders();
+        byte[] payload;
+
+        if ("csv".equalsIgnoreCase(format)) {
+            payload = ExportCsvConverter.toCsvBytes(combined);
+            headers.setContentType(MediaType.valueOf("text/csv"));
+        } else if ("xml".equalsIgnoreCase(format)) {
+            payload = ExportXmlConverter.toXmlBytes(combined);
+            headers.setContentType(MediaType.APPLICATION_XML);
+        } else {
+            // default = JSON
+            payload = objectMapper.writeValueAsBytes(combined);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+        }
+
+        headers.setContentDisposition(ContentDisposition.attachment().filename(filename).build());
+        headers.setContentLength(payload.length);
+
+        return new ResponseEntity<>(payload, headers, HttpStatus.OK);
+    }
+
+    public ResponseEntity<byte[]> bulkDownloadByContentIds(List<UUID> contentIds, String format, String contentTypeParam) throws Exception {
+
+        // parse contentType param
+        ContentExportType contentType = ContentExportType.fromStringIgnoreCase(contentTypeParam);
+        if (contentTypeParam != null && contentType == null) {
+            String msg = "Invalid contentType: " + contentTypeParam + ". Supported: blogpost, supportrequest, supportresponse";
+            return ResponseEntity.badRequest().contentType(MediaType.TEXT_PLAIN).body(msg.getBytes(StandardCharsets.UTF_8));
+        }
+
+        // Aggregate export results
+        List<BlogPost> posts = new ArrayList<>();
+        List<SupportRequest> reqs = new ArrayList<>();
+        List<SupportResponse> resps = new ArrayList<>();
+
+        for (UUID id : contentIds) {
+            ExportResponse partial = exportService.exportByContentIdsAndType(id, contentType);
+            if (partial != null) {
+                if (partial.getBlogPosts() != null) posts.addAll(partial.getBlogPosts());
+                if (partial.getSupportRequests() != null) reqs.addAll(partial.getSupportRequests());
+                if (partial.getSupportResponses() != null) resps.addAll(partial.getSupportResponses());
+            }
+        }
+
+        ExportResponse combined = new ExportResponse(posts, reqs, resps);
+
+        String filename = "export-bulk-contents." + format.toLowerCase();
 
         HttpHeaders headers = new HttpHeaders();
         byte[] payload;
