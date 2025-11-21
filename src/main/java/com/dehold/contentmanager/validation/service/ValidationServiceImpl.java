@@ -8,6 +8,7 @@ import com.dehold.contentmanager.content.customersupport.model.SupportResponse;
 import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
 import com.dehold.contentmanager.content.generic.model.GenericContentModel;
 import com.dehold.contentmanager.content.generic.service.GenericContentService;
+import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
 import com.dehold.contentmanager.validation.pipeline.ValidationPipeline;
 import com.dehold.contentmanager.validation.pipeline.ValidationPipelineBuilder;
@@ -24,11 +25,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.dehold.contentmanager.content.customersupport.service.SupportResponseService;
 
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.HashMap;
+import java.util.stream.Collectors;
 
 @Service
 public class ValidationServiceImpl implements ValidationService {
@@ -90,17 +93,76 @@ public class ValidationServiceImpl implements ValidationService {
     }
 
     @Override
-    public ValidationReportDto generateValidationReport(UUID userId) {
+    public ValidationReportDto generateValidationReport(UUID userId, boolean detailed) {
+        if (userId == null) {
+            // keep behavior simple and safe: zero report
+            ValidationReportDto empty = new ValidationReportDto(0, Map.of());
+            if (detailed) {
+                empty.setErrorCountsPerContentTypes(Map.of());
+                empty.setErrorCountsPerContentTypesAndErrorCode(Map.of());
+            }
+            return empty;
+        }
+
         List<ValidationResult> results = validationResultRepository.findByUserId(userId);
+        if (results == null || results.isEmpty()) {
+            ValidationReportDto empty = new ValidationReportDto(0, Map.of());
+            if (detailed) {
+                empty.setErrorCountsPerContentTypes(Map.of());
+                empty.setErrorCountsPerContentTypesAndErrorCode(Map.of());
+            }
+            return empty;
+        }
+
         int totalErrorCount = 0;
         Map<String, Integer> codeCounts = new HashMap<>();
+
+        // detailed maps (integers)
+        Map<String, Integer> perContentCounts = new HashMap<>();
+        Map<String, Map<String, Integer>> perContentAndCode = new HashMap<>();
+
         for (ValidationResult result : results) {
-            totalErrorCount += result.getErrors().size();
-            result.getErrors().forEach(error -> codeCounts.merge(error.code(), 1, Integer::sum));
+            List<ValidationError> errors = result.getErrors();
+            if (errors == null || errors.isEmpty()) continue;
+
+            String ct = result.getContentType();
+            String contentTypeKey = (ct == null) ? null : ct.toLowerCase();
+
+            for (ValidationError error : errors) {
+                if (error == null) continue;
+                String code = error.code();
+                if (code == null) continue;
+
+                // global counts
+                totalErrorCount++;
+                codeCounts.merge(code, 1, Integer::sum);
+
+                if (detailed && contentTypeKey != null) {
+                    perContentCounts.merge(contentTypeKey, 1, Integer::sum);
+                    perContentAndCode
+                            .computeIfAbsent(contentTypeKey, k -> new HashMap<>())
+                            .merge(code, 1, Integer::sum);
+                }
+            }
         }
+
+        // convert global counts to Map<String,String> (existing DTO expectation)
         Map<String, String> errorCodeToErrorCount = new HashMap<>();
         codeCounts.forEach((k, v) -> errorCodeToErrorCount.put(k, String.valueOf(v)));
-        return new ValidationReportDto(totalErrorCount, errorCodeToErrorCount);
+
+        ValidationReportDto dto = new ValidationReportDto(totalErrorCount, errorCodeToErrorCount);
+
+        if (!detailed) {
+            dto.setErrorCountsPerContentTypes(null);
+            dto.setErrorCountsPerContentTypesAndErrorCode(null);
+            return dto;
+        }
+
+        // detailed: attach integer maps directly
+        dto.setErrorCountsPerContentTypes(perContentCounts);
+        dto.setErrorCountsPerContentTypesAndErrorCode(perContentAndCode);
+
+        return dto;
     }
 
     private List<ValidationResult> runValidationPipelinesForBlogPost(UUID userId, BlogPost blogPost) {

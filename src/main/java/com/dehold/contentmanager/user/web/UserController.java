@@ -87,9 +87,9 @@ public class UserController {
     }
 
     @GetMapping("/{id}/validation-report")
-    public ResponseEntity<ValidationReportDto> getValidationReportByUserId(@PathVariable UUID id) {
+    public ResponseEntity<ValidationReportDto> getValidationReportByUserId(@PathVariable UUID id, @RequestParam(name = "detailed", defaultValue = "false") boolean detailed) {
         userService.getUser(id); // Check for the user to be existent
-        ValidationReportDto report = validationService.generateValidationReport(id);
+        ValidationReportDto report = validationService.generateValidationReport(id, detailed);
         return ResponseEntity.ok(report);
     }
 

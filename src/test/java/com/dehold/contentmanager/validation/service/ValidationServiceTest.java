@@ -109,7 +109,7 @@ class ValidationServiceTest {
         ValidationResult result = ValidationResult.valid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId);
         when(repository.findByUserId(userId)).thenReturn(List.of(result));
 
-        ValidationReportDto report = validationService.generateValidationReport(userId);
+        ValidationReportDto report = validationService.generateValidationReport(userId, false);
         assertNotNull(report);
         assertEquals(0, report.getTotalErrorCount());
         assertTrue(report.getErrorCodeToErrorCount().isEmpty());
@@ -126,7 +126,7 @@ class ValidationServiceTest {
         ValidationResult result = ValidationResult.invalid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId, errors);
         when(repository.findByUserId(userId)).thenReturn(List.of(result));
 
-        ValidationReportDto report = validationService.generateValidationReport(userId);
+        ValidationReportDto report = validationService.generateValidationReport(userId, false);
         assertNotNull(report);
         assertEquals(3, report.getTotalErrorCount());
         assertEquals("2", report.getErrorCodeToErrorCount().get(LengthValidator.ERROR_CODE));
@@ -142,7 +142,7 @@ class ValidationServiceTest {
         ValidationResult result3 = ValidationResult.valid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId);
         when(repository.findByUserId(userId)).thenReturn(List.of(result1, result2, result3));
 
-        ValidationReportDto report = validationService.generateValidationReport(userId);
+        ValidationReportDto report = validationService.generateValidationReport(userId, false);
         assertNotNull(report);
         assertEquals(0, report.getTotalErrorCount());
         assertTrue(report.getErrorCodeToErrorCount().isEmpty());
@@ -169,7 +169,7 @@ class ValidationServiceTest {
         ValidationResult result3 = ValidationResult.invalid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId, errors3);
         when(repository.findByUserId(userId)).thenReturn(List.of(result1, result2, result3));
 
-        ValidationReportDto report = validationService.generateValidationReport(userId);
+        ValidationReportDto report = validationService.generateValidationReport(userId, false);
         assertNotNull(report);
         assertEquals(6, report.getTotalErrorCount());
         assertEquals("4", report.getErrorCodeToErrorCount().get(LengthValidator.ERROR_CODE));
