@@ -16,16 +16,6 @@ public class ValidationReportDto {
         this.errorCodeToErrorCount = errorCodeToErrorCount;
     }
 
-    public ValidationReportDto(int totalErrorCount,
-                               Map<String, String> errorCodeToErrorCount,
-                               Map<String, Integer> errorCountsPerContentTypes,
-                               Map<String, Map<String, Integer>> errorCountsPerContentTypesAndErrorCode) {
-        this.totalErrorCount = totalErrorCount;
-        this.errorCodeToErrorCount = errorCodeToErrorCount;
-        this.errorCountsPerContentTypes = errorCountsPerContentTypes;
-        this.errorCountsPerContentTypesAndErrorCode = errorCountsPerContentTypesAndErrorCode;
-    }
-
     public ValidationReportDto() {}
 
     public int getTotalErrorCount() {

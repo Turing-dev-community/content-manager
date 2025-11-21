@@ -94,10 +94,30 @@ public class ValidationServiceImpl implements ValidationService {
 
     @Override
     public ValidationReportDto generateValidationReport(UUID userId, boolean detailed) {
+        if (userId == null) {
+            // keep behavior simple and safe: zero report
+            ValidationReportDto empty = new ValidationReportDto(0, Map.of());
+            if (detailed) {
+                empty.setErrorCountsPerContentTypes(Map.of());
+                empty.setErrorCountsPerContentTypesAndErrorCode(Map.of());
+            }
+            return empty;
+        }
+
         List<ValidationResult> results = validationResultRepository.findByUserId(userId);
+        if (results == null || results.isEmpty()) {
+            ValidationReportDto empty = new ValidationReportDto(0, Map.of());
+            if (detailed) {
+                empty.setErrorCountsPerContentTypes(Map.of());
+                empty.setErrorCountsPerContentTypesAndErrorCode(Map.of());
+            }
+            return empty;
+        }
+
         int totalErrorCount = 0;
         Map<String, Integer> codeCounts = new HashMap<>();
-        // detailed maps
+
+        // detailed maps (integers)
         Map<String, Integer> perContentCounts = new HashMap<>();
         Map<String, Map<String, Integer>> perContentAndCode = new HashMap<>();
 
@@ -105,16 +125,19 @@ public class ValidationServiceImpl implements ValidationService {
             List<ValidationError> errors = result.getErrors();
             if (errors == null || errors.isEmpty()) continue;
 
-            // determine a content type key
-            String contentTypeKey = "unknown";
             String ct = result.getContentType();
-            if (ct != null) contentTypeKey = ct.toLowerCase();
+            String contentTypeKey = (ct == null) ? null : ct.toLowerCase();
 
             for (ValidationError error : errors) {
+                if (error == null) continue;
+                String code = error.code();
+                if (code == null) continue;
+
+                // global counts
                 totalErrorCount++;
-                String code = (error == null || error.code() == null) ? "UNKNOWN" : error.code();
                 codeCounts.merge(code, 1, Integer::sum);
-                if (detailed) {
+
+                if (detailed && contentTypeKey != null) {
                     perContentCounts.merge(contentTypeKey, 1, Integer::sum);
                     perContentAndCode
                             .computeIfAbsent(contentTypeKey, k -> new HashMap<>())
@@ -130,20 +153,12 @@ public class ValidationServiceImpl implements ValidationService {
         ValidationReportDto dto = new ValidationReportDto(totalErrorCount, errorCodeToErrorCount);
 
         if (!detailed) {
+            dto.setErrorCountsPerContentTypes(null);
+            dto.setErrorCountsPerContentTypesAndErrorCode(null);
             return dto;
         }
 
-        // Prepare detailed maps as Map<String,String> and Map<String, Map<String,String>>
-        Map<String, String> perContentCountsStr = perContentCounts.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> String.valueOf(e.getValue())));
-
-        Map<String, Map<String, String>> perContentAndCodeStr = new LinkedHashMap<>();
-        for (Map.Entry<String, Map<String, Integer>> e : perContentAndCode.entrySet()) {
-            Map<String, String> inner = e.getValue().entrySet().stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, ie -> String.valueOf(ie.getValue())));
-            perContentAndCodeStr.put(e.getKey(), inner);
-        }
-
+        // detailed: attach integer maps directly
         dto.setErrorCountsPerContentTypes(perContentCounts);
         dto.setErrorCountsPerContentTypesAndErrorCode(perContentAndCode);
 

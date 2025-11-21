@@ -13,151 +13,121 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 class ValidationServiceGenerateReportTest {
+
     @Mock
     private ValidationResultRepository repository;
 
     @InjectMocks
     private ValidationServiceImpl service;
 
-    private ValidationPipelineFactory pipelineFactory;
-    private BlogPostService blogPostService;
-    private SupportRequestRepository supportRepo;
-    private SupportResponseService supportResponseService;
-    private GenericContentService genericContentService;
-
     @BeforeEach
-    void setUp() {
+    void setup() {
         MockitoAnnotations.openMocks(this);
-        pipelineFactory = mock(ValidationPipelineFactory.class);
-        blogPostService = mock(BlogPostService.class);
-        supportRepo = mock(SupportRequestRepository.class);
-        supportResponseService = mock(SupportResponseService.class);
-        genericContentService = mock(GenericContentService.class);
-        repository = Mockito.mock(ValidationResultRepository.class);
         service = new ValidationServiceImpl(
                 repository,
-                pipelineFactory,
-                blogPostService,
-                supportResponseService,
-                supportRepo,
-                genericContentService
+                mock(ValidationPipelineFactory.class),
+                mock(BlogPostService.class),
+                mock(SupportResponseService.class),
+                mock(SupportRequestRepository.class),
+                mock(GenericContentService.class)
         );
     }
 
     @Test
-    void summaryMode_countsAllErrorsAndCodesCorrectly() {
+    void summaryMode_countsAllErrorsCorrectly_andDetailedFieldsAreNull() {
         UUID userId = UUID.randomUUID();
 
-        ValidationError e1 = Mockito.mock(ValidationError.class);
-        when(e1.code()).thenReturn("LENGTH_VALIDATION_FAILED");
+        ValidationError e1 = mock(ValidationError.class);
+        when(e1.code()).thenReturn("LEN");
 
-        ValidationError e2 = Mockito.mock(ValidationError.class);
-        when(e2.code()).thenReturn("FORBIDDEN_WORD_VALIDATION_FAILED");
+        ValidationError e2 = mock(ValidationError.class);
+        when(e2.code()).thenReturn("PHONE");
 
-        ValidationResult vr1 = Mockito.mock(ValidationResult.class);
+        ValidationResult vr1 = mock(ValidationResult.class);
         when(vr1.getErrors()).thenReturn(List.of(e1));
 
-        ValidationResult vr2 = Mockito.mock(ValidationResult.class);
+        ValidationResult vr2 = mock(ValidationResult.class);
         when(vr2.getErrors()).thenReturn(List.of(e1, e2));
 
         when(repository.findByUserId(userId)).thenReturn(List.of(vr1, vr2));
 
         ValidationReportDto dto = service.generateValidationReport(userId, false);
 
-        assertNotNull(dto);
-        assertEquals(3, dto.getTotalErrorCount(), "Total error count should be sum of all errors");
-        Map<String, String> codeMap = dto.getErrorCodeToErrorCount();
-        assertNotNull(codeMap);
-        assertEquals("2", codeMap.get("LENGTH_VALIDATION_FAILED"));
-        assertEquals("1", codeMap.get("FORBIDDEN_WORD_VALIDATION_FAILED"));
+        assertEquals(3, dto.getTotalErrorCount());
+        assertEquals("2", dto.getErrorCodeToErrorCount().get("LEN"));
+        assertEquals("1", dto.getErrorCodeToErrorCount().get("PHONE"));
 
-        // In summary mode detailed maps should be null or empty
-        assertTrue(dto.getErrorCountsPerContentTypes() == null || dto.getErrorCountsPerContentTypes().isEmpty());
-        assertTrue(dto.getErrorCountsPerContentTypesAndErrorCode() == null || dto.getErrorCountsPerContentTypesAndErrorCode().isEmpty());
+        // As per review: detailed fields MUST be null in summary mode
+        assertNull(dto.getErrorCountsPerContentTypes());
+        assertNull(dto.getErrorCountsPerContentTypesAndErrorCode());
     }
 
     @Test
-    void detailedMode_producesPerContentAndPerContentPerCodeCounts() {
+    void detailedMode_twoDifferentContentTypes_areCountedSeparately() {
         UUID userId = UUID.randomUUID();
 
-        ValidationError eLen = Mockito.mock(ValidationError.class);
+        ValidationError eLen = mock(ValidationError.class);
         when(eLen.code()).thenReturn("LENGTH_VALIDATION_FAILED");
 
-        ValidationError ePhone = Mockito.mock(ValidationError.class);
+        ValidationError ePhone = mock(ValidationError.class);
         when(ePhone.code()).thenReturn("PHONE_NUMBER_FORBIDDEN_VALIDATION_FAILED");
 
-        // vr1: two errors
-        ValidationResult vr1 = Mockito.mock(ValidationResult.class);
-        when(vr1.getErrors()).thenReturn(List.of(eLen, ePhone));
-        // vr1.getContentType() can be null in tests; service will use "unknown" key.
-        when(vr1.getContentType()).thenReturn(null);
+        // BlogPost with 2 errors
+        ValidationResult blogVr = mock(ValidationResult.class);
+        when(blogVr.getContentType()).thenReturn("blogpost");
+        when(blogVr.getErrors()).thenReturn(List.of(eLen, ePhone));
 
-        // vr2: one LENGTH error
-        ValidationResult vr2 = Mockito.mock(ValidationResult.class);
-        when(vr2.getErrors()).thenReturn(List.of(eLen));
-        when(vr2.getContentType()).thenReturn(null);
+        // SupportRequest with 1 length error
+        ValidationResult supportVr = mock(ValidationResult.class);
+        when(supportVr.getContentType()).thenReturn("supportrequest");
+        when(supportVr.getErrors()).thenReturn(List.of(eLen));
 
-        when(repository.findByUserId(userId)).thenReturn(List.of(vr1, vr2));
+        when(repository.findByUserId(userId)).thenReturn(List.of(blogVr, supportVr));
 
         ValidationReportDto dto = service.generateValidationReport(userId, true);
 
-        assertNotNull(dto);
-        assertEquals(3, dto.getTotalErrorCount(), "Total errors should be 3");
+        assertEquals(3, dto.getTotalErrorCount());
 
-        Map<String, String> global = dto.getErrorCodeToErrorCount();
-        assertNotNull(global);
-        assertEquals("2", global.get("LENGTH_VALIDATION_FAILED"));
-        assertEquals("1", global.get("PHONE_NUMBER_FORBIDDEN_VALIDATION_FAILED"));
+        // Global
+        assertEquals("2", dto.getErrorCodeToErrorCount().get("LENGTH_VALIDATION_FAILED"));
+        assertEquals("1", dto.getErrorCodeToErrorCount().get("PHONE_NUMBER_FORBIDDEN_VALIDATION_FAILED"));
 
-        // detailed maps should be present
-        Map<String, Integer> perContent = dto.getErrorCountsPerContentTypes();
-        assertNotNull(perContent);
-        // since contentType was mocked as null, service uses "unknown" key
-        assertTrue(perContent.containsKey("unknown"));
-        assertEquals(3, perContent.get("unknown").intValue());
+        // Per content type
+        Map<String, Integer> perType = dto.getErrorCountsPerContentTypes();
+        assertEquals(2, perType.get("blogpost"));
+        assertEquals(1, perType.get("supportrequest"));
 
-        Map<String, Map<String, Integer>> perContentAndCode = dto.getErrorCountsPerContentTypesAndErrorCode();
-        assertNotNull(perContentAndCode);
-        assertTrue(perContentAndCode.containsKey("unknown"));
-        Map<String, Integer> inner = perContentAndCode.get("unknown");
-        assertEquals(2, inner.get("LENGTH_VALIDATION_FAILED").intValue());
-        assertEquals(1, inner.get("PHONE_NUMBER_FORBIDDEN_VALIDATION_FAILED").intValue());
+        // Per content + error code
+        Map<String, Map<String, Integer>> perTypeCode = dto.getErrorCountsPerContentTypesAndErrorCode();
+
+        assertEquals(1, perTypeCode.get("blogpost").get("LENGTH_VALIDATION_FAILED"));
+        assertEquals(1, perTypeCode.get("blogpost").get("PHONE_NUMBER_FORBIDDEN_VALIDATION_FAILED"));
+        assertEquals(1, perTypeCode.get("supportrequest").get("LENGTH_VALIDATION_FAILED"));
     }
 
     @Test
-    void emptyResults_returnZeroCountsBothModes() {
+    void nullUserId_returnsEmptySummary() {
+        ValidationReportDto dto = service.generateValidationReport(null, false);
+        assertEquals(0, dto.getTotalErrorCount());
+        assertTrue(dto.getErrorCodeToErrorCount().isEmpty());
+        assertNull(dto.getErrorCountsPerContentTypes());
+        assertNull(dto.getErrorCountsPerContentTypesAndErrorCode());
+    }
+
+    @Test
+    void emptyResults_returnZeroCounts_inDetailedMode() {
         UUID userId = UUID.randomUUID();
         when(repository.findByUserId(userId)).thenReturn(List.of());
 
-        ValidationReportDto dtoSummary = service.generateValidationReport(userId, false);
-        assertNotNull(dtoSummary);
-        assertEquals(0, dtoSummary.getTotalErrorCount());
-        assertTrue(dtoSummary.getErrorCodeToErrorCount().isEmpty());
-
-        ValidationReportDto dtoDetailed = service.generateValidationReport(userId, true);
-        assertNotNull(dtoDetailed);
-        assertEquals(0, dtoDetailed.getTotalErrorCount());
-        assertTrue(dtoDetailed.getErrorCodeToErrorCount().isEmpty());
-        assertTrue(dtoDetailed.getErrorCountsPerContentTypes().isEmpty());
-        assertTrue(dtoDetailed.getErrorCountsPerContentTypesAndErrorCode().isEmpty());
-    }
-
-    @Test
-    void nullUserId_returnsEmptyReport() {
-        ValidationReportDto dto = service.generateValidationReport(null, true);
-        assertNotNull(dto);
+        ValidationReportDto dto = service.generateValidationReport(userId, true);
         assertEquals(0, dto.getTotalErrorCount());
         assertTrue(dto.getErrorCodeToErrorCount().isEmpty());
         assertTrue(dto.getErrorCountsPerContentTypes().isEmpty());
@@ -165,36 +135,41 @@ class ValidationServiceGenerateReportTest {
     }
 
     @Test
-    void handlesValidationErrorWithNullCode_andIgnoresEmptyErrorLists() {
+    void nullErrorCode_isIgnored_notCounted() {
         UUID userId = UUID.randomUUID();
 
-        ValidationError eNull = Mockito.mock(ValidationError.class);
+        ValidationError eNull = mock(ValidationError.class);
         when(eNull.code()).thenReturn(null);
 
-        ValidationResult vrWithNullCode = Mockito.mock(ValidationResult.class);
-        when(vrWithNullCode.getErrors()).thenReturn(List.of(eNull));
-        when(vrWithNullCode.getContentType()).thenReturn(null);
+        ValidationResult vr = mock(ValidationResult.class);
+        when(vr.getErrors()).thenReturn(List.of(eNull));
+        when(vr.getContentType()).thenReturn("blogpost");
 
-        // result with empty errors should be ignored
-        ValidationResult vrEmpty = Mockito.mock(ValidationResult.class);
-        when(vrEmpty.getErrors()).thenReturn(List.of());
-
-        when(repository.findByUserId(userId)).thenReturn(List.of(vrWithNullCode, vrEmpty));
+        when(repository.findByUserId(userId)).thenReturn(List.of(vr));
 
         ValidationReportDto dto = service.generateValidationReport(userId, true);
 
-        assertNotNull(dto);
-        assertEquals(1, dto.getTotalErrorCount());
-        // null codes become "UNKNOWN" in implementation
-        assertEquals("1", dto.getErrorCodeToErrorCount().get("UNKNOWN"));
+        // Null code error is ignored -> zero errors
+        assertEquals(0, dto.getTotalErrorCount());
+        assertTrue(dto.getErrorCodeToErrorCount().isEmpty());
+        assertTrue(dto.getErrorCountsPerContentTypes().isEmpty());
+        assertTrue(dto.getErrorCountsPerContentTypesAndErrorCode().isEmpty());
+    }
 
-        Map<String, Integer> perContent = dto.getErrorCountsPerContentTypes();
-        assertNotNull(perContent);
-        assertEquals(1, perContent.get("unknown").intValue());
+    @Test
+    void emptyErrorList_isIgnored() {
+        UUID userId = UUID.randomUUID();
 
-        Map<String, Map<String, Integer>> perContentAnd = dto.getErrorCountsPerContentTypesAndErrorCode();
-        assertNotNull(perContentAnd);
-        assertTrue(perContentAnd.containsKey("unknown"));
-        assertEquals(1, perContentAnd.get("unknown").get("UNKNOWN").intValue());
+        ValidationResult vr = mock(ValidationResult.class);
+        when(vr.getErrors()).thenReturn(List.of());
+        when(vr.getContentType()).thenReturn("blogpost");
+
+        when(repository.findByUserId(userId)).thenReturn(List.of(vr));
+
+        ValidationReportDto dto = service.generateValidationReport(userId, true);
+
+        assertEquals(0, dto.getTotalErrorCount());
+        assertTrue(dto.getErrorCountsPerContentTypes().isEmpty());
+        assertTrue(dto.getErrorCountsPerContentTypesAndErrorCode().isEmpty());
     }
 }
