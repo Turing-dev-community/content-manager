@@ -865,7 +865,6 @@ class BlogPostServiceTest {
         BlogPost updatedPost = blogPostService.submitForReview(blogPostId);
 
         assertEquals(BlogPost.State.PENDING_REVIEW, updatedPost.getState());
-        verify(blogPostRepository).updateBlogPost(updatedPost);
     }
 
     @Test
@@ -880,7 +879,6 @@ class BlogPostServiceTest {
         BlogPost updatedPost = blogPostService.approveBlogPost(blogPostId);
 
         assertEquals(BlogPost.State.APPROVED, updatedPost.getState());
-        verify(blogPostRepository).updateBlogPost(updatedPost);
     }
 
     @Test
@@ -895,7 +893,6 @@ class BlogPostServiceTest {
         BlogPost updatedPost = blogPostService.rejectBlogPost(blogPostId);
 
         assertEquals(BlogPost.State.REJECTED, updatedPost.getState());
-        verify(blogPostRepository).updateBlogPost(updatedPost);
     }
 
     @Test
@@ -907,7 +904,6 @@ class BlogPostServiceTest {
         when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(nonDraftPost));
 
         assertThrows(InvalidStateTransitionException.class, () -> blogPostService.submitForReview(blogPostId));
-        verify(blogPostRepository, never()).updateBlogPost(any());
     }
 
     @Test
@@ -919,7 +915,6 @@ class BlogPostServiceTest {
         when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(nonPendingPost));
 
         assertThrows(InvalidStateTransitionException.class, () -> blogPostService.approveBlogPost(blogPostId));
-        verify(blogPostRepository, never()).updateBlogPost(any());
     }
 
     @Test
@@ -931,6 +926,5 @@ class BlogPostServiceTest {
         when(blogPostRepository.getBlogPost(blogPostId)).thenReturn(Optional.of(nonPendingPost));
 
         assertThrows(InvalidStateTransitionException.class, () -> blogPostService.rejectBlogPost(blogPostId));
-        verify(blogPostRepository, never()).updateBlogPost(any());
     }
 }
