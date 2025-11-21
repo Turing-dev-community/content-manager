@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -32,17 +33,20 @@ public class BlogPostController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<BlogPost> getBlogPost(@PathVariable UUID id) {
-        BlogPost blogPost = blogPostService.getBlogPost(id);
-        return ResponseEntity.ok(blogPost);
+    public ResponseEntity<BlogPost> getBlogPost(
+            @PathVariable UUID id,
+            @RequestParam(defaultValue = "false") boolean includeSoftDeleted) {
+
+        return ResponseEntity.ok(blogPostService.getBlogPost(id, includeSoftDeleted));
     }
 
     @GetMapping
     public ResponseEntity<Page<BlogPost>> getBlogPosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) UUID userId) {
-        Page<BlogPost> response = blogPostService.findPaginated(page, size, userId);
+            @RequestParam(required = false) UUID userId,
+            @RequestParam(defaultValue = "false") boolean includeSoftDeleted) {
+        Page<BlogPost> response = blogPostService.findPaginated(page, size, userId, includeSoftDeleted);
         return ResponseEntity.ok(response);
     }
 
@@ -67,7 +71,16 @@ public class BlogPostController {
             @PathVariable UUID userId,
             @RequestParam(name = "format", defaultValue = "json") String format,
             @RequestParam(name = "contentType", required = false) String contentTypeParam) throws Exception {
-        return blogPostService.getBlogPostsByUserIdAndContentType(userId, format, contentTypeParam);
+        return blogPostService.getBlogPostsByUserIdAndContentType(Collections.singletonList(userId), format, contentTypeParam, false);
+    }
+
+    @PostMapping("/download/bulk")
+    public ResponseEntity<byte[]> bulkDownloadByIds(
+            @RequestParam(name = "format", defaultValue = "json") String format,
+            @RequestParam(name = "contentType", required = true) String contentTypeParam,
+            @RequestBody(required = true) List<UUID> idStrings
+    ) throws Exception {
+        return blogPostService.getBlogPostsByUserIdAndContentType(idStrings, format, contentTypeParam, true);
     }
 
     @GetMapping("/{id}/history")
@@ -88,4 +101,9 @@ public class BlogPostController {
         return ResponseEntity.ok(new BlogPostSearchResponse(ids));
     }
 
+    @PatchMapping("/{id}/soft-delete")
+    public ResponseEntity<Void> softDelete(@PathVariable UUID id) {
+        blogPostService.softDeleteBlogPost(id);
+        return ResponseEntity.noContent().build();
+    }
 }

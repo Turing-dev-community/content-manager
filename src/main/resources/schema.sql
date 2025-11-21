@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS blog_post (
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     user_id UUID,
+    soft_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES "user" (id) ON DELETE CASCADE
 );
 
@@ -147,4 +149,17 @@ CREATE TABLE authorities (
 );
 CREATE UNIQUE INDEX ix_auth_username
   on authorities (username,authority);
+
+
+
+-- rate_limit_config table: stores per-endpoint overrides
+CREATE TABLE IF NOT EXISTS rate_limit_config (
+    id UUID PRIMARY KEY,
+    path_pattern VARCHAR(255) NOT NULL UNIQUE, -- e.g. /api/users
+    capacity BIGINT NOT NULL,
+    refill_tokens BIGINT NOT NULL,
+    refill_interval_millis BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 

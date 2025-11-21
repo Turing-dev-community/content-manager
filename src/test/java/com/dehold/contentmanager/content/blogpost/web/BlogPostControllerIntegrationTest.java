@@ -830,4 +830,100 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
         assertTrue(response.getBody().blogPostIds().isEmpty(), "Expected an empty list when the search term is null (omitted).");
     }
 
+    @Test
+    void softDelete_shouldMarkPostAsSoftDeleted() {
+        // Arrange: create a post
+        BlogPost post = new BlogPost(UUID.randomUUID(), "T1", "C1",
+                Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(post);
+
+        // Act: soft delete
+        ResponseEntity<Void> response = restTemplate.exchange(
+                "http://localhost:" + port + "/api/blogposts/" + post.getId() + "/soft-delete",
+                HttpMethod.PATCH,
+                null,
+                Void.class
+        );
+
+        // Assert API result
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+
+        // Assert DB state
+        BlogPost updated = blogPostRepository.getBlogPost(post.getId(), true).orElseThrow();
+        assertTrue(updated.isSoftDeleted());
+        assertNotNull(updated.getDeletedAt());
+    }
+
+
+    @Test
+    void getBlogPost_defaultFlag_shouldNotReturnSoftDeletedPost() {
+        // Arrange: create & soft delete
+        BlogPost post = new BlogPost(UUID.randomUUID(), "T1", "C1",
+                Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(post);
+        blogPostRepository.softDelete(post.getId());
+
+        // Act
+        ResponseEntity<String> response = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/blogposts/" + post.getId(),
+                String.class
+        );
+
+        // Assert
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
+    @Test
+    void getBlogPost_withIncludeSoftDeleted_shouldReturnSoftDeletedPost() {
+        // Arrange
+        BlogPost post = new BlogPost(UUID.randomUUID(), "T1", "C1",
+                Instant.now(), Instant.now(), user1Id);
+        blogPostRepository.createBlogPost(post);
+        blogPostRepository.softDelete(post.getId());
+
+        // Act
+        ResponseEntity<BlogPost> response = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/blogposts/" + post.getId() + "?includeSoftDeleted=true",
+                BlogPost.class
+        );
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().isSoftDeleted());
+    }
+
+    @Test
+    void getPaginated_shouldRespectIncludeSoftDeletedFlag() {
+        // Arrange
+        BlogPost p1 = new BlogPost(UUID.randomUUID(), "A", "A1",
+                Instant.now(), Instant.now(), user1Id);
+        BlogPost p2 = new BlogPost(UUID.randomUUID(), "B", "B1",
+                Instant.now(), Instant.now(), user1Id);
+
+        blogPostRepository.createBlogPost(p1);
+        blogPostRepository.createBlogPost(p2);
+
+        blogPostRepository.softDelete(p2.getId());
+
+        // Case 1: default (exclude soft-deleted)
+        ResponseEntity<Page<BlogPost>> resp1 = restTemplate.exchange(
+                "http://localhost:" + port + "/api/blogposts",
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<>() {}
+        );
+
+        assertEquals(1, resp1.getBody().getContent().size());
+        assertEquals(p1.getId(), resp1.getBody().getContent().get(0).getId());
+
+        // Case 2: include soft-deleted
+        ResponseEntity<Page<BlogPost>> resp2 = restTemplate.exchange(
+                "http://localhost:" + port + "/api/blogposts?includeSoftDeleted=true",
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<>() {}
+        );
+
+        assertEquals(2, resp2.getBody().getContent().size());
+    }
 }

@@ -520,4 +520,74 @@ class BlogPostServiceTest {
         
     }
 
+    @Test
+    void softDeleteBlogPost_shouldCallRepositorySoftDelete() {
+        UUID postId = UUID.randomUUID();
+
+        when(blogPostRepository.getBlogPost(postId, true))
+                .thenReturn(Optional.of(new BlogPost()));
+
+        doNothing().when(blogPostRepository).softDelete(postId);
+
+        blogPostService.softDeleteBlogPost(postId);
+
+        verify(blogPostRepository).softDelete(postId);
+    }
+
+    @Test
+    void softDeleteBlogPost_shouldThrowWhenPostNotFound() {
+        UUID postId = UUID.randomUUID();
+
+        when(blogPostRepository.getBlogPost(postId, true))
+                .thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class,
+                () -> blogPostService.softDeleteBlogPost(postId));
+
+        verify(blogPostRepository, never()).softDelete(any());
+    }
+
+    @Test
+    void getBlogPost_withoutIncludeSoftDeleted_shouldNotReturnSoftDeletedPost() {
+        UUID postId = UUID.randomUUID();
+
+        when(blogPostRepository.getBlogPost(postId, false))
+                .thenReturn(Optional.empty());
+
+        assertThrows(EntityNotFoundException.class,
+                () -> blogPostService.getBlogPost(postId, false));
+    }
+
+
+    @Test
+    void getBlogPost_withIncludeSoftDeleted_shouldReturnSoftDeletedPost() {
+        UUID postId = UUID.randomUUID();
+        BlogPost deleted = new BlogPost();
+        deleted.setSoftDeleted(true);
+
+        when(blogPostRepository.getBlogPost(postId, true))
+                .thenReturn(Optional.of(deleted));
+
+        BlogPost result = blogPostService.getBlogPost(postId, true);
+
+        assertTrue(result.isSoftDeleted());
+    }
+
+    @Test
+    void findPaginated_shouldRespectIncludeSoftDeletedFlag() {
+        int page = 0, size = 10;
+        UUID userId = UUID.randomUUID();
+
+        List<BlogPost> posts = List.of(new BlogPost());
+        when(blogPostRepository.getPaginatedBlogPosts(size, 0, userId, true)).thenReturn(posts);
+        when(blogPostRepository.countBlogPosts(userId, true)).thenReturn(1L);
+
+        Page<BlogPost> result = blogPostService.findPaginated(page, size, userId, true);
+
+        assertEquals(1, result.getTotalElements());
+        verify(blogPostRepository).getPaginatedBlogPosts(size, 0, userId, true);
+    }
+
+
+
 }

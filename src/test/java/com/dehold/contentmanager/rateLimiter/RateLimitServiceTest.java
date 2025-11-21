@@ -1,9 +1,11 @@
 package com.dehold.contentmanager.rateLimiter;
 
 import com.dehold.contentmanager.ContentManagerApplicationTests;
-import com.dehold.contentmanager.ratelimiter.RateLimitService;
-import com.dehold.contentmanager.ratelimiter.TokenBucket;
+
+import com.dehold.contentmanager.ratelimiter.config.TokenBucket;
+import com.dehold.contentmanager.ratelimiter.service.RateLimitService;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -20,9 +22,10 @@ public class RateLimitServiceTest  extends ContentManagerApplicationTests {
     //✔ concurrent calls still return one instance per key
     //✔ constructor properties stored correctly
 
+    @Autowired
+    private RateLimitService service;
     @Test
     void sameKeyShouldReturnSameBucket() {
-        RateLimitService service = new RateLimitService(10, 2, 1000);
 
         TokenBucket b1 = service.getBucketForKey("user1");
         TokenBucket b2 = service.getBucketForKey("user1");
@@ -32,7 +35,6 @@ public class RateLimitServiceTest  extends ContentManagerApplicationTests {
 
     @Test
     void differentKeysShouldReturnDifferentBuckets() {
-        RateLimitService service = new RateLimitService(10, 2, 1000);
 
         TokenBucket b1 = service.getBucketForKey("u1");
         TokenBucket b2 = service.getBucketForKey("u2");
@@ -42,7 +44,6 @@ public class RateLimitServiceTest  extends ContentManagerApplicationTests {
 
     @Test
     void concurrentAccessShouldStillCreateSingleBucketPerKey() throws Exception {
-        RateLimitService service = new RateLimitService(10, 2, 1000);
 
         ExecutorService exec = Executors.newFixedThreadPool(20);
         List<Future<TokenBucket>> futures = new ArrayList<>();
@@ -63,7 +64,6 @@ public class RateLimitServiceTest  extends ContentManagerApplicationTests {
 
     @Test
     void constructorShouldStoreConfigValues() throws Exception {
-        RateLimitService service = new RateLimitService(50, 20, 5000);
 
         Field cap = service.getClass().getDeclaredField("capacity");
         Field refillTokens = service.getClass().getDeclaredField("refillTokens");
@@ -73,8 +73,8 @@ public class RateLimitServiceTest  extends ContentManagerApplicationTests {
         refillTokens.setAccessible(true);
         interval.setAccessible(true);
 
-        assertEquals(50L, cap.getLong(service));
-        assertEquals(20L, refillTokens.getLong(service));
-        assertEquals(5000L, interval.getLong(service));
+        assertEquals(100L, cap.getLong(service));
+        assertEquals(100L, refillTokens.getLong(service));
+        assertEquals(60000L, interval.getLong(service));
     }
 }

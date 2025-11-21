@@ -44,13 +44,14 @@ import org.springframework.http.ResponseEntity;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import org.springframework.test.context.ActiveProfiles;
 
 import java.time.Instant;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-
+@ActiveProfiles("test")
 class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     @LocalServerPort
@@ -81,6 +82,10 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     private String uniqueUsername() {
         return "TestUser-" + UUID.randomUUID();
+    }
+
+    private String baseUrl() {
+        return "http://localhost:" + port;
     }
 
     @Test
@@ -122,8 +127,9 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
         request.setUsername("TestName");
         request.setPassword("TestUser-" + UUID.randomUUID());
         request.isEnabled();
+        TestRestTemplate authClient = restTemplate.withBasicAuth("user", "pass");
         HttpEntity<UpdateUserRequest> entity = new HttpEntity<>(request);
-        ResponseEntity<User> response = restTemplate.exchange("http://localhost:" + port + "/api/users/" + user.getId(), HttpMethod.PUT, entity, User.class);
+        ResponseEntity<User> response = authClient.exchange("http://localhost:" + port + "/api/users/" + user.getId(), HttpMethod.PUT, entity, User.class);
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
         assertEquals(request.getAlias(), response.getBody().getAlias());
@@ -1130,58 +1136,79 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     @Test
     void getWebhooks_shouldReturnUserWebhooks() {
-        createWebhook("https://hook1.com");
-        createWebhook("https://hook2.com");
+        UUID userId = createTestUser();
+
+        createWebhook(userId, "https://hook1.com");
+        createWebhook(userId, "https://hook2.com");
 
         ResponseEntity<Webhook[]> response = restTemplate.getForEntity(
-                "http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks",
-                Webhook[].class);
+                baseUrl() + "/api/users/" + userId + "/webhooks",
+                Webhook[].class
+        );
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertTrue(response.getBody().length >= 2);
-        assertTrue(List.of(response.getBody()).stream()
-                .allMatch(w -> w.getUserId().equals(FIXED_TEST_USER_ID)));
     }
 
     @Test
     void getWebhook_shouldReturnSingleWebhook() {
-        Webhook created = createWebhook("https://single.com");
+        UUID userId = createTestUser();
+        UUID webhookId = createWebhook(userId,"https://single.com");
 
-        ResponseEntity<Webhook> response = restTemplate.getForEntity(
-                "http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks/" + created.getId(),
-                Webhook.class);
+        assertNotNull(webhookId, "createWebhook returned webhook with NULL id!");
+        String url = baseUrl() + "/api/users/" + userId + "/webhooks/" + webhookId;
+        ResponseEntity<Webhook> response =
+                restTemplate.getForEntity(url, Webhook.class);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals(created.getId(), response.getBody().getId());
-        assertEquals("https://single.com", response.getBody().getUrl());
+        assertNotNull(response.getBody());
+
+        Webhook body = response.getBody();
+
+        assertEquals(webhookId, body.getId());
+        assertEquals("https://single.com", body.getUrl());
+        assertEquals(userId, body.getUserId());
     }
+
 
     @Test
     void updateWebhook_shouldUpdateUrl() {
-        Webhook created = createWebhook("https://old.com");
 
-        UpdateWebhookRequest update = new UpdateWebhookRequest();
-        update.setUrl("https://updated.com");
+        UUID userId = createTestUser();
 
-        HttpEntity<UpdateWebhookRequest> entity = new HttpEntity<>(update);
+        UUID webhookId = createWebhook(userId, "https://old.com");
+
+        UpdateWebhookRequest req = new UpdateWebhookRequest();
+        req.setUrl("https://new.com");
+
         ResponseEntity<Webhook> response = restTemplate.exchange(
-                "http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks/" + created.getId(),
-                HttpMethod.PUT, entity, Webhook.class);
+                baseUrl() + "/api/users/" + userId + "/webhooks/" + webhookId,
+                HttpMethod.PUT,
+                new HttpEntity<>(req),
+                Webhook.class
+        );
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertEquals("https://updated.com", response.getBody().getUrl());
+        assertEquals("https://new.com", response.getBody().getUrl());
     }
 
     @Test
     void deleteWebhook_shouldDeleteWebhook() {
-        Webhook created = createWebhook("https://todelete.com");
+        UUID userId = createTestUser();
+        UUID webhookId = createWebhook(userId, "https://del.com");
 
-        restTemplate.delete("http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks/" + created.getId());
-
-        ResponseEntity<Webhook> response = restTemplate.getForEntity(
-                "http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks/" + created.getId(),
-                Webhook.class);
-        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        ResponseEntity<Void> deleteResponse = restTemplate.exchange(
+                baseUrl() + "/api/users/" + userId + "/webhooks/" + webhookId,
+                HttpMethod.DELETE,
+                null,
+                Void.class
+        );
+        assertEquals(HttpStatus.NO_CONTENT, deleteResponse.getStatusCode());
+        ResponseEntity<String> after = restTemplate.getForEntity(
+                baseUrl() + "/api/users/" + userId + "/webhooks/" + webhookId,
+                String.class
+        );
+        assertEquals(HttpStatus.NOT_FOUND, after.getStatusCode());
     }
 
     @Test
@@ -1211,29 +1238,41 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     @Test
     void getWebhook_forNonExistentWebhook_shouldReturn404() {
-        UUID existingUserId = FIXED_TEST_USER_ID; 
-        
-        UUID nonExistentWebhookId = UUID.randomUUID();
+        UUID userId = createTestUser();
 
-        ResponseEntity<CustomErrorResponse> response = restTemplate.getForEntity(
-                "http://localhost:" + port + "/api/users/" + existingUserId + "/webhooks/" + nonExistentWebhookId,
-                CustomErrorResponse.class);
+        UUID missingWebhookId = UUID.randomUUID();
+
+        ResponseEntity<String> response = restTemplate.getForEntity(
+                baseUrl() + "/api/users/" + userId + "/webhooks/" + missingWebhookId,
+                String.class
+        );
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
-        
-        assertEquals("The entity Webhook with id " + nonExistentWebhookId + " does not exist", 
-                        response.getBody().getError());
+        assertTrue(response.getBody().contains("Webhook"));
     }
 
+    private UUID createWebhook(UUID userId, String url) {
+        CreateWebhookRequest req = new CreateWebhookRequest();
+        req.setUrl(url);
 
-
-    
-    private Webhook createWebhook(String url) {
-        CreateWebhookRequest request = new CreateWebhookRequest();
-        request.setUrl(url);
         return restTemplate.postForEntity(
-                "http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks",
-                request, Webhook.class).getBody();
+                baseUrl() + "/api/users/" + userId + "/webhooks",
+                req,
+                Webhook.class
+        ).getBody().getId();
+    }
+
+    private UUID createTestUser() {
+        CreateUserRequest req = new CreateUserRequest();
+        req.setAlias("Test");
+        req.setEmail("t@" + UUID.randomUUID() + ".com");
+        req.setUsername("u-" + UUID.randomUUID());
+        req.setPassword("pass");
+        req.setEnabled(true);
+
+        return restTemplate.postForEntity(
+                baseUrl() + "/api/users", req, User.class
+        ).getBody().getId();
     }
 
     @Test

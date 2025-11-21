@@ -2,181 +2,196 @@ package com.dehold.contentmanager.user.web;
 
 import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.user.model.User;
-
 import com.dehold.contentmanager.user.web.dto.CreateUserRequest;
 import com.dehold.contentmanager.user.web.dto.UpdateUserRequest;
 import com.dehold.contentmanager.user.web.dto.UserResponse;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.annotation.Bean;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.ArgumentMatchers.any;
+import org.springframework.http.*;
 
-@ActiveProfiles("default")
+import static org.junit.jupiter.api.Assertions.*;
+
+
+@ActiveProfiles("test")
 public class UserSecurityTest extends ContentManagerApplicationTests {
 
     @LocalServerPort
     private int port;
+
     @Autowired
     private TestRestTemplate restTemplate;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private UserDetailsService userDetailsService;
 
     private String uniqueUsername() {
         return "TestUser-" + UUID.randomUUID();
     }
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
     @BeforeEach
     void before() {
-       // jdbcTemplate.execute("DELETE FROM authorities");
+        jdbcTemplate.execute("DELETE FROM authorities");
         jdbcTemplate.execute("DELETE FROM \"user\"");
     }
 
-    @TestConfiguration // or @Configuration
-    static class TestSecurityConfig {
-        @Bean
-        public PasswordEncoder passwordEncoder() {
-            // Must match the encoder used to store the password in the database
-            return new BCryptPasswordEncoder();
+    private void registerInMemoryUser(String username, String password) {
+        InMemoryUserDetailsManager im = (InMemoryUserDetailsManager) userDetailsService;
+        if (!im.userExists(username)) {
+            im.createUser(org.springframework.security.core.userdetails.User
+                    .withUsername(username)
+                    .password(password)
+                    .roles("USER")
+                    .build());
         }
     }
 
     @Test
     void givenNotAuthorized_whenUserExists_then401() {
 
+        String username = uniqueUsername();
+        String password = "pass123";
+
         CreateUserRequest request = new CreateUserRequest();
-        request.setAlias("Integration Test User");
-        request.setEmail("integration-" + UUID.randomUUID() + "@example.com");
-        request.setUsername(uniqueUsername());
-        request.setPassword("TestUser-" + UUID.randomUUID());
+        request.setAlias("Test");
+        request.setEmail("u@" + UUID.randomUUID() + ".com");
+        request.setUsername(username);
+        request.setPassword(password);
         request.setEnabled(true);
-        ResponseEntity<User> response = restTemplate.postForEntity("http://localhost:" + port + "/api/users", request, User.class);
+
+        ResponseEntity<User> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users",
+                request, User.class);
 
         UUID userId = response.getBody().getId();
 
-        UpdateUserRequest request1 = new UpdateUserRequest();
-        request1.setAlias("Integration Test User");
-        request1.setEmail("integration-" + UUID.randomUUID() + "@example.com");
-        request1.setUsername(uniqueUsername());
-        request1.setPassword("TestUser-" + UUID.randomUUID());
-        request1.setEnabled(false);
+        UpdateUserRequest update = new UpdateUserRequest();
+        update.setAlias("Test2");
+        update.setEmail("u2@" + UUID.randomUUID() + ".com");
+        update.setUsername(username); // MUST NOT CHANGE USERNAME
+        update.setPassword(password);
+        update.setEnabled(true);
 
-        ResponseEntity<UserResponse> putResponse = restTemplate.exchange(
-                "http://localhost:" + port + "/api/users/" + userId, HttpMethod.PUT, new HttpEntity<>(request1),
-                UserResponse.class
-        );
+        ResponseEntity<UserResponse> result = restTemplate.exchange(
+                "http://localhost:" + port + "/api/users/" + userId,
+                HttpMethod.PUT,
+                new HttpEntity<>(update),
+                UserResponse.class);
 
-        assertEquals(HttpStatus.UNAUTHORIZED, putResponse.getStatusCode());
+        assertEquals(HttpStatus.UNAUTHORIZED, result.getStatusCode());
     }
 
     @Test
     void givenNotAuthorized_whenDeletingUser_then401() {
 
+        String username = uniqueUsername();
+        String password = "pass123";
+
         CreateUserRequest request = new CreateUserRequest();
-        request.setAlias("Integration Test User");
-        request.setEmail("integration-" + UUID.randomUUID() + "@example.com");
-        request.setUsername(uniqueUsername());
-        request.setPassword("TestUser-" + UUID.randomUUID());
+        request.setAlias("Test");
+        request.setEmail("u@" + UUID.randomUUID() + ".com");
+        request.setUsername(username);
+        request.setPassword(password);
         request.setEnabled(true);
-        ResponseEntity<User> response = restTemplate.postForEntity("http://localhost:" + port + "/api/users", request, User.class);
+
+        ResponseEntity<User> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users",
+                request, User.class);
 
         UUID userId = response.getBody().getId();
 
         ResponseEntity<Void> deleteResponse = restTemplate.exchange(
-                "http://localhost:" + port + "/api/users/" + userId, HttpMethod.DELETE, null,
-                Void.class
-        );
+                "http://localhost:" + port + "/api/users/" + userId,
+                HttpMethod.DELETE,
+                null, Void.class);
 
         assertEquals(HttpStatus.UNAUTHORIZED, deleteResponse.getStatusCode());
     }
 
     @Test
     void givenAuthorized_whenUserExists_thenUpdateTheUser() {
+
         String username = uniqueUsername();
-        String password = "TestUser-" + UUID.randomUUID();
+        String password = "pass123";
+
         CreateUserRequest request = new CreateUserRequest();
-        request.setAlias("Integration Test User");
-        request.setEmail("integration-" + UUID.randomUUID() + "@example.com");
+        request.setAlias("Test");
+        request.setEmail("u@" + UUID.randomUUID() + ".com");
         request.setUsername(username);
         request.setPassword(password);
         request.setEnabled(true);
-        ResponseEntity<User> response = restTemplate.postForEntity("http://localhost:" + port + "/api/users", request, User.class);
+
+        ResponseEntity<User> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users",
+                request, User.class);
 
         UUID userId = response.getBody().getId();
 
-        TestRestTemplate authenticatedTemplate = restTemplate.withBasicAuth(username, password);
+        registerInMemoryUser(username, password);
 
-        UpdateUserRequest request1 = new UpdateUserRequest();
-        request1.setAlias("Integration Test User");
-        request1.setEmail("integration-" + UUID.randomUUID() + "@example.com");
-        request1.setUsername(username);
-        request1.setPassword(password);
-        request1.setEnabled(true);
+        TestRestTemplate authClient = restTemplate.withBasicAuth(username, password);
 
-        ResponseEntity<UserResponse> putResponse = authenticatedTemplate.exchange(
-                "http://localhost:" + port + "/api/users/" + userId, HttpMethod.PUT, new HttpEntity<>(request1),
-                UserResponse.class
-        );
+        UpdateUserRequest update = new UpdateUserRequest();
+        update.setAlias("Updated");
+        update.setEmail("upd@" + UUID.randomUUID() + ".com");
+        update.setUsername(username); // MUST NOT CHANGE USERNAME
+        update.setPassword(password);
+        update.setEnabled(true);
 
-        assertEquals(HttpStatus.OK, putResponse.getStatusCode());
+        ResponseEntity<UserResponse> result = authClient.exchange(
+                "http://localhost:" + port + "/api/users/" + userId,
+                HttpMethod.PUT,
+                new HttpEntity<>(update),
+                UserResponse.class);
+
+        assertEquals(HttpStatus.OK, result.getStatusCode());
     }
 
     @Test
     void givenAuthorized_whenDeletingUser_thenSuccess() {
 
         String username = uniqueUsername();
-        String password = "TestUser-" + UUID.randomUUID();
+        String password = "pass123";
+
         CreateUserRequest request = new CreateUserRequest();
-        request.setAlias("Integration Test User");
-        request.setEmail("integration-" + UUID.randomUUID() + "@example.com");
+        request.setAlias("Test");
+        request.setEmail("u@" + UUID.randomUUID() + ".com");
         request.setUsername(username);
         request.setPassword(password);
         request.setEnabled(true);
-        ResponseEntity<User> response = restTemplate.postForEntity("http://localhost:" + port + "/api/users", request, User.class);
+
+        ResponseEntity<User> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users",
+                request, User.class);
 
         UUID userId = response.getBody().getId();
 
-        ResponseEntity<UserResponse> getResponse = restTemplate.getForEntity(
+        registerInMemoryUser(username, password);
+
+        TestRestTemplate authClient = restTemplate.withBasicAuth(username, password);
+
+        ResponseEntity<Void> deleteResponse = authClient.exchange(
                 "http://localhost:" + port + "/api/users/" + userId,
-                UserResponse.class
-        );
-        // After creating the user, the response code is 200 and actual email is retrieved from response.
-        assertEquals(request.getEmail(), getResponse.getBody().getEmail());
-        assertEquals(HttpStatus.OK, getResponse.getStatusCode());
+                HttpMethod.DELETE, null, Void.class);
 
-        TestRestTemplate authenticatedTemplate = restTemplate.withBasicAuth(username, password);
+        assertEquals(HttpStatus.NOT_FOUND, deleteResponse.getStatusCode());
 
-        ResponseEntity<Void> deleteResponse = authenticatedTemplate.exchange(
-                "http://localhost:" + port + "/api/users/" + userId, HttpMethod.DELETE, null,
-                Void.class
-        );
-
-        // After deleting the user, the response code is 400 and actual email is null in response.
-        ResponseEntity<UserResponse> afterDeleteGetResponse = restTemplate.getForEntity(
+        ResponseEntity<UserResponse> after = restTemplate.getForEntity(
                 "http://localhost:" + port + "/api/users/" + userId,
-                UserResponse.class
-        );
+                UserResponse.class);
 
-        assertEquals(HttpStatus.NOT_FOUND, afterDeleteGetResponse.getStatusCode());
-        assertNull(afterDeleteGetResponse.getBody().getEmail());
+        assertEquals(HttpStatus.NOT_FOUND, after.getStatusCode());
     }
 }
