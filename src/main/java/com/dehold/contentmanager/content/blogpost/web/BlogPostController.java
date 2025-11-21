@@ -44,8 +44,9 @@ public class BlogPostController {
     public ResponseEntity<Page<BlogPost>> getBlogPosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) UUID userId) {
-        Page<BlogPost> response = blogPostService.findPaginated(page, size, userId);
+            @RequestParam(required = false) UUID userId,
+            @RequestParam(defaultValue = "false") boolean includeSoftDeleted) {
+        Page<BlogPost> response = blogPostService.findPaginated(page, size, userId, includeSoftDeleted);
         return ResponseEntity.ok(response);
     }
 

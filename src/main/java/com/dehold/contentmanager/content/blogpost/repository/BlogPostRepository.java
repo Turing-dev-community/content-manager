@@ -216,4 +216,35 @@ public class BlogPostRepository {
                     return bp;
                 });
     }
+
+    public List<BlogPost> getPaginatedBlogPosts(int limit, int offset, UUID userId, boolean includeSoftDeleted) {
+        StringBuilder sql = new StringBuilder("SELECT * FROM blog_post WHERE 1=1");
+
+        if (userId != null) {
+            sql.append(" AND user_id = '").append(userId).append("'");
+        }
+        if (!includeSoftDeleted) {
+            sql.append(" AND soft_deleted = false");
+        }
+
+        sql.append(" ORDER BY created_at ASC LIMIT ? OFFSET ?");
+
+        List<BlogPost> posts = jdbcTemplate.query(sql.toString(), this::mapRowToBlogPost, limit, offset);
+        posts.forEach(p -> p.setComments(loadCommentsForPost(p.getId())));
+        return posts;
+    }
+
+    public long countBlogPosts(UUID userId, boolean includeSoftDeleted) {
+        StringBuilder sql = new StringBuilder("SELECT COUNT(*) FROM blog_post WHERE 1=1");
+
+        if (userId != null) {
+            sql.append(" AND user_id = '").append(userId).append("'");
+        }
+        if (!includeSoftDeleted) {
+            sql.append(" AND soft_deleted = false");
+        }
+
+        return jdbcTemplate.queryForObject(sql.toString(), Long.class);
+    }
+
 }
