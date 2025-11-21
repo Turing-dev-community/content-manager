@@ -8,6 +8,8 @@ import com.dehold.contentmanager.content.customersupport.model.SupportResponse;
 import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
 import com.dehold.contentmanager.content.generic.model.GenericContentModel;
 import com.dehold.contentmanager.content.generic.service.GenericContentService;
+import com.dehold.contentmanager.exception.EntityNotFoundException;
+import com.dehold.contentmanager.user.repository.UserRepository;
 import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
 import com.dehold.contentmanager.validation.pipeline.ValidationPipeline;
@@ -25,13 +27,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.dehold.contentmanager.content.customersupport.service.SupportResponseService;
 
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.HashMap;
-import java.util.stream.Collectors;
 
 @Service
 public class ValidationServiceImpl implements ValidationService {
@@ -53,15 +53,18 @@ public class ValidationServiceImpl implements ValidationService {
 
     private final SupportRequestRepository supportRequestRepository;
 
+    private final UserRepository userRepository;
+
     public ValidationServiceImpl(ValidationResultRepository validationResultRepository,
                                  ValidationPipelineFactory validationPipelineFactory, BlogPostService blogPostService
-            , SupportResponseService supportResponseService, SupportRequestRepository supportRequestRepository, GenericContentService genericContentService) {
+            , SupportResponseService supportResponseService, SupportRequestRepository supportRequestRepository, GenericContentService genericContentService, UserRepository userRepository) {
         this.supportResponseService = supportResponseService;
         this.blogPostService = blogPostService;
         this.validationPipelineFactory = validationPipelineFactory;
         this.validationResultRepository = validationResultRepository;
         this.supportRequestRepository = supportRequestRepository;
         this.genericContentService = genericContentService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -273,5 +276,22 @@ public class ValidationServiceImpl implements ValidationService {
         for (ValidationResult r : results) {
             validationResultRepository.upsert(r, runId);
         }
+    }
+    @Override
+    public List<ValidationResult> validateRestoredBlogPost(BlogPost post) {
+
+        userRepository.getUserById(post.getUserId())
+                .orElseThrow(() -> EntityNotFoundException.of("User", post.getUserId().toString()));
+        List<ValidationPipeline<BlogPost>> pipelines =
+                validationPipelineFactory.createValidationPipelineForUserAndContentType(
+                        post.getUserId(), "blogpost");
+
+        List<ValidationResult> results = new LinkedList<>();
+        for (ValidationPipeline<BlogPost> pipeline : pipelines) {
+            ValidationResult result = pipeline.run(post);
+            results.add(result);
+        }
+        persistsResults(results);
+        return results;
     }
 }

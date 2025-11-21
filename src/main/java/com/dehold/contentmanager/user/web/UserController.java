@@ -212,4 +212,17 @@ public class UserController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{id}/validate-restored-blogpost")
+    public ResponseEntity<List<ValidationResponse>> validateRestoredBlogpost(@RequestBody BlogPost post) {
+
+        List<ValidationResult> results = validationService.validateRestoredBlogPost(post);
+
+        List<ValidationResponse> response = results.stream()
+                .map(ValidationResultDto::from)
+                .map(dto -> new ValidationResponse("blogpost", dto))
+                .toList();
+
+        return ResponseEntity.ok(response);
+    }
+
 }

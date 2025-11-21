@@ -7,6 +7,8 @@ import com.dehold.contentmanager.content.customersupport.repository.SupportReque
 import com.dehold.contentmanager.content.customersupport.repository.SupportResponseRepository;
 import com.dehold.contentmanager.content.customersupport.service.SupportResponseService;
 import com.dehold.contentmanager.content.generic.service.GenericContentService;
+import com.dehold.contentmanager.exception.EntityNotFoundException;
+import com.dehold.contentmanager.user.repository.UserRepository;
 import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.pipeline.ValidationPipeline;
@@ -44,6 +46,7 @@ class ValidationServiceTest {
     private SupportRequestRepository supportRepo;
     private SupportResponseService supportResponseService;
     private GenericContentService genericContentService;
+    private UserRepository userRepository;
 
     @BeforeEach
     void setUp() {
@@ -53,6 +56,7 @@ class ValidationServiceTest {
         supportRepo = mock(SupportRequestRepository.class);
         supportResponseService = mock(SupportResponseService.class);
         genericContentService = mock(GenericContentService.class);
+        userRepository = mock(UserRepository.class);
 
         validationService = new ValidationServiceImpl(
                 repository,
@@ -60,7 +64,8 @@ class ValidationServiceTest {
                 blogPostService,
                 supportResponseService,
                 supportRepo,
-                genericContentService
+                genericContentService,
+                userRepository
         );
     }
 
@@ -439,5 +444,105 @@ class ValidationServiceTest {
         assertEquals(runIds.get(0), runIds.get(1)); // same run
     }
 
+
+
+    // ---------------------------------------------------------
+// TESTS FOR validateRestoredBlogPost()
+// ---------------------------------------------------------
+
+    @Test
+    void givenNonExistentUser_whenValidateRestoredBlogPost_thenThrowEntityNotFound() {
+
+        UUID userId = UUID.randomUUID();
+        BlogPost post = new BlogPost(
+                UUID.randomUUID(),
+                "Title",
+                "Content",
+                Instant.now(),
+                Instant.now(),
+                userId
+        );
+
+        when(userRepository.getUserById(userId)).thenReturn(java.util.Optional.empty());
+
+        EntityNotFoundException ex = assertThrows(
+                EntityNotFoundException.class,
+                () -> validationService.validateRestoredBlogPost(post)
+        );
+
+        assertEquals("The entity User with id " + userId + " does not exist", ex.getMessage());
+        verifyNoInteractions(pipelineFactory);
+        verify(repository, never()).create(any());
+    }
+
+    @Test
+    void givenValidUserAndPipelines_whenValidateRestoredBlogPost_thenPipelinesRunAndResultsPersisted() {
+
+        UUID userId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+
+        BlogPost post = new BlogPost(
+                postId,
+                "Test",
+                "Content",
+                Instant.now(),
+                Instant.now(),
+                userId
+        );
+
+        when(userRepository.getUserById(userId)).thenReturn(java.util.Optional.of(mock()));
+
+        // mock pipelines
+        ValidationPipeline<BlogPost> p1 = mock(ValidationPipeline.class);
+        ValidationPipeline<BlogPost> p2 = mock(ValidationPipeline.class);
+
+        ValidationResult r1 = ValidationResult.valid("blogpost", postId, userId);
+        ValidationResult r2 = ValidationResult.invalid("blogpost", postId, userId, List.of(
+                new ValidationError("101", "BAD CONTENT")
+        ));
+
+        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "blogpost"))
+                .thenReturn((List) List.of(p1, p2));
+
+        when(p1.run(post)).thenReturn(r1);
+        when(p2.run(post)).thenReturn(r2);
+
+        // ACT
+        List<ValidationResult> results = validationService.validateRestoredBlogPost(post);
+
+        // ASSERT
+        assertEquals(2, results.size());
+        assertTrue(results.contains(r1));
+        assertTrue(results.contains(r2));
+
+        verify(repository, times(2)).create(any(ValidationResult.class));
+        verify(pipelineFactory, times(1))
+                .createValidationPipelineForUserAndContentType(userId, "blogpost");
+    }
+
+    @Test
+    void givenUserExistsButNoPipelines_whenValidateRestoredBlogPost_thenReturnEmptyList() {
+
+        UUID userId = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+
+        BlogPost post = new BlogPost(
+                postId,
+                "A",
+                "B",
+                Instant.now(),
+                Instant.now(),
+                userId
+        );
+
+        when(userRepository.getUserById(userId)).thenReturn(java.util.Optional.of(mock()));
+        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "blogpost"))
+                .thenReturn(List.of());
+
+        List<ValidationResult> results = validationService.validateRestoredBlogPost(post);
+
+        assertTrue(results.isEmpty());
+        verify(repository, never()).create(any());
+    }
 
 }
