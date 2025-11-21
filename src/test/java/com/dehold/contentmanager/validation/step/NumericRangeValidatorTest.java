@@ -35,7 +35,7 @@ class NumericRangeValidatorTest {
         assertFalse(result.isValid());
         assertEquals(1, result.getErrors().size());
         assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
-        assertTrue(result.getErrors().getFirst().message().contains("at least 0.0"));
+        assertEquals("The field 'content' must be at least 0.0.", result.getErrors().getFirst().message());
     }
 
     @Test
@@ -49,7 +49,7 @@ class NumericRangeValidatorTest {
         assertFalse(result.isValid());
         assertEquals(1, result.getErrors().size());
         assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
-        assertTrue(result.getErrors().getFirst().message().contains("at most 100.0"));
+        assertEquals("The field 'content' must be at most 100.0.", result.getErrors().getFirst().message());
     }
 
     @Test
@@ -75,7 +75,7 @@ class NumericRangeValidatorTest {
         assertFalse(result.isValid());
         assertEquals(1, result.getErrors().size());
         assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
-        assertTrue(result.getErrors().getFirst().message().contains("at least 5.0"));
+        assertEquals("The field 'content' must be at least 5.0.", result.getErrors().getFirst().message());
     }
 
     @Test
@@ -89,7 +89,7 @@ class NumericRangeValidatorTest {
         assertFalse(result.isValid());
         assertEquals(1, result.getErrors().size());
         assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
-        assertTrue(result.getErrors().getFirst().message().contains("at most 100.0"));
+        assertEquals("The field 'content' must be at most 100.0.", result.getErrors().getFirst().message());
     }
 
     @Test
@@ -103,7 +103,7 @@ class NumericRangeValidatorTest {
         assertFalse(result.isValid());
         assertEquals(1, result.getErrors().size());
         assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
-        assertTrue(result.getErrors().getFirst().message().contains("must be a valid number"));
+        assertEquals("The field 'content' must be a valid number.", result.getErrors().getFirst().message());
     }
 
     @Test
@@ -165,7 +165,7 @@ class NumericRangeValidatorTest {
         assertFalse(result.isValid());
         assertEquals(1, result.getErrors().size());
         assertEquals(NumericRangeValidator.ERROR_CODE, result.getErrors().getFirst().code());
-        assertTrue(result.getErrors().getFirst().message().contains("at least 10.0"));
+        assertEquals("The field 'content' must be at least 10.0.", result.getErrors().getFirst().message());
     }
 
     @Test
