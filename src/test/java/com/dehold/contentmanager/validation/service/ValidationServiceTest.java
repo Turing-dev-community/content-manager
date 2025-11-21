@@ -109,7 +109,7 @@ class ValidationServiceTest {
         ValidationResult result = ValidationResult.valid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId);
         when(repository.findByUserId(userId)).thenReturn(List.of(result));
 
-        ValidationReportDto report = validationService.generateValidationReport(userId);
+        ValidationReportDto report = validationService.generateValidationReport(userId, false);
         assertNotNull(report);
         assertEquals(0, report.getTotalErrorCount());
         assertTrue(report.getErrorCodeToErrorCount().isEmpty());
@@ -126,7 +126,7 @@ class ValidationServiceTest {
         ValidationResult result = ValidationResult.invalid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId, errors);
         when(repository.findByUserId(userId)).thenReturn(List.of(result));
 
-        ValidationReportDto report = validationService.generateValidationReport(userId);
+        ValidationReportDto report = validationService.generateValidationReport(userId, false);
         assertNotNull(report);
         assertEquals(3, report.getTotalErrorCount());
         assertEquals("2", report.getErrorCodeToErrorCount().get(LengthValidator.ERROR_CODE));
@@ -142,7 +142,7 @@ class ValidationServiceTest {
         ValidationResult result3 = ValidationResult.valid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId);
         when(repository.findByUserId(userId)).thenReturn(List.of(result1, result2, result3));
 
-        ValidationReportDto report = validationService.generateValidationReport(userId);
+        ValidationReportDto report = validationService.generateValidationReport(userId, false);
         assertNotNull(report);
         assertEquals(0, report.getTotalErrorCount());
         assertTrue(report.getErrorCodeToErrorCount().isEmpty());
@@ -169,7 +169,7 @@ class ValidationServiceTest {
         ValidationResult result3 = ValidationResult.invalid(BlogPost.class.getSimpleName(), UUID.randomUUID(), userId, errors3);
         when(repository.findByUserId(userId)).thenReturn(List.of(result1, result2, result3));
 
-        ValidationReportDto report = validationService.generateValidationReport(userId);
+        ValidationReportDto report = validationService.generateValidationReport(userId, false);
         assertNotNull(report);
         assertEquals(6, report.getTotalErrorCount());
         assertEquals("4", report.getErrorCodeToErrorCount().get(LengthValidator.ERROR_CODE));
@@ -212,7 +212,7 @@ class ValidationServiceTest {
         assertEquals(1, results.size());
         assertEquals(result, results.get(0));
 
-        verify(repository, times(1)).create(result);
+        verify(repository, times(1)).upsert(same(result), any(UUID.class));
         verify(pipelineFactory, times(1))
                 .createValidationPipelineForUserAndContentType(userId, "supportrequest");
     }
@@ -272,6 +272,172 @@ class ValidationServiceTest {
         // ASSERT
         assertEquals(4, results.size());
 
-        verify(repository, times(4)).create(any(ValidationResult.class));
+        verify(repository, times(4)).upsert(any(ValidationResult.class), any());
     }
+
+    //Same runId used for the whole Support Request run
+    @Test
+    void givenMultipleResults_whenValidateSupportRequests_thenSameRunIdIsUsedForAllUpserts() {
+
+        UUID userId = UUID.randomUUID();
+        SupportRequest req = new SupportRequest(
+                UUID.randomUUID(), userId,
+                "Message", null,
+                UUID.randomUUID(), Instant.now(), Instant.now()
+        );
+
+        when(supportRepo.findByUserId(userId)).thenReturn(List.of(req));
+
+        ValidationPipeline<SupportRequest> pipeline = mock(ValidationPipeline.class);
+
+        ValidationResult r1 = ValidationResult.fromPersistence(
+                UUID.randomUUID(), userId, "supportrequest", req.getId(), true, List.of(), Instant.now()
+        );
+        ValidationResult r2 = ValidationResult.fromPersistence(
+                UUID.randomUUID(), userId, "supportrequest", req.getId(), false, List.of(), Instant.now()
+        );
+
+        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest"))
+                .thenReturn((List) List.of(pipeline, pipeline));
+
+        when(pipeline.run(req))
+                .thenReturn(r1)
+                .thenReturn(r2);
+
+        validationService.runSupportRequestValidation(userId);
+
+        ArgumentCaptor<UUID> runIdCaptor = ArgumentCaptor.forClass(UUID.class);
+
+        verify(repository, times(2)).upsert(any(ValidationResult.class), runIdCaptor.capture());
+
+        List<UUID> allRunIds = runIdCaptor.getAllValues();
+        assertEquals(2, allRunIds.size());
+
+        // Both calls must have same runId
+        assertEquals(allRunIds.get(0), allRunIds.get(1));
+    }
+
+
+    //runId must change between two different executions
+    @Test
+    void whenValidateCalledTwice_thenRunIdIsDifferentForEachExecution() {
+
+        UUID userId = UUID.randomUUID();
+        SupportRequest req = new SupportRequest(
+                UUID.randomUUID(), userId,
+                "Message", null,
+                UUID.randomUUID(), Instant.now(), Instant.now()
+        );
+
+        when(supportRepo.findByUserId(userId)).thenReturn(List.of(req));
+
+        ValidationPipeline<SupportRequest> pipeline = mock(ValidationPipeline.class);
+
+        ValidationResult vr = ValidationResult.fromPersistence(
+                UUID.randomUUID(), userId, "supportrequest",
+                req.getId(), true, List.of(), Instant.now()
+        );
+
+        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest"))
+                .thenReturn((List) List.of(pipeline));
+
+        when(pipeline.run(req)).thenReturn(vr);
+
+        // First run
+        validationService.runSupportRequestValidation(userId);
+        ArgumentCaptor<UUID> run1 = ArgumentCaptor.forClass(UUID.class);
+        verify(repository).upsert(any(), run1.capture());
+
+        reset(repository);
+
+        // Second run
+        validationService.runSupportRequestValidation(userId);
+        ArgumentCaptor<UUID> run2 = ArgumentCaptor.forClass(UUID.class);
+        verify(repository).upsert(any(), run2.capture());
+
+        assertNotEquals(run1.getValue(), run2.getValue());
+    }
+
+    //runId is never null
+    @Test
+    void givenSupportRequest_whenValidate_thenRunIdIsNeverNull() {
+
+        UUID userId = UUID.randomUUID();
+        SupportRequest req = new SupportRequest(
+                UUID.randomUUID(), userId,
+                "Message", null,
+                UUID.randomUUID(), Instant.now(), Instant.now()
+        );
+
+        when(supportRepo.findByUserId(userId)).thenReturn(List.of(req));
+
+        ValidationPipeline<SupportRequest> pipeline = mock(ValidationPipeline.class);
+
+        ValidationResult vr = ValidationResult.fromPersistence(
+                UUID.randomUUID(), userId, "supportrequest",
+                req.getId(), true, List.of(), Instant.now()
+        );
+
+        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest"))
+                .thenReturn((List) List.of(pipeline));
+
+        when(pipeline.run(req)).thenReturn(vr);
+
+        validationService.runSupportRequestValidation(userId);
+
+        ArgumentCaptor<UUID> runIdCaptor = ArgumentCaptor.forClass(UUID.class);
+
+        verify(repository).upsert(any(ValidationResult.class), runIdCaptor.capture());
+
+        assertNotNull(runIdCaptor.getValue());
+    }
+
+    //Service returns duplicates but persists only once per unique key
+    @Test
+    void givenDuplicatePipelineResults_whenValidateSupportRequest_thenUpsertDoesNotPersistDuplicates() {
+
+        UUID userId = UUID.randomUUID();
+
+        SupportRequest req = new SupportRequest(
+                UUID.randomUUID(), userId,
+                "Message", null,
+                UUID.randomUUID(), Instant.now(), Instant.now()
+        );
+
+        when(supportRepo.findByUserId(userId)).thenReturn(List.of(req));
+
+        // mock two pipelines that produce same ValidationResult (duplicate)
+        ValidationPipeline<SupportRequest> p1 = mock(ValidationPipeline.class);
+        ValidationPipeline<SupportRequest> p2 = mock(ValidationPipeline.class);
+
+        ValidationResult duplicate = ValidationResult.fromPersistence(
+                UUID.randomUUID(), userId, "supportrequest",
+                req.getId(), true, List.of(), Instant.now()
+        );
+
+        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest"))
+                .thenReturn((List) List.of(p1, p2));
+
+        when(p1.run(req)).thenReturn(duplicate);
+        when(p2.run(req)).thenReturn(duplicate); // duplicate result
+
+        // run validation
+        List<ValidationResult> resultList = validationService.runSupportRequestValidation(userId);
+
+        // service should return both (because two pipelines ran)
+        assertEquals(2, resultList.size());
+        assertEquals(duplicate, resultList.get(0));
+        assertEquals(duplicate, resultList.get(1));
+
+        // capture runId to ensure matching
+        ArgumentCaptor<UUID> runIdCaptor = ArgumentCaptor.forClass(UUID.class);
+
+        // should call upsert twice with same runId and same identifiers → DB deduplicates
+        verify(repository, times(2)).upsert(eq(duplicate), runIdCaptor.capture());
+
+        List<UUID> runIds = runIdCaptor.getAllValues();
+        assertEquals(runIds.get(0), runIds.get(1)); // same run
+    }
+
+
 }
