@@ -15,8 +15,10 @@ public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager("supportRequests", "supportRequestById");
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
         cacheManager.setCaffeine(caffeineCacheBuilder());
+        // Allows dynamic cache creation — any @Cacheable("myCache") will work
+        cacheManager.setAllowNullValues(false);
         return cacheManager;
     }
 
