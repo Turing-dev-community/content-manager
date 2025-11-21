@@ -212,7 +212,7 @@ class ValidationServiceTest {
         assertEquals(1, results.size());
         assertEquals(result, results.get(0));
 
-        verify(repository, times(1)).create(result);
+        verify(repository, times(1)).upsert(same(result), any(UUID.class));
         verify(pipelineFactory, times(1))
                 .createValidationPipelineForUserAndContentType(userId, "supportrequest");
     }
@@ -272,6 +272,6 @@ class ValidationServiceTest {
         // ASSERT
         assertEquals(4, results.size());
 
-        verify(repository, times(4)).create(any(ValidationResult.class));
+        verify(repository, times(4)).upsert(any(ValidationResult.class), any());
     }
 }

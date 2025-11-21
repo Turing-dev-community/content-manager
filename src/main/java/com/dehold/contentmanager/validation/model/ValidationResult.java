@@ -12,6 +12,7 @@ public class ValidationResult {
     private final boolean isValid;
     private final List<ValidationError> errors;
     private final Instant createdAt;
+    private final UUID runId;
 
     private ValidationResult(String contentType, UUID contentId, UUID userId, boolean isValid,
                              List<ValidationError> errors) {
@@ -22,6 +23,7 @@ public class ValidationResult {
         this.errors = errors;
         this.id = UUID.randomUUID();
         this.createdAt = Instant.now();
+        this.runId = null;
     }
 
     private ValidationResult(UUID id, UUID userId, String contentType, UUID contentId, boolean isValid,
@@ -33,6 +35,18 @@ public class ValidationResult {
         this.isValid = isValid;
         this.errors = errors;
         this.createdAt = createdAt;
+        this.runId = null;
+    }
+
+    public ValidationResult(UUID id, UUID userId, String contentType, UUID contentId, boolean isValid, List<ValidationError> errors, Instant createdAt, UUID runId) {
+        this.id = id;
+        this.userId = userId;
+        this.contentType = contentType;
+        this.contentId = contentId;
+        this.isValid = isValid;
+        this.errors = errors;
+        this.createdAt = createdAt;
+        this.runId = runId;
     }
 
     public static ValidationResult valid(String contentType, UUID contentId, UUID userId) {
@@ -75,5 +89,9 @@ public class ValidationResult {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public UUID getRunId() {
+        return runId;
     }
 }

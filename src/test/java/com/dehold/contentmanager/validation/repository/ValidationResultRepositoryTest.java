@@ -48,14 +48,15 @@ class ValidationResultRepositoryTest {
 
         verify(jdbcTemplate, times(1)).update(
                 eq("INSERT INTO validation_result (id, user_id, content_id, content_type, is_valid, errors, " +
-                        "created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"),
+                        "created_at, run_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
                 eq(id),
                 eq(userId),
                 eq(contentId),
                 eq(contentType),
                 eq(isValid),
                 eq("[]"),
-                eq(createdAt)
+                eq(createdAt),
+                any(UUID.class)
         );
     }
 }
