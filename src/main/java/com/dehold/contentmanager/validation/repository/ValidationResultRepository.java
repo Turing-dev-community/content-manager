@@ -26,15 +26,16 @@ public class ValidationResultRepository {
 
     public void create(ValidationResult validationResult) {
         jdbcTemplate.update(
-                "INSERT INTO validation_result (id, user_id, content_id, content_type, is_valid, errors, created_at) " +
-                        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO validation_result (id, user_id, content_id, content_type, is_valid, errors, created_at, run_id) " +
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 validationResult.getId(),
                 validationResult.getUserId(),
                 validationResult.getContentId(),
                 validationResult.getContentType(),
                 validationResult.isValid(),
                 serializeErrors(validationResult.getErrors()),
-                validationResult.getCreatedAt()
+                validationResult.getCreatedAt(),
+                validationResult.getRunId()!= null ? validationResult.getRunId() : UUID.randomUUID()
         );
     }
 
@@ -77,4 +78,35 @@ public class ValidationResultRepository {
             throw new RuntimeException("Failed to deserialize errors", e);
         }
     }
+
+    public void upsert(ValidationResult validationResult, UUID runId) {
+        jdbcTemplate.update(
+                "MERGE INTO validation_result AS vr " +
+                        "USING (VALUES (?, ?, ?, ?, ?, ?, ?, ?)) AS vals(" +
+                        "id, user_id, content_id, content_type, is_valid, errors, created_at, run_id" +
+                        ") " +
+                        "ON vr.run_id = vals.run_id " +
+                        "AND vr.user_id = vals.user_id " +
+                        "AND vr.content_id = vals.content_id " +
+                        "AND vr.content_type = vals.content_type " +
+                        "WHEN MATCHED THEN UPDATE SET " +
+                        "vr.is_valid = vals.is_valid, " +
+                        "vr.errors = vals.errors " +
+                        "WHEN NOT MATCHED THEN INSERT (" +
+                        "id, user_id, content_id, content_type, is_valid, errors, created_at, run_id" +
+                        ") VALUES (" +
+                        "vals.id, vals.user_id, vals.content_id, vals.content_type, " +
+                        "vals.is_valid, vals.errors, vals.created_at, vals.run_id" +
+                        ")",
+                validationResult.getId(),
+                validationResult.getUserId(),
+                validationResult.getContentId(),
+                validationResult.getContentType(),
+                validationResult.isValid(),
+                serializeErrors(validationResult.getErrors()),
+                validationResult.getCreatedAt(),
+                runId
+        );
+    }
+
 }
