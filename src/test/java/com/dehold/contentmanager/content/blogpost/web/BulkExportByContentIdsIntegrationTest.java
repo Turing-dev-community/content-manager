@@ -19,6 +19,7 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.*;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -87,7 +88,7 @@ public class BulkExportByContentIdsIntegrationTest extends ContentManagerApplica
         ResponseEntity<byte[]> resp = restTemplate.postForEntity(url, entity, byte[].class);
         assertEquals(HttpStatus.OK, resp.getStatusCode());
         assertEquals(MediaType.valueOf("text/csv"), resp.getHeaders().getContentType());
-        String csv = new String(resp.getBody(), java.nio.charset.StandardCharsets.UTF_8);
+        String csv = new String(resp.getBody(), StandardCharsets.UTF_8);
         assertTrue(csv.contains("SR1"));
         assertFalse(csv.contains("SR2"));
     }
@@ -111,7 +112,7 @@ public class BulkExportByContentIdsIntegrationTest extends ContentManagerApplica
         ResponseEntity<byte[]> resp = restTemplate.postForEntity(url, entity, byte[].class);
         assertEquals(HttpStatus.OK, resp.getStatusCode());
         assertEquals(MediaType.APPLICATION_XML, resp.getHeaders().getContentType());
-        String xml = new String(resp.getBody(), java.nio.charset.StandardCharsets.UTF_8);
+        String xml = new String(resp.getBody(), StandardCharsets.UTF_8);
         assertTrue(xml.contains("<supportResponses>"));
         assertTrue(xml.contains("R2"));
         assertFalse(xml.contains("R1"));
