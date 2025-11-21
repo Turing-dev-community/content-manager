@@ -112,9 +112,8 @@ class ValidationResultRepositoryTest {
         );
     }
 
-    //Duplicate UPSERT calls get merged, not duplicated
     @Test
-    void whenUpsertCalledTwiceWithSameIdentifiers_thenRepositoryShouldNotCreateDuplicates() {
+    void whenUpsertCalledTwiceWithSameIdentifiers_thenSecondCallUpdatesValues() {
 
         UUID id = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
@@ -132,15 +131,30 @@ class ValidationResultRepositoryTest {
                 id, userId, contentType, contentId, false, Collections.emptyList(), createdAt
         );
 
+        // first upsert
         validationResultRepository.upsert(vr1, runId);
-        validationResultRepository.upsert(vr2, runId); // same identifiers
 
-        // MERGE should be invoked twice (insert once, update once)
+        // second upsert (UPDATE case)
+        validationResultRepository.upsert(vr2, runId);
+
+        // verify call count
         verify(jdbcTemplate, times(2)).update(
                 startsWith("MERGE INTO validation_result"),
                 any(), any(), any(), any(), any(), any(), any(), any()
         );
-    }
 
+        // verify updated values in SECOND call
+        verify(jdbcTemplate).update(
+                startsWith("MERGE INTO validation_result"),
+                eq(id),
+                eq(userId),
+                eq(contentId),
+                eq(contentType),
+                eq(false),
+                eq("[]"),
+                eq(createdAt),
+                eq(runId)
+        );
+    }
 
 }
