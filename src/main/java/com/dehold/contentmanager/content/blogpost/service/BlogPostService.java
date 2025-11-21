@@ -16,6 +16,9 @@ import com.dehold.contentmanager.exception.EntityNotFoundException;
 import com.dehold.contentmanager.content.blogpost.model.Page;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -44,7 +47,7 @@ public class BlogPostService {
         this.objectMapper = objectMapper;
         this.exportService = exportService;
     }
-
+    @CacheEvict(value = {"blogPosts", "blogPostsByUser"}, allEntries = true)
     public BlogPost createBlogPost(String title, String content, UUID userId, List<Comment> comments) {
         BlogPost blogPost = new BlogPost(
                 UUID.randomUUID(),
@@ -59,15 +62,22 @@ public class BlogPostService {
         return blogPost;
     }
 
+    @Cacheable(value = "blogPostById", key = "#id")
     public BlogPost getBlogPost(UUID id) {
         return blogPostRepository.getBlogPost(id)
                 .orElseThrow(() -> EntityNotFoundException.of("BlogPost", id.toString()));
     }
 
+    @Cacheable("blogPosts")
     public List<BlogPost> getAllBlogPosts() {
         return blogPostRepository.getAllBlogPosts();
     }
 
+    @CacheEvict(value = {
+            "blogPosts",
+            "blogPostsByUser",
+            "blogPostById"
+    }, key = "#id", allEntries = true)
     public BlogPost updateBlogPost(UUID id, String title, String content) {
         BlogPost blogPost = getBlogPost(id); // This will now throw EntityNotFoundException if not found
         blogPost.setTitle(title);
@@ -77,10 +87,20 @@ public class BlogPostService {
         return blogPost;
     }
 
+    @CacheEvict(value = {
+            "blogPosts",
+            "blogPostsByUser",
+            "blogPostById"
+    }, allEntries = true)
     public void deleteBlogPost(UUID id) {
         blogPostRepository.deleteBlogPost(id);
     }
 
+    @CacheEvict(value = {
+            "blogPosts",
+            "blogPostsByUser",
+            "blogPostById"
+    }, key = "#id", allEntries = true)
     public BlogPost updateBlogPostVersion(UUID id, String title, String content) {
         // Step 1: Retrieve current post (throws EntityNotFoundException if not found)
         BlogPost existingPost = getBlogPost(id);
@@ -101,11 +121,13 @@ public class BlogPostService {
         return existingPost;
     }
 
-
+    @Cacheable(value = "blogPostsByUser", key = "#userId")
     public List<BlogPost> getBlogPostsByUserId(UUID userId) {
         return blogPostRepository.getBlogPostsByUserId(userId);
     }
 
+    
+    @Cacheable(value = "blogPostsPaginated", key = "#page + '-' + #size + '-' + (#userId != null ? #userId : 'all')")
     public Page<BlogPost> findPaginated(int page, int size, UUID userId) {
         if (page < 0) {
             throw new IllegalArgumentException("Page must be non-negative");
@@ -119,6 +141,7 @@ public class BlogPostService {
         return new Page<>(posts, page, size, total);
     }
 
+    // EXPORT — not cached (dynamic, large payload)
     public ResponseEntity<byte[]> getBlogPostsByUserIdAndContentType(List<UUID> userIds, String format, String contentTypeParam, boolean multiUser) throws Exception {
 
         // parse contentType param
@@ -174,10 +197,13 @@ public class BlogPostService {
         return new ResponseEntity<>(payload, headers, HttpStatus.OK);
     }
 
+    // HISTORY — not cached (rarely used, changes often)
     public List<BlogPostHistory> getHistory(UUID blogPostId) {
         return blogPostHistoryRepository.getHistoryByBlogPostId(blogPostId);
     }
 
+    // RESTORE — evicts cache
+    @CacheEvict(value = {"blogPosts", "blogPostsByUser", "blogPostById"}, key = "#blogPostId", allEntries = true)
     public BlogPost restoreVersion(UUID blogPostId, int versionNumber) {
         BlogPostHistory version = blogPostHistoryRepository.getHistoryByBlogPostId(blogPostId)
                 .stream()
@@ -188,10 +214,16 @@ public class BlogPostService {
         return getBlogPost(blogPostId);
     }
 
+    @Cacheable(
+        value = "blogPostSearch",
+        key = "#term != null ? #term.trim() : 'EMPTY'",
+        condition = "#term != null && !#term.trim().isEmpty()"
+    )
     public List<UUID> searchByTerm(String term) {
         return blogPostRepository.searchByTerm(term);
     }
 
+    @CacheEvict(value = {"blogPosts", "blogPostsByUser", "blogPostsPaginated", "blogPostById"}, allEntries = true)
     public void softDeleteBlogPost(UUID id) {
         // ensure post exists (including soft-deleted)
         blogPostRepository.getBlogPost(id, true)
@@ -200,11 +232,14 @@ public class BlogPostService {
         blogPostRepository.softDelete(id);
     }
 
+    @Cacheable(value = "blogPostById", key = "#id + '-' + #includeSoftDeleted")
     public BlogPost getBlogPost(UUID id, boolean includeSoftDeleted) {
         return blogPostRepository.getBlogPost(id, includeSoftDeleted)
                 .orElseThrow(() -> EntityNotFoundException.of("BlogPost", id.toString()));
     }
 
+    @Cacheable(value = "blogPostsPaginated", 
+               key = "#page + '-' + #size + '-' + (#userId != null ? #userId : 'all') + '-' + #includeSoftDeleted")
     public Page<BlogPost> findPaginated(int page, int size, UUID userId, boolean includeSoftDeleted) {
         if (page < 0) {
             throw new IllegalArgumentException("Page must be non-negative");

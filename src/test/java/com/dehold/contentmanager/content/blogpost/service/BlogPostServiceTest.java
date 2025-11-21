@@ -9,15 +9,15 @@ import com.dehold.contentmanager.content.blogpost.web.dto.CreateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.web.dto.UpdateBlogPostRequest;
 import com.dehold.contentmanager.content.blogpost.model.Page;
 import com.dehold.contentmanager.exception.EntityNotFoundException;
-import org.junit.jupiter.api.BeforeEach;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cache.CacheManager;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,21 +28,20 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+@SpringBootTest
 class BlogPostServiceTest {
 
-    @Mock
+    @MockitoBean
     private BlogPostRepository blogPostRepository;
 
-    @InjectMocks
+    @Autowired
     private BlogPostService blogPostService;
 
-    @Mock
+    @MockitoBean
     private BlogPostHistoryRepository blogPostHistoryRepository;
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
+    @Autowired 
+    private CacheManager cacheManager;
 
     @Test
     void createBlogPost_shouldCreateAndReturnBlogPost() {
@@ -470,19 +469,19 @@ class BlogPostServiceTest {
     }
 
     @Test
-    void searchByTerm_shouldBeCaseSensitive_negative() {
+    void searchByTerm_shouldBeCaseInsensitive_positive() {
        
-        when(blogPostRepository.searchByTerm("java"))
-            .thenReturn(List.of(UUID.randomUUID()));
+        UUID id1 = UUID.randomUUID();
+    
+        when(blogPostRepository.searchByTerm("Java")).thenReturn(List.of(id1));
 
-        // Search for uppercase "Java" → no match
-        when(blogPostRepository.searchByTerm("Java"))
-            .thenReturn(List.of());
+        when(blogPostRepository.searchByTerm("java")).thenReturn(List.of(id1));
+        
+        List<UUID> result = blogPostService.searchByTerm("java"); 
 
-        List<UUID> result = blogPostService.searchByTerm("Java");
-
-        assertTrue(result.isEmpty(), "Should be case-sensitive: 'Java' ≠ 'java'");
-        verify(blogPostRepository).searchByTerm("Java");
+        assertFalse(result.isEmpty(), "Search should be case-insensitive and find results.");
+        
+        verify(blogPostRepository, times(1)).searchByTerm("java");
     }
 
     @Test
@@ -558,7 +557,6 @@ class BlogPostServiceTest {
                 () -> blogPostService.getBlogPost(postId, false));
     }
 
-
     @Test
     void getBlogPost_withIncludeSoftDeleted_shouldReturnSoftDeletedPost() {
         UUID postId = UUID.randomUUID();
@@ -588,6 +586,269 @@ class BlogPostServiceTest {
         verify(blogPostRepository).getPaginatedBlogPosts(size, 0, userId, true);
     }
 
+    void getBlogPost_shouldCacheResultOnSecondCall() {
+        clearCaches();
 
+        UUID postId = UUID.randomUUID();
+        BlogPost cachedPost = new BlogPost(postId, "cached_data", "c", Instant.now(), Instant.now(), UUID.randomUUID());
+        
+        when(blogPostRepository.getBlogPost(postId)).thenReturn(Optional.of(cachedPost));
+
+        BlogPost result1 = blogPostService.getBlogPost(postId);
+        
+        BlogPost result2 = blogPostService.getBlogPost(postId); 
+
+        assertNotNull(result1);
+       
+        assertSame(result1, result2, "Second result should be the same cached instance."); 
+        
+        verify(blogPostRepository, times(1)).getBlogPost(postId);
+    }
+
+    @Test
+    void getAllBlogPosts_shouldCacheResultOnSecondCall() {
+        clearCaches();
+
+        List<BlogPost> cachedList = List.of(
+            new BlogPost(UUID.randomUUID(), "a", "c", Instant.now(), Instant.now(), UUID.randomUUID())
+        );
+        
+        when(blogPostRepository.getAllBlogPosts()).thenReturn(cachedList);
+
+        List<BlogPost> result1 = blogPostService.getAllBlogPosts();
+        
+        List<BlogPost> result2 = blogPostService.getAllBlogPosts(); 
+
+        assertEquals(1, result1.size());
+       
+        assertSame(result1, result2, "Second result list should be the same cached instance."); 
+        
+        verify(blogPostRepository, times(1)).getAllBlogPosts();
+    }
+    
+    @Test
+    void getBlogPostsByUserId_shouldCacheResultOnSecondCall() {
+        clearCaches();
+
+        UUID userId = UUID.randomUUID();
+        List<BlogPost> cachedList = List.of(
+            new BlogPost(UUID.randomUUID(), "a", "c", Instant.now(), Instant.now(), userId)
+        );
+        
+        when(blogPostRepository.getBlogPostsByUserId(userId)).thenReturn(cachedList);
+
+        List<BlogPost> result1 = blogPostService.getBlogPostsByUserId(userId);
+        
+        List<BlogPost> result2 = blogPostService.getBlogPostsByUserId(userId); 
+
+        assertEquals(1, result1.size());
+       
+        assertSame(result1, result2, "Second result list should be the same cached instance."); 
+        
+        verify(blogPostRepository, times(1)).getBlogPostsByUserId(userId);
+    }
+    
+    @Test
+    void findPaginated_shouldCacheResultOnSecondCall() {
+        clearCaches();
+
+        int page = 0;
+        int size = 10;
+        UUID userId = UUID.randomUUID();
+        
+        List<BlogPost> posts = List.of(new BlogPost(UUID.randomUUID(), "Post", "Content", Instant.now(), Instant.now(), userId));
+        Page<BlogPost> cachedPage = new Page<>(posts, page, size, 1L);
+        
+        when(blogPostRepository.getPaginatedBlogPosts(eq(size), eq(0), eq(userId))).thenReturn(posts);
+        when(blogPostRepository.countBlogPosts(eq(userId))).thenReturn(1L);
+
+        Page<BlogPost> result1 = blogPostService.findPaginated(page, size, userId);
+        
+        Page<BlogPost> result2 = blogPostService.findPaginated(page, size, userId); 
+
+        assertEquals(1, result1.getTotalElements());
+       
+        verify(blogPostRepository, times(1)).getPaginatedBlogPosts(eq(size), eq(0), eq(userId));
+        verify(blogPostRepository, times(1)).countBlogPosts(eq(userId));
+    }
+    
+    @Test
+    void searchByTerm_shouldCacheResultOnSecondCall() {
+        clearCaches();
+
+        String term = "Spring Boot";
+        List<UUID> cachedList = List.of(UUID.randomUUID());
+        
+        when(blogPostRepository.searchByTerm(term)).thenReturn(cachedList);
+
+        List<UUID> result1 = blogPostService.searchByTerm(term);
+        
+        List<UUID> result2 = blogPostService.searchByTerm(term); 
+
+        assertEquals(1, result1.size());
+        
+        verify(blogPostRepository, times(1)).searchByTerm(term);
+    }
+
+    @Test
+    void createBlogPost_shouldEvictAllListCaches() {
+        clearCaches(); 
+
+        UUID userId = UUID.randomUUID();
+        BlogPost newPost = new BlogPost(UUID.randomUUID(), "new", "content", Instant.now(), Instant.now(), userId);
+        List<BlogPost> initialList = List.of();
+        
+        when(blogPostRepository.getAllBlogPosts())
+            .thenReturn(initialList) 
+            .thenReturn(List.of(newPost)); 
+            
+        when(blogPostRepository.getBlogPostsByUserId(userId))
+            .thenReturn(initialList) 
+            .thenReturn(List.of(newPost)); 
+
+        blogPostService.getAllBlogPosts();
+        blogPostService.getBlogPostsByUserId(userId);
+        
+        blogPostService.createBlogPost(newPost.getTitle(), newPost.getContent(), newPost.getUserId(), null);
+        
+        blogPostService.getAllBlogPosts();
+        blogPostService.getBlogPostsByUserId(userId);
+
+        verify(blogPostRepository, times(2)).getAllBlogPosts();
+        verify(blogPostRepository, times(2)).getBlogPostsByUserId(userId);
+    }
+    
+    @Test
+    void updateBlogPost_shouldEvictAllCaches() {
+        clearCaches(); 
+
+        UUID postId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        BlogPost originalPost = new BlogPost(postId, "original", "c", Instant.now(), Instant.now(), userId);
+        
+        when(blogPostRepository.getBlogPost(postId))
+            .thenReturn(Optional.of(originalPost)); 
+
+        when(blogPostRepository.getAllBlogPosts())
+            .thenReturn(List.of(originalPost)) 
+            .thenReturn(List.of()); 
+        when(blogPostRepository.getBlogPostsByUserId(userId))
+            .thenReturn(List.of(originalPost))
+            .thenReturn(List.of()); 
+
+        blogPostService.getBlogPost(postId);
+        blogPostService.getAllBlogPosts();
+        blogPostService.getBlogPostsByUserId(userId);
+        
+        verify(blogPostRepository, times(1)).getBlogPost(postId); 
+        verify(blogPostRepository, times(1)).getAllBlogPosts();
+        verify(blogPostRepository, times(1)).getBlogPostsByUserId(userId);
+
+        blogPostService.updateBlogPost(postId, "New Title", "New Content"); 
+        
+        blogPostService.getBlogPost(postId);
+        blogPostService.getAllBlogPosts();
+        blogPostService.getBlogPostsByUserId(userId);
+
+        verify(blogPostRepository, times(3)).getBlogPost(postId); 
+        
+        verify(blogPostRepository, times(2)).getAllBlogPosts();
+        verify(blogPostRepository, times(2)).getBlogPostsByUserId(userId);
+    }
+
+    @Test
+    void deleteBlogPost_shouldEvictAllCaches() {
+        clearCaches(); 
+
+        UUID postId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        BlogPost postToDelete = new BlogPost(postId, "del", "c", Instant.now(), Instant.now(), userId);
+        
+        when(blogPostRepository.getBlogPost(postId))
+            .thenReturn(Optional.of(postToDelete)) 
+            .thenReturn(Optional.empty()); 
+
+        when(blogPostRepository.getAllBlogPosts())
+            .thenReturn(List.of(postToDelete)) 
+            .thenReturn(List.of()); 
+        
+        blogPostService.getBlogPost(postId);
+        blogPostService.getAllBlogPosts();
+        
+        blogPostService.deleteBlogPost(postId); 
+        
+        assertThrows(EntityNotFoundException.class, () -> blogPostService.getBlogPost(postId));
+        blogPostService.getAllBlogPosts();
+
+        verify(blogPostRepository, times(2)).getBlogPost(postId); 
+        
+        verify(blogPostRepository, times(2)).getAllBlogPosts();
+    }
+
+    @Test
+    void softDeleteBlogPost_shouldEvictAllListAndSingleEntryCaches() {
+        clearCaches();
+
+        UUID postId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        BlogPost postToSoftDelete = new BlogPost(postId, "To Delete", "Content", Instant.now(), Instant.now(), userId);
+        
+        when(blogPostRepository.getBlogPost(postId, true))
+            .thenReturn(Optional.of(postToSoftDelete)); // Initial call from softDeleteBlogPost
+        
+        when(blogPostRepository.getBlogPost(postId))
+            .thenReturn(Optional.of(postToSoftDelete)); // Prime the standard ID cache
+            
+        when(blogPostRepository.getBlogPost(postId, false)) // key: id-false
+            .thenReturn(Optional.of(postToSoftDelete)) // 1st hit to prime
+            .thenReturn(Optional.of(postToSoftDelete)); // 2nd hit after eviction
+
+        int page = 0, size = 1;
+        when(blogPostRepository.getPaginatedBlogPosts(size, page * size, userId, false))
+            .thenReturn(Collections.singletonList(postToSoftDelete)) // 1st hit to prime
+            .thenReturn(Collections.emptyList()); // 2nd hit after eviction (assuming post is now hidden)
+        when(blogPostRepository.countBlogPosts(userId, false))
+            .thenReturn(1L)
+            .thenReturn(0L);
+            
+        doNothing().when(blogPostRepository).softDelete(postId);
+
+        blogPostService.getBlogPost(postId); 
+
+        blogPostService.findPaginated(page, size, userId, false);
+
+        verify(blogPostRepository, times(1)).getBlogPost(postId);
+        verify(blogPostRepository, times(1)).getPaginatedBlogPosts(size, 0, userId, false);
+
+        blogPostService.softDeleteBlogPost(postId);
+        
+        verify(blogPostRepository, times(1)).softDelete(postId);
+        verify(blogPostRepository, times(1)).getBlogPost(postId, true);
+
+        blogPostService.getBlogPost(postId); 
+
+        blogPostService.findPaginated(page, size, userId, false);
+        
+        verify(blogPostRepository, times(2)).getBlogPost(postId);
+        verify(blogPostRepository, times(2)).getPaginatedBlogPosts(size, 0, userId, false);
+    }
+
+    private void clearCaches() {
+        if (cacheManager.getCache("blogPostById") != null) {
+            cacheManager.getCache("blogPostById").clear();
+        }
+        if (cacheManager.getCache("blogPosts") != null) {
+            cacheManager.getCache("blogPosts").clear();
+        }
+        if (cacheManager.getCache("blogPostsByUser") != null) {
+            cacheManager.getCache("blogPostsByUser").clear();
+        }
+        if (cacheManager.getCache("blogPostsPaginated") != null) {
+            cacheManager.getCache("blogPostsPaginated").clear();
+        }
+        if (cacheManager.getCache("blogPostSearch") != null) {
+            cacheManager.getCache("blogPostSearch").clear();
+        }
+    }
 
 }

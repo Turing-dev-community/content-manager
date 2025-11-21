@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.cache.CacheManager;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -27,7 +28,6 @@ import org.springframework.http.MediaType;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -51,8 +51,15 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private CacheManager cacheManager;
+
     @BeforeEach
     void cleanupDbAndSetupUsers(@Autowired JdbcTemplate jdbcTemplate) {
+
+        cacheManager.getCacheNames().forEach(name ->
+            cacheManager.getCache(name).clear()
+        );
 
         jdbcTemplate.update("DELETE FROM blog_post");
         jdbcTemplate.update("DELETE FROM \"user\"");
