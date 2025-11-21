@@ -13,13 +13,21 @@ public class NumericRangeValidator<T extends Content> implements ValidationStep<
     private final String fieldName;
     private final Double minValue;
     private final Double maxValue;
+    private final boolean minInclusive;
+    private final boolean maxInclusive;
     public static final String ERROR_CODE = "NUMERIC_RANGE_VALIDATION_FAILED";
 
-    public NumericRangeValidator(Function<T, String> getter, String fieldName, Double minValue, Double maxValue) {
+    public NumericRangeValidator(Function<T, String> getter, String fieldName, Double minValue, Double maxValue, boolean minInclusive, boolean maxInclusive) {
         this.getter = getter;
         this.fieldName = fieldName;
         this.minValue = minValue;
         this.maxValue = maxValue;
+        this.minInclusive = minInclusive;
+        this.maxInclusive = maxInclusive;
+    }
+
+    public NumericRangeValidator(Function<T, String> getter, String fieldName, Double minValue, Double maxValue) {
+        this(getter, fieldName, minValue, maxValue, false, false);
     }
 
     @Override
@@ -33,22 +41,28 @@ public class NumericRangeValidator<T extends Content> implements ValidationStep<
         try {
             double numericValue = Double.parseDouble(value);
 
-            if (minValue != null && numericValue <= minValue) {
-                return ValidationResult.invalid(
-                        content.getClass().getSimpleName(),
-                        content.getId(),
-                        content.getUserId(),
-                        List.of(new ValidationError(ERROR_CODE, errorMessageTooSmall(fieldName, minValue)))
-                );
+            if (minValue != null) {
+                boolean violatesMin = minInclusive ? numericValue < minValue : numericValue <= minValue;
+                if (violatesMin) {
+                    return ValidationResult.invalid(
+                            content.getClass().getSimpleName(),
+                            content.getId(),
+                            content.getUserId(),
+                            List.of(new ValidationError(ERROR_CODE, errorMessageTooSmall(fieldName, minValue, minInclusive)))
+                    );
+                }
             }
 
-            if (maxValue != null && numericValue >= maxValue) {
-                return ValidationResult.invalid(
-                        content.getClass().getSimpleName(),
-                        content.getId(),
-                        content.getUserId(),
-                        List.of(new ValidationError(ERROR_CODE, errorMessageTooLarge(fieldName, maxValue)))
-                );
+            if (maxValue != null) {
+                boolean violatesMax = maxInclusive ? numericValue > maxValue : numericValue >= maxValue;
+                if (violatesMax) {
+                    return ValidationResult.invalid(
+                            content.getClass().getSimpleName(),
+                            content.getId(),
+                            content.getUserId(),
+                            List.of(new ValidationError(ERROR_CODE, errorMessageTooLarge(fieldName, maxValue, maxInclusive)))
+                    );
+                }
             }
 
             return ValidationResult.valid(content.getClass().getSimpleName(), content.getId(), content.getUserId());
@@ -68,12 +82,14 @@ public class NumericRangeValidator<T extends Content> implements ValidationStep<
         return fieldName;
     }
 
-    public static String errorMessageTooSmall(String fieldName, Double minValue) {
-        return String.format("The field '%s' must be greater than %s.", fieldName, minValue);
+    public static String errorMessageTooSmall(String fieldName, Double minValue, boolean inclusive) {
+        String operator = inclusive ? "at least" : "greater than";
+        return String.format("The field '%s' must be %s %s.", fieldName, operator, minValue);
     }
 
-    public static String errorMessageTooLarge(String fieldName, Double maxValue) {
-        return String.format("The field '%s' must be less than %s.", fieldName, maxValue);
+    public static String errorMessageTooLarge(String fieldName, Double maxValue, boolean inclusive) {
+        String operator = inclusive ? "at most" : "less than";
+        return String.format("The field '%s' must be %s %s.", fieldName, operator, maxValue);
     }
 
     public static String errorMessageNotNumeric(String fieldName) {
