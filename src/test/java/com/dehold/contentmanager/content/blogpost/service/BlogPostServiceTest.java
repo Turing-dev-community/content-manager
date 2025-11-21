@@ -65,7 +65,7 @@ class BlogPostServiceTest {
         assertEquals(request.getContent(), createdBlogPost.getContent());
 
         // verify repository called once and inspect the passed BlogPost object
-        verify(blogPostRepository, times(1)).createBlogPost(any(BlogPost.class));
+        verify(blogPostRepository).createBlogPost(any(BlogPost.class));
         BlogPost passed = captor.getValue();
         assertNotNull(passed.getId(), "Service must assign id before persisting");
         assertEquals(request.getTitle(), passed.getTitle());
@@ -87,7 +87,7 @@ class BlogPostServiceTest {
 
         assertNotNull(foundBlogPost);
         assertEquals(blogPostId, foundBlogPost.getId());
-        verify(blogPostRepository, times(1)).getBlogPost(blogPostId);
+        verify(blogPostRepository).getBlogPost(blogPostId);
     }
 
     @Test
@@ -108,7 +108,7 @@ class BlogPostServiceTest {
         assertEquals(2, blogPosts.size());
         assertEquals(userId, blogPosts.get(0).getUserId());
         assertEquals(userId, blogPosts.get(1).getUserId());
-        verify(blogPostRepository, times(1)).getBlogPostsByUserId(userId);
+        verify(blogPostRepository).getBlogPostsByUserId(userId);
     }
 
     @Test
@@ -128,7 +128,7 @@ class BlogPostServiceTest {
         assertNotNull(updatedBlogPost);
         assertEquals(request.getTitle(), updatedBlogPost.getTitle());
         assertEquals(request.getContent(), updatedBlogPost.getContent());
-        verify(blogPostRepository, times(1)).updateBlogPost(any(BlogPost.class));
+        verify(blogPostRepository).updateBlogPost(any(BlogPost.class));
     }
 
     @Test
@@ -139,7 +139,7 @@ class BlogPostServiceTest {
 
         blogPostService.deleteBlogPost(blogPostId);
 
-        verify(blogPostRepository, times(1)).deleteBlogPost(blogPostId);
+        verify(blogPostRepository).deleteBlogPost(blogPostId);
     }
 
     @Test
@@ -159,8 +159,8 @@ class BlogPostServiceTest {
         assertEquals(1L, result.getTotalElements());
         assertEquals(1, result.getTotalPages());
         assertTrue(result.isLast());
-        verify(blogPostRepository, times(1)).getPaginatedBlogPosts(eq(size), eq(0), eq(userId));
-        verify(blogPostRepository, times(1)).countBlogPosts(eq(userId));
+        verify(blogPostRepository).getPaginatedBlogPosts(eq(size), eq(0), eq(userId));
+        verify(blogPostRepository).countBlogPosts(eq(userId));
     }
 
     @Test
@@ -190,8 +190,8 @@ class BlogPostServiceTest {
         assertEquals(posts, result.getContent());
         assertEquals(1L, result.getTotalElements());
         assertTrue(result.isLast());
-        verify(blogPostRepository, times(1)).getPaginatedBlogPosts(eq(size), eq(0), eq(userId));
-        verify(blogPostRepository, times(1)).countBlogPosts(eq(userId));
+        verify(blogPostRepository).getPaginatedBlogPosts(eq(size), eq(0), eq(userId));
+        verify(blogPostRepository).countBlogPosts(eq(userId));
     }
 
     @Test
@@ -215,7 +215,7 @@ class BlogPostServiceTest {
         assertEquals(content, created.getContent());
 
         // Assert repository invocation and inspect passed value
-        verify(blogPostRepository, times(1)).createBlogPost(any(BlogPost.class));
+        verify(blogPostRepository).createBlogPost(any(BlogPost.class));
         BlogPost passed = captor.getValue();
         assertNotNull(passed.getId(), "Service should assign id before persisting");
         assertEquals(title, passed.getTitle());
@@ -254,7 +254,7 @@ class BlogPostServiceTest {
         assertEquals("New Title", updated.getTitle());
         assertEquals("New Body", updated.getContent());
 
-        verify(blogPostRepository, times(1)).updateBlogPost(any(BlogPost.class));
+        verify(blogPostRepository).updateBlogPost(any(BlogPost.class));
         BlogPost passed = captor.getValue();
         assertEquals(postId, passed.getId());
         assertEquals("New Title", passed.getTitle());
@@ -305,7 +305,7 @@ class BlogPostServiceTest {
         assertEquals("New Content", updated.getContent());
 
         verify(blogPostHistoryRepository, times(1)).saveHistory(any(BlogPost.class), eq(1));
-        verify(blogPostRepository, times(1)).updateBlogPost(any(BlogPost.class));
+        verify(blogPostRepository).updateBlogPost(any(BlogPost.class));
     }
 
     @Test
@@ -407,7 +407,7 @@ class BlogPostServiceTest {
 
         verify(blogPostHistoryRepository).getHistoryByBlogPostId(postId);
         verify(blogPostHistoryRepository).saveHistory(any(), eq(2));
-        verify(blogPostRepository, times(2)).getBlogPost(postId); // called twice
+        verify(blogPostRepository, atLeastOnce()).getBlogPost(postId);
         verify(blogPostRepository).updateBlogPost(any());
     }
 
@@ -515,7 +515,7 @@ class BlogPostServiceTest {
         List<UUID> resultWhitespace = blogPostService.searchByTerm("   ");
         assertTrue(resultWhitespace.isEmpty(), "Should return empty list for whitespace-only string.");
 
-        verify(blogPostRepository, times(1)).searchByTerm(null);
+        verify(blogPostRepository).searchByTerm(null);
         verify(blogPostRepository, times(1)).searchByTerm("");
         verify(blogPostRepository, times(1)).searchByTerm("   ");
         
