@@ -41,40 +41,56 @@ public class NumericRangeValidator<T extends Content> implements ValidationStep<
         try {
             double numericValue = Double.parseDouble(value);
 
-            if (minValue != null) {
-                boolean violatesMin = minInclusive ? numericValue < minValue : numericValue <= minValue;
-                if (violatesMin) {
-                    return ValidationResult.invalid(
-                            content.getClass().getSimpleName(),
-                            content.getId(),
-                            content.getUserId(),
-                            List.of(new ValidationError(ERROR_CODE, errorMessageTooSmall(fieldName, minValue, minInclusive)))
-                    );
-                }
-            }
+            ValidationResult minBoundaryCheckResult = checkMinBoundary(content, numericValue);
+            if (minBoundaryCheckResult != null) return minBoundaryCheckResult;
 
-            if (maxValue != null) {
-                boolean violatesMax = maxInclusive ? numericValue > maxValue : numericValue >= maxValue;
-                if (violatesMax) {
-                    return ValidationResult.invalid(
-                            content.getClass().getSimpleName(),
-                            content.getId(),
-                            content.getUserId(),
-                            List.of(new ValidationError(ERROR_CODE, errorMessageTooLarge(fieldName, maxValue, maxInclusive)))
-                    );
-                }
-            }
+            ValidationResult maxBoundaryCheckResult = checkMaxBoundary(content, numericValue);
+            if (maxBoundaryCheckResult != null) return maxBoundaryCheckResult;
 
             return ValidationResult.valid(content.getClass().getSimpleName(), content.getId(), content.getUserId());
 
         } catch (NumberFormatException e) {
-            return ValidationResult.invalid(
-                    content.getClass().getSimpleName(),
-                    content.getId(),
-                    content.getUserId(),
-                    List.of(new ValidationError(ERROR_CODE, errorMessageNotNumeric(fieldName)))
-            );
+            return buildNotANumberResult(content);
         }
+    }
+
+    private ValidationResult buildNotANumberResult(T content) {
+        return ValidationResult.invalid(
+                content.getClass().getSimpleName(),
+                content.getId(),
+                content.getUserId(),
+                List.of(new ValidationError(ERROR_CODE, errorMessageNotNumeric(fieldName)))
+        );
+    }
+
+    private ValidationResult checkMaxBoundary(T content, double numericValue) {
+        if (maxValue != null) {
+            boolean violatesMax = maxInclusive ? numericValue > maxValue : numericValue >= maxValue;
+            if (violatesMax) {
+                return ValidationResult.invalid(
+                        content.getClass().getSimpleName(),
+                        content.getId(),
+                        content.getUserId(),
+                        List.of(new ValidationError(ERROR_CODE, errorMessageTooLarge(fieldName, maxValue, maxInclusive)))
+                );
+            }
+        }
+        return null;
+    }
+
+    private ValidationResult checkMinBoundary(T content, double numericValue) {
+        if (minValue != null) {
+            boolean violatesMin = minInclusive ? numericValue < minValue : numericValue <= minValue;
+            if (violatesMin) {
+                return ValidationResult.invalid(
+                        content.getClass().getSimpleName(),
+                        content.getId(),
+                        content.getUserId(),
+                        List.of(new ValidationError(ERROR_CODE, errorMessageTooSmall(fieldName, minValue, minInclusive)))
+                );
+            }
+        }
+        return null;
     }
 
     @Override
