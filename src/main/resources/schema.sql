@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS blog_post (
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     user_id UUID,
+    soft_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES "user" (id) ON DELETE CASCADE
 );
 
