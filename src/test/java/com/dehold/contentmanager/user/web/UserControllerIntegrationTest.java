@@ -1758,4 +1758,117 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
         );
     }
 
+    @Test
+    void exportValidationReport_shouldReturnJsonFile() {
+        // Arrange
+        User user = new User(
+                UUID.randomUUID(),
+                "Export User",
+                "export-" + UUID.randomUUID() + "@example.com",
+                Instant.now(),
+                Instant.now(),
+                uniqueUsername(),
+                "pass",
+                true
+        );
+        userRepository.createUser(user);
+
+        // Create one validation result (so JSON has some content)
+        BlogPost blogPost = new BlogPost(
+                UUID.randomUUID(),
+                "Test Title",
+                "Some valid blog post content",
+                Instant.now(),
+                Instant.now(),
+                user.getId()
+        );
+        blogPostRepository.createBlogPost(blogPost);
+
+        BlogPostValidationRequest request = new BlogPostValidationRequest(
+                3, 100, 10, 1000, blogPost
+        );
+        restTemplate.postForEntity(
+                baseUrl() + "/api/validate/blogpost",
+                request,
+                ValidationResponse.class
+        );
+
+        // Act
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(
+                baseUrl() + "/api/users/" + user.getId() + "/validation-report/export",
+                byte[].class
+        );
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getHeaders().getContentDisposition().getFilename()
+                .contains(user.getId().toString()));
+
+        assertEquals("application/json", response.getHeaders().getContentType().toString());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().length > 0);
+    }
+
+    @Test
+    void exportValidationReport_detailedTrue_shouldReturnJsonFile() {
+        User user = new User(
+                UUID.randomUUID(),
+                "Detailed Export User",
+                "dexport-" + UUID.randomUUID() + "@example.com",
+                Instant.now(),
+                Instant.now(),
+                uniqueUsername(),
+                "pass",
+                true
+        );
+        userRepository.createUser(user);
+
+        // Create one validation result (so JSON has some content)
+        BlogPost blogPost = new BlogPost(
+                UUID.randomUUID(),
+                "Test Title",
+                "Some valid blog post content",
+                Instant.now(),
+                Instant.now(),
+                user.getId()
+        );
+        blogPostRepository.createBlogPost(blogPost);
+
+        BlogPostValidationRequest request = new BlogPostValidationRequest(
+                3, 100, 10, 1000, blogPost
+        );
+        restTemplate.postForEntity(
+                baseUrl() + "/api/validate/blogpost",
+                request,
+                ValidationResponse.class
+        );
+
+        ResponseEntity<byte[]> response = restTemplate.getForEntity(
+                baseUrl() + "/api/users/" + user.getId() + "/validation-report/export?detailed=true",
+                byte[].class
+        );
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getHeaders().getContentDisposition().getFilename()
+                .contains(user.getId().toString()));
+        assertNotNull(response.getBody());
+    }
+
+    @Test
+    void exportValidationReport_forNonExistentUser_shouldReturn404() {
+        UUID nonExistingId = UUID.randomUUID();
+
+        ResponseEntity<CustomErrorResponse> response = restTemplate.getForEntity(
+                baseUrl() + "/api/users/" + nonExistingId + "/validation-report/export",
+                CustomErrorResponse.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(
+                "The entity User with id " + nonExistingId + " does not exist",
+                response.getBody().getError()
+        );
+    }
+
+
 }
