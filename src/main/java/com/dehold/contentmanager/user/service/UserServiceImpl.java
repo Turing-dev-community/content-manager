@@ -8,6 +8,8 @@ import com.dehold.contentmanager.user.web.dto.UpdateUserRequest;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.service.ValidationPipelineService;
 import org.springframework.stereotype.Service;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,11 +50,19 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Cacheable(
+        value = "usersById", 
+        key = "#id"
+    )
     public User getUser(UUID id) {
         return userRepository.getUserById(id)
                 .orElseThrow(() -> EntityNotFoundException.of("User", id.toString()));
     }
 
+    @CacheEvict(
+        value = "usersById", 
+        key = "#id"
+    )
     @Transactional
     @Override
     public User updateUser(UUID id, UpdateUserRequest dto) {
@@ -78,6 +88,10 @@ public class UserServiceImpl implements UserService {
         return updatedUser;
     }
 
+    @CacheEvict(
+        value = "usersById", 
+        key = "#id"
+    )
     @Override
     public void deleteUser(UUID id) {
         userRepository.deleteUser(id);
@@ -91,4 +105,5 @@ public class UserServiceImpl implements UserService {
         getUser(userId); // Ensure user exists
         return validationPipelineService.findByUserIdAndContentType(userId, contentType);
     }
+    
 }

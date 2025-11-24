@@ -7,29 +7,38 @@ import com.dehold.contentmanager.exception.EntityNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cache.CacheManager;
 import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+@SpringBootTest
 class ProductOfferServiceTest {
 
-    @Mock
+    @MockitoBean
     private ProductOfferRepository productOfferRepository;
 
-    @InjectMocks
+    @Autowired
     private ProductOfferServiceImpl productOfferService;
+
+    @Autowired
+    private CacheManager cacheManager;
 
     private UUID offerId;
     private UUID userId;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
         offerId = UUID.randomUUID();
         userId = UUID.randomUUID();
     }
@@ -119,6 +128,160 @@ class ProductOfferServiceTest {
         verify(productOfferRepository).delete(offerId);
     }
 
+    @Test
+    void getProductOffer_shouldCacheResultOnSecondCall() {
+        clearCaches();
+        ProductOffer offer = createValidOffer();
+        offer.setId(offerId);
+
+        when(productOfferRepository.findById(offerId)).thenReturn(offer);
+
+        ProductOffer first = productOfferService.getProductOffer(offerId);
+        ProductOffer second = productOfferService.getProductOffer(offerId);
+
+        assertSame(first, second, "Should return same instance from cache");
+        verify(productOfferRepository, times(1)).findById(offerId);
+    }
+
+    @Test
+    void getAllProductOffers_shouldCacheResultOnSecondCall() {
+        clearCaches();
+        List<ProductOffer> list = List.of(createValidOffer());
+
+        when(productOfferRepository.findAll()).thenReturn(list);
+
+        List<ProductOffer> first = productOfferService.getAllProductOffers();
+        List<ProductOffer> second = productOfferService.getAllProductOffers();
+
+        assertSame(first, second, "Should return same list from cache");
+        verify(productOfferRepository, times(1)).findAll();
+    }
+
+    @Test
+    void getProductOffersByUserId_shouldCacheResultOnSecondCall() {
+        clearCaches();
+        List<ProductOffer> list = List.of(createValidOffer());
+
+        when(productOfferRepository.findByUserId(userId)).thenReturn(list);
+
+        List<ProductOffer> first = productOfferService.getProductOffersByUserId(userId);
+        List<ProductOffer> second = productOfferService.getProductOffersByUserId(userId);
+
+        assertSame(first, second, "Should return same list from cache");
+        verify(productOfferRepository, times(1)).findByUserId(userId);
+    }
+
+    @Test
+    void createProductOffer_shouldEvictAllCaches() {
+        clearCaches();
+        when(productOfferRepository.findAll()).thenReturn(List.of());
+        when(productOfferRepository.findByUserId(userId)).thenReturn(List.of());
+
+        productOfferService.getAllProductOffers();
+        productOfferService.getProductOffersByUserId(userId);
+
+        verify(productOfferRepository, times(1)).findAll();
+        verify(productOfferRepository, times(1)).findByUserId(userId);
+
+        ProductOffer newOffer = createValidOffer();
+        newOffer.setId(null);
+        doNothing().when(productOfferRepository).create(any());
+
+        productOfferService.createProductOffer(newOffer);
+
+        productOfferService.getAllProductOffers();
+        productOfferService.getProductOffersByUserId(userId);
+
+        verify(productOfferRepository, times(2)).findAll();
+        verify(productOfferRepository, times(2)).findByUserId(userId);
+    }
+
+    @Test
+    void updateProductOffer_shouldEvictAllCaches() {
+        clearCaches();
+        ProductOffer existing = createValidOffer();
+        existing.setId(offerId);
+        existing.setUserId(userId);
+
+        ProductOffer updated = createValidOffer();
+        updated.setId(offerId);
+        updated.setUserId(userId);
+        updated.setTitle("Updated iPhone");
+
+        when(productOfferRepository.findById(offerId))
+                .thenReturn(existing) // Call 1: Priming getProductOffer
+                .thenReturn(existing) // Call 2: Internal read in updateProductOffer (before update)
+                .thenReturn(updated);  // Call 3: Post-eviction getProductOffer
+
+        when(productOfferRepository.findAll()).thenReturn(List.of(existing));
+        when(productOfferRepository.findByUserId(userId)).thenReturn(List.of(existing));
+
+        productOfferService.getProductOffer(offerId);
+        productOfferService.getAllProductOffers();
+        productOfferService.getProductOffersByUserId(userId);
+
+        verify(productOfferRepository, times(1)).findById(offerId);
+        verify(productOfferRepository, times(1)).findAll();
+        verify(productOfferRepository, times(1)).findByUserId(userId);
+
+        doNothing().when(productOfferRepository).update(any());
+        productOfferService.updateProductOffer(offerId, updated);
+
+        when(productOfferRepository.findAll()).thenReturn(List.of(updated));
+        when(productOfferRepository.findByUserId(userId)).thenReturn(List.of(updated));
+
+        // Cache miss → repo called again (Calls 3 to repo, plus new calls for list/user)
+        productOfferService.getProductOffer(offerId);
+        productOfferService.getAllProductOffers();
+        productOfferService.getProductOffersByUserId(userId);
+
+        // Final verification: findById should be called 3 times now
+        verify(productOfferRepository, times(3)).findById(offerId); // <-- FIX HERE
+        verify(productOfferRepository, times(2)).findAll();
+        verify(productOfferRepository, times(2)).findByUserId(userId);
+    }
+    
+    @Test
+    void deleteProductOffer_shouldEvictAllCaches() {
+        clearCaches();
+        ProductOffer offer = createValidOffer();
+        offer.setId(offerId);
+        offer.setUserId(userId);
+
+        when(productOfferRepository.findById(offerId)).thenReturn(offer);
+        when(productOfferRepository.findAll()).thenReturn(List.of(offer));
+        when(productOfferRepository.findByUserId(userId)).thenReturn(List.of(offer));
+
+        productOfferService.getProductOffer(offerId);
+        productOfferService.getAllProductOffers();
+        productOfferService.getProductOffersByUserId(userId);
+
+        verify(productOfferRepository, times(1)).findById(offerId);
+        verify(productOfferRepository, times(1)).findAll();
+        verify(productOfferRepository, times(1)).findByUserId(userId);
+
+        doNothing().when(productOfferRepository).delete(offerId);
+        productOfferService.deleteProductOffer(offerId);
+
+        when(productOfferRepository.findById(offerId)).thenThrow(new EmptyResultDataAccessException(1));
+        when(productOfferRepository.findAll()).thenReturn(List.of());
+        when(productOfferRepository.findByUserId(userId)).thenReturn(List.of());
+
+        assertThrows(EntityNotFoundException.class, () -> productOfferService.getProductOffer(offerId));
+        productOfferService.getAllProductOffers();
+        productOfferService.getProductOffersByUserId(userId);
+
+        verify(productOfferRepository, times(2)).findById(offerId);
+        verify(productOfferRepository, times(2)).findAll();
+        verify(productOfferRepository, times(2)).findByUserId(userId);
+    }
+
+    private void clearCaches() {
+        Optional.ofNullable(cacheManager.getCache("productOfferById")).ifPresent(cache -> cache.clear());
+        Optional.ofNullable(cacheManager.getCache("productOffersAll")).ifPresent(cache -> cache.clear());
+        Optional.ofNullable(cacheManager.getCache("productOffersByUser")).ifPresent(cache -> cache.clear());
+    }
+
     private ProductOffer createValidOffer() {
         ProductOffer offer = new ProductOffer();
         offer.setId(offerId);
@@ -135,4 +298,5 @@ class ProductOfferServiceTest {
         offer.setActive(true);
         return offer;
     }
+
 }
