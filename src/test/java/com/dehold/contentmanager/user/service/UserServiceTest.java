@@ -5,36 +5,39 @@ import com.dehold.contentmanager.user.model.User;
 import com.dehold.contentmanager.user.repository.UserRepository;
 import com.dehold.contentmanager.user.web.dto.CreateUserRequest;
 import com.dehold.contentmanager.user.web.dto.UpdateUserRequest;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cache.CacheManager;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+@SpringBootTest
 class UserServiceTest {
 
-    @Mock
+    @MockitoBean
     private UserRepository userRepository;
 
-    @InjectMocks
+    @Autowired
     private UserServiceImpl userService;
 
+    @Autowired
+    private CacheManager cacheManager;
+    
+    private UUID userId = UUID.randomUUID();
+
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
-
 
     @Test
     void createUser_shouldCreateAndReturnUser() {
@@ -266,4 +269,103 @@ class UserServiceTest {
                 .updateAuthorityUsername("oldUsername", "newUsername");
     }
 
+    @Test
+    void getUser_shouldCacheResultOnSecondCall() {
+        clearCaches();
+        User user = createSampleUser();
+        user.setId(userId);
+
+        when(userRepository.getUserById(userId)).thenReturn(Optional.of(user));
+
+        User first = userService.getUser(userId);
+        User second = userService.getUser(userId);
+
+        assertSame(first, second, "Should return same instance from cache");
+        verify(userRepository, times(1)).getUserById(userId);
+    }
+
+    @Test
+    void updateUser_shouldEvictCache() {
+        clearCaches();
+    
+        User original = createSampleUser();
+        original.setId(userId);
+    
+        User updatedVersion = createSampleUser();
+        updatedVersion.setId(userId);
+        updatedVersion.setAlias("New Name");
+    
+        // 1. Prime cache (Calls repo 1st time)
+        when(userRepository.getUserById(userId)).thenReturn(Optional.of(original));
+        userService.getUser(userId);
+        verify(userRepository, times(1)).getUserById(userId);
+    
+        // 2. Reconfigure mock BEFORE update
+        // The internal findUserOrThrow() will return this updated version (Calls repo 2nd time)
+        when(userRepository.getUserById(userId)).thenReturn(Optional.of(updatedVersion));
+    
+        doNothing().when(userRepository).updateUser(any());
+        doNothing().when(userRepository).updateAuthorityUsername(anyString(), anyString());
+    
+        UpdateUserRequest req = new UpdateUserRequest();
+        req.setAlias("New Name");
+        // This call executes the update and evicts the cache.
+        userService.updateUser(userId, req);
+    
+        // 3. Cache evicted → next call hits repo (Calls repo 3rd time)
+        User result = userService.getUser(userId);
+        assertEquals("New Name", result.getAlias());
+    
+        // Total 3 repo calls: 1 (Prime) + 1 (Inside Update/findUserOrThrow) + 1 (Post-Eviction Check)
+        verify(userRepository, times(3)).getUserById(userId);
+    }
+    
+    @Test
+    void deleteUser_shouldEvictCache() {
+        clearCaches();
+
+        User user = createSampleUser();
+        user.setId(userId);
+
+        // 1. Prime cache (Calls repo 1st time)
+        when(userRepository.getUserById(userId)).thenReturn(Optional.of(user));
+        userService.getUser(userId);
+        verify(userRepository, times(1)).getUserById(userId);
+
+        // Delete method:
+        // a) Calls internal findUserOrThrow() to get username (Calls repo 2nd time)
+        // b) Evicts the cache
+        doNothing().when(userRepository).deleteUser(userId);
+        doNothing().when(userRepository).deleteSecurityAuthorities(anyString());
+
+        userService.deleteUser(userId);
+
+        // 3. Cache is evicted → next call hits repo (Calls repo 3rd time)
+        // We mock the repo to return Optional.empty() now, as the user is "deleted".
+        when(userRepository.getUserById(userId)).thenReturn(Optional.empty());
+
+        // This must hit the repo and trigger the exception, confirming eviction.
+        assertThrows(EntityNotFoundException.class, () -> userService.getUser(userId));
+
+        // Total 3 repo calls: 1 (Prime) + 1 (Inside Delete/findUserOrThrow) + 1 (Post-Eviction Check)
+        verify(userRepository, times(3)).getUserById(userId);
+    }
+
+    private User createSampleUser() {
+        return new User(
+                UUID.randomUUID(),
+                "Test User",
+                "test@example.com",
+                Instant.now(),
+                Instant.now(),
+                "testuser",
+                passwordEncoder.encode("password"),
+                true
+        );
+    }
+
+    private void clearCaches() {
+        Optional.ofNullable(cacheManager.getCache("usersById"))
+                .ifPresent(cache -> cache.clear());
+    }
 }

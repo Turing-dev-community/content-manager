@@ -4,6 +4,8 @@ import com.dehold.contentmanager.content.webhook.model.Webhook;
 import com.dehold.contentmanager.content.webhook.repository.WebhookRepository;
 import com.dehold.contentmanager.exception.EntityNotFoundException;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +23,10 @@ public class WebhookServiceImpl implements WebhookService {
     }
 
     @Override
+    @CacheEvict(
+        value = {"webhookById", "webhooksByUser"},
+         allEntries = true
+        )
     public Webhook createWebhook(UUID userId, String url) {
         Webhook webhook = new Webhook();
         webhook.setId(UUID.randomUUID());
@@ -33,11 +39,19 @@ public class WebhookServiceImpl implements WebhookService {
     }
 
     @Override
+    @Cacheable(
+        value = "webhooksByUser", 
+        key = "#userId"
+    )
     public List<Webhook> getWebhooksByUserId(UUID userId) {
         return webhookRepository.findByUserId(userId);
     }
 
     @Override
+    @Cacheable(
+        value = "webhookById", 
+        key = "#id"
+    )
     public Webhook getWebhookById(UUID id) {
         try {
             return webhookRepository.findById(id);
@@ -47,6 +61,10 @@ public class WebhookServiceImpl implements WebhookService {
     }
 
     @Override
+    @CacheEvict(
+        value = {"webhookById", "webhooksByUser"}, 
+        allEntries = true
+    )
     public Webhook updateWebhook(UUID id, String url) {
         Webhook webhook = getWebhookById(id);
         webhook.setUrl(url);
@@ -56,6 +74,10 @@ public class WebhookServiceImpl implements WebhookService {
     }
 
     @Override
+    @CacheEvict(
+        value = {"webhookById", "webhooksByUser"}, 
+        allEntries = true
+    )
     public void deleteWebhook(UUID id) {
         webhookRepository.delete(id);
     }
