@@ -19,7 +19,8 @@ public class ApiCallCounter implements HandlerInterceptor {
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
 
-        // This returns e.g. "/my/entity/{id}/categorize"
+        // The pattern matcher makes sure that path variables are not counted separately
+        // e.g. /api/blogposts/123 and /api/blogposts/456 will result in the same pattern /api/blogposts/{id}
         String pattern = (String) request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
 
         if (pattern != null) {
