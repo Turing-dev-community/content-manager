@@ -1,5 +1,6 @@
 package com.dehold.contentmanager;
 
+import com.dehold.contentmanager.analytics.service.ApiAccessCounter;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
@@ -14,6 +15,8 @@ import org.springframework.security.crypto.password.NoOpPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @TestConfiguration
 @Profile("test")
@@ -58,5 +61,16 @@ public class TestProfileConfig {
     @Primary
     public PasswordEncoder passwordEncoder() {
          return NoOpPasswordEncoder.getInstance();
+    }
+
+    @Bean
+    public WebMvcConfigurer testWebMvcConfigurer(ApiAccessCounter apiAccessCounter) {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addInterceptors(InterceptorRegistry registry) {
+                registry.addInterceptor(apiAccessCounter)
+                        .addPathPatterns("/api/**");
+            }
+        };
     }
 }
