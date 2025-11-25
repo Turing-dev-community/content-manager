@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 @Component
-public class ApiCallCounter implements HandlerInterceptor {
+public class ApiAccessCounter implements HandlerInterceptor {
 
     private final ConcurrentHashMap<String, AtomicLong> counters = new ConcurrentHashMap<>();
 
