@@ -16,6 +16,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 @Component
+// This is registered in the WebConfig class as an interceptor for all API requests
 public class ApiAccessCounter implements HandlerInterceptor {
     private final ApiAccessLogRepository apiAccessLogRepository;
 
