@@ -1,4 +1,4 @@
-package com.dehold.contentmanager.analytics;
+package com.dehold.contentmanager.analytics.service;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
