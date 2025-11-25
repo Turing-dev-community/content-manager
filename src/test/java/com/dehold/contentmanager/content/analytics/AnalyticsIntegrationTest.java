@@ -52,7 +52,7 @@ class AnalyticsIntegrationTest extends ContentManagerApplicationTests {
         List<ApiAccessLog> logs = apiAccessLogRepository.findAll();
 
         assertEquals(1, logs.size());
-        ApiAccessLog log = logs.get(0);
+        ApiAccessLog log = logs.getFirst();
         assertNotNull(log.getId());
         assertEquals("/api/users/{id}", log.getUrl());
         assertNotNull(log.getTimestamp());
@@ -130,7 +130,7 @@ class AnalyticsIntegrationTest extends ContentManagerApplicationTests {
         List<ApiAccessLog> logs = apiAccessLogRepository.findAll();
 
         assertEquals(1, logs.size());
-        ApiAccessLog log = logs.get(0);
+        ApiAccessLog log = logs.getFirst();
         assertEquals("/api/users/{id}", log.getUrl());
         assertNotNull(log.getTimestamp());
     }
