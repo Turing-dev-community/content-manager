@@ -467,7 +467,7 @@ class ValidationServiceTest {
 
         EntityNotFoundException ex = assertThrows(
                 EntityNotFoundException.class,
-                () -> validationService.validateRestoredBlogPost(post)
+                () -> validationService.validateBlogpost(post)
         );
 
         assertEquals("The entity User with id " + userId + " does not exist", ex.getMessage());
@@ -508,7 +508,7 @@ class ValidationServiceTest {
         when(p2.run(post)).thenReturn(r2);
 
         // ACT
-        List<ValidationResult> results = validationService.validateRestoredBlogPost(post);
+        List<ValidationResult> results = validationService.validateBlogpost(post);
 
         // ASSERT
         assertEquals(2, results.size());
@@ -539,7 +539,7 @@ class ValidationServiceTest {
         when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "blogpost"))
                 .thenReturn(List.of());
 
-        List<ValidationResult> results = validationService.validateRestoredBlogPost(post);
+        List<ValidationResult> results = validationService.validateBlogpost(post);
 
         assertTrue(results.isEmpty());
         verify(repository, never()).create(any());

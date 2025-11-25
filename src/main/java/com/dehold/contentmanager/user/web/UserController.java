@@ -213,9 +213,9 @@ public class UserController {
     }
 
     @PostMapping("/{id}/validate-restored-blogpost")
-    public ResponseEntity<List<ValidationResponse>> validateRestoredBlogpost(@RequestBody BlogPost post) {
+    public ResponseEntity<List<ValidationResponse>> validateBlogpost(@RequestBody BlogPost post) {
 
-        List<ValidationResult> results = validationService.validateRestoredBlogPost(post);
+        List<ValidationResult> results = validationService.validateBlogpost(post);
 
         List<ValidationResponse> response = results.stream()
                 .map(ValidationResultDto::from)

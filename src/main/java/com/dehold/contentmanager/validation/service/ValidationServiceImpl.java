@@ -278,7 +278,7 @@ public class ValidationServiceImpl implements ValidationService {
         }
     }
     @Override
-    public List<ValidationResult> validateRestoredBlogPost(BlogPost post) {
+    public List<ValidationResult> validateBlogpost(BlogPost post) {
 
         userRepository.getUserById(post.getUserId())
                 .orElseThrow(() -> EntityNotFoundException.of("User", post.getUserId().toString()));

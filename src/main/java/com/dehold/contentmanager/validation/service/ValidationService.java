@@ -26,5 +26,5 @@ public interface ValidationService {
 
     List<ValidationResult> runGenericContentValidation(UUID userId, String contentType);
 
-    List<ValidationResult> validateRestoredBlogPost(BlogPost post);
+    List<ValidationResult> validateBlogpost(BlogPost post);
 }
