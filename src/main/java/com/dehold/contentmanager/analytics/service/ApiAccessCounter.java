@@ -1,20 +1,27 @@
 package com.dehold.contentmanager.analytics.service;
 
+import com.dehold.contentmanager.analytics.model.ApiAccessLog;
+import com.dehold.contentmanager.analytics.repository.ApiAccessLogRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.HandlerMapping;
 
+import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 @Component
 public class ApiAccessCounter implements HandlerInterceptor {
+    private final ApiAccessLogRepository apiAccessLogRepository;
 
-    private final ConcurrentHashMap<String, AtomicLong> counters = new ConcurrentHashMap<>();
+    public ApiAccessCounter(ApiAccessLogRepository apiAccessLogRepository) {
+        this.apiAccessLogRepository = apiAccessLogRepository;
+    }
 
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -24,15 +31,11 @@ public class ApiAccessCounter implements HandlerInterceptor {
         String pattern = (String) request.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
 
         if (pattern != null) {
-            counters.computeIfAbsent(pattern, p -> new AtomicLong()).incrementAndGet();
+            ApiAccessLog accessLog = new ApiAccessLog(UUID.randomUUID(), pattern, Instant.now());
+            apiAccessLogRepository.save(accessLog);
         }
 
         return true;
-    }
-
-    public Map<String, Long> getCounts() {
-        return counters.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get()));
     }
 }
 
