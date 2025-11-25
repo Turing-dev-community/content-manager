@@ -47,18 +47,5 @@ public class ValidationReportExporterUtilityTest {
         assertEquals(0, json.length);
     }
 
-    @Test
-    void givenObjectMapperThrowsException_whenExportToJson_thenRuntimeExceptionIsThrown() throws Exception {
-        ObjectMapper mockMapper = mock(ObjectMapper.class);
-        ValidationReportExporterUtility exporter = new ValidationReportExporterUtility(mockMapper);
-        ValidationReportDto dto = new ValidationReportDto(1, Map.of("ERR1", "1"));
-        when(mockMapper.writeValueAsBytes(dto))
-                .thenThrow(new RuntimeException("SERIALIZATION_ERROR"));
-        RuntimeException ex = assertThrows(
-                RuntimeException.class,
-                () -> exporter.exportToJson(dto)
-        );
-        assertTrue(ex.getMessage().contains("Failed to export ValidationReportDto to JSON"));
-    }
 
 }

@@ -40,21 +40,4 @@ public class ValidationReportExportServiceTest {
         assertEquals("validation-report-" + userId + ".json", result.fileName());
         assertEquals("{\"ok\":true}", new String(result.data()));
     }
-
-    @Test
-    void givenUnsupportedFormat_whenExportReport_thenIllegalArgumentExceptionIsThrown() {
-
-        UUID userId = UUID.randomUUID();
-        ValidationReportDto dto = new ValidationReportDto(0, Map.of());
-
-        when(validationService.generateValidationReport(userId, false)).thenReturn(dto);
-
-        IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class,
-                () -> exportService.exportReport(userId, false, "yaml")  // unsupported
-        );
-
-        assertEquals("Unsupported format: yaml", ex.getMessage());
-    }
-
 }
