@@ -1,5 +1,6 @@
 package com.dehold.contentmanager.validation.service;
 
+import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.web.dto.BlogPostValidationRequest;
 import com.dehold.contentmanager.validation.web.dto.ValidationReportDto;
@@ -24,4 +25,6 @@ public interface ValidationService {
     List<ValidationResult> runSupportRequestValidation(UUID userId);
 
     List<ValidationResult> runGenericContentValidation(UUID userId, String contentType);
+
+    List<ValidationResult> validateBlogpost(BlogPost post);
 }
