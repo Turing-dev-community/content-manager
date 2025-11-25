@@ -3,6 +3,7 @@ package com.dehold.contentmanager.content.analytics;
 import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.analytics.model.ApiAccessLog;
 import com.dehold.contentmanager.analytics.repository.ApiAccessLogRepository;
+import com.dehold.contentmanager.content.customersupport.web.dto.CreateSupportResponseRequest;
 import com.dehold.contentmanager.user.model.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -70,8 +71,13 @@ class AnalyticsIntegrationTest extends ContentManagerApplicationTests {
                 User.class
         );
 
-        restTemplate.getForEntity(
-                "http://localhost:" + port + "/api/analytics/counts",
+        CreateSupportResponseRequest request = new CreateSupportResponseRequest();
+        request.setText("Test response");
+        request.setSupportRequest(UUID.randomUUID());
+
+        restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/support-responses",
+                request,
                 String.class
         );
 
@@ -84,10 +90,10 @@ class AnalyticsIntegrationTest extends ContentManagerApplicationTests {
                 .count();
         assertEquals(2, userEndpointCount);
 
-        long analyticsEndpointCount = logs.stream()
-                .filter(log -> log.getUrl().equals("/api/analytics/counts"))
+        long supportResponseEndpointCount = logs.stream()
+                .filter(log -> log.getUrl().equals("/api/support-responses"))
                 .count();
-        assertEquals(1, analyticsEndpointCount);
+        assertEquals(1, supportResponseEndpointCount);
     }
 
     @Test
