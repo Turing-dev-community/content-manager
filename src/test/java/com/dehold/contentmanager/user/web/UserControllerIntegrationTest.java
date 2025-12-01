@@ -33,6 +33,7 @@ import com.dehold.contentmanager.content.webhook.model.Webhook;
 import com.dehold.contentmanager.content.webhook.web.dto.CreateWebhookRequest;
 import com.dehold.contentmanager.content.webhook.web.dto.UpdateWebhookRequest;
 
+import jakarta.validation.Valid;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
@@ -1597,6 +1598,164 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
                 null, String.class);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void givenValidRestoredBlogPost_whenValidateRestoredBlogpost_thenReturnValidResults() {
+        UUID userId = createTestUser();
+        UUID postId = UUID.randomUUID();
+
+        BlogPost restored = new BlogPost(
+                postId,
+                "Valid Title",
+                "This is valid restored blog post content with enough length.",
+                null, null,
+                userId
+        );
+        ValidationPipelineCreateDto pipeline = new ValidationPipelineCreateDto();
+        pipeline.setUserId(userId);
+        pipeline.setContentType("blogpost");
+        pipeline.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content",
+                        Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+
+        restTemplate.postForEntity(
+                baseUrl() + "/api/validation-pipelines",
+                pipeline,
+                ValidationPipelineModel.class
+        );
+        ResponseEntity<ValidationResponse[]> response =
+                restTemplate.postForEntity(
+                        baseUrl() + "/api/users/" + userId + "/validate-restored-blogpost",
+                        restored,
+                        ValidationResponse[].class
+                );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+
+        assertEquals(1, response.getBody().length);
+
+        ValidationResultDto result = response.getBody()[0].getValidationResult();
+        assertEquals(userId, result.getUserId());
+        assertEquals(postId, result.getContentId());
+        assertTrue(result.isValid());
+        assertEquals(0, result.getErrors().size());
+    }
+
+
+    @Test
+    void givenInvalidRestoredBlogPost_whenValidateRestoredBlogpost_thenReturnValidationErrors() {
+        // Arrange
+        UUID userid = createTestUser();
+        UUID postId = UUID.randomUUID();
+
+        BlogPost restored = new BlogPost(
+                postId,
+                "Bad",
+                "Short",
+                null, null,
+                userid
+        );
+
+        ValidationPipelineCreateDto pipeline = new ValidationPipelineCreateDto();
+        pipeline.setUserId(userid);
+        pipeline.setContentType("blogpost");
+        pipeline.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content",
+                        Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+
+        restTemplate.postForEntity(baseUrl() + "/api/validation-pipelines",
+                pipeline, ValidationPipelineModel.class);
+
+        // Act
+        ResponseEntity<ValidationResponse[]> response =
+                restTemplate.postForEntity(
+                        baseUrl() + "/api/users/" + userid + "/validate-restored-blogpost",
+                        restored,
+                        ValidationResponse[].class
+                );
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().length);
+
+        ValidationResultDto result = response.getBody()[0].getValidationResult();
+        assertFalse(result.isValid());
+        assertEquals(2, result.getErrors().size());
+    }
+
+    @Test
+    void givenRestoredBlogPost_whenValidateRestoredBlogpost_thenResultsArePersisted() {
+        // Arrange
+        UUID userid = createTestUser();
+        UUID postId = UUID.randomUUID();
+
+        BlogPost restored = new BlogPost(
+                postId,
+                "Valid Title",
+                "This is valid restored content with enough length.",
+                null, null,
+                userid
+        );
+
+        ValidationPipelineCreateDto pipeline = new ValidationPipelineCreateDto();
+        pipeline.setUserId(userid);
+        pipeline.setContentType("blogpost");
+        pipeline.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true)
+        ));
+
+        restTemplate.postForEntity(baseUrl() + "/api/validation-pipelines",
+                pipeline, ValidationPipelineModel.class);
+
+        // Act
+        restTemplate.postForEntity(
+                baseUrl() + "/api/users/" + userid + "/validate-restored-blogpost",
+                restored,
+                ValidationResponse[].class
+        );
+
+        // Assert
+        List<ValidationResult> persisted = validationResultRepository.findByUserId(userid);
+        assertEquals(1, persisted.size());
+        assertTrue(persisted.get(0).isValid());
+    }
+
+    @Test
+    void givenNonExistentUser_whenValidateRestoredBlogpost_thenReturn404() {
+        UUID fakeUser = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+
+        BlogPost restored = new BlogPost(
+                postId,
+                "Any Title",
+                "Any Content",
+                null,
+                null,
+                fakeUser
+        );
+
+        ResponseEntity<CustomErrorResponse> response = restTemplate.postForEntity(
+                baseUrl() + "/api/users/" + fakeUser + "/validate-restored-blogpost",
+                restored,
+                CustomErrorResponse.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(
+                "The entity User with id " + fakeUser + " does not exist",
+                response.getBody().getError()
+        );
     }
 
 }
