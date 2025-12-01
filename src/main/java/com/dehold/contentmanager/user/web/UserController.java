@@ -11,6 +11,7 @@ import com.dehold.contentmanager.user.web.dto.CreateUserRequest;
 import com.dehold.contentmanager.user.web.dto.UserResponse;
 import com.dehold.contentmanager.user.web.dto.UpdateUserRequest;
 import com.dehold.contentmanager.validation.model.ValidationResult;
+import com.dehold.contentmanager.validation.service.ValidationReportExportService;
 import com.dehold.contentmanager.validation.service.ValidationService;
 import com.dehold.contentmanager.content.webhook.service.WebhookService;
 import com.dehold.contentmanager.validation.web.dto.ValidationReportDto;
@@ -37,12 +38,14 @@ public class UserController {
     private final BlogPostService blogPostService;
     private final ValidationService validationService;
     private final WebhookService webhookService;
+    private final ValidationReportExportService validationReportExportService;
 
-    public UserController(UserService userService, BlogPostService blogPostService, ValidationService validationService,WebhookService webhookService) {
+    public UserController(UserService userService, BlogPostService blogPostService, ValidationService validationService, WebhookService webhookService, ValidationReportExportService validationReportExportService) {
         this.userService = userService;
         this.blogPostService = blogPostService;
         this.validationService = validationService;
         this.webhookService = webhookService;
+        this.validationReportExportService = validationReportExportService;
     }
 
     @PostMapping
@@ -225,6 +228,20 @@ public class UserController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/{id}/validation-report/export")
+    public ResponseEntity<byte[]> exportValidationReport(
+            @PathVariable UUID id,
+            @RequestParam(name = "detailed", defaultValue = "false") boolean detailed,
+            @RequestParam(defaultValue = "json") String format
+    ) {
+        userService.getUser(id);
+        ValidationReportExportService.ExportResult export = validationReportExportService.exportReport(id, detailed, format);
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"" + export.fileName() + "\"")
+                .header("Content-Type", "application/json")
+                .body(export.data());
+    }
+
     @PostMapping("/export-by-content-ids")
     public ResponseEntity<byte[]> bulkDownloadByContentIds(
             @RequestParam(name = "format", defaultValue = "json") String format,
@@ -233,5 +250,6 @@ public class UserController {
     ) throws Exception {
         return blogPostService.bulkDownloadByContentIds(contentIds, format, contentTypeParam);
     }
+
 
 }
