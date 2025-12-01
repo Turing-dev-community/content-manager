@@ -7,8 +7,12 @@ import com.dehold.contentmanager.exception.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
+import org.springframework.dao.TransientDataAccessException;
+import org.springframework.http.HttpStatus;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.junit.jupiter.api.Test;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.Collections;
@@ -211,4 +215,104 @@ class SupportResponseServiceTest {
         }
     }
 
+    @Test
+    void getSupportResponse_retrySucceedsOnSecondAttempt() {
+        clearCaches();
+
+        UUID id = UUID.randomUUID();
+        SupportResponse response = new SupportResponse(id, UUID.randomUUID(), "Text",
+                UUID.randomUUID(), Instant.now(), Instant.now());
+
+        // 1st call -> transient failure, 2nd call -> success
+        when(repository.getById(id))
+                .thenThrow(new TransientDataAccessException("temp") {})
+                .thenReturn(Optional.of(response));
+
+        SupportResponse result = service.getSupportResponse(id);
+
+        assertEquals(response.getId(), result.getId());
+
+        // EXACT retry count: 2 total calls = 1 failure + 1 success
+        verify(repository, times(2)).getById(id);
+    }
+
+    @Test
+    void getSupportResponse_retryFailsAllAttempts_returns503() {
+        clearCaches();
+
+        UUID id = UUID.randomUUID();
+
+        when(repository.getById(id))
+                .thenThrow(new TransientDataAccessException("temp failure") {})
+                .thenThrow(new TransientDataAccessException("temp failure") {})
+                .thenThrow(new TransientDataAccessException("temp failure") {})
+                .thenThrow(new TransientDataAccessException("temp failure") {});
+
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> service.getSupportResponse(id));
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatusCode());
+        assertTrue(ex.getReason().contains(
+                "The support request system is temporarily unavailable due to high load. Please try again shortly."));
+
+        // EXACT retry count: 4 attempts (maxAttempts)
+        verify(repository, times(4)).getById(id);
+    }
+
+    @Test
+    void getSupportResponsesByUserId_retrySucceedsOnSecondAttempt() {
+        clearCaches();
+
+        UUID userId = UUID.randomUUID();
+        SupportResponse r = new SupportResponse(UUID.randomUUID(), userId, "t",
+                UUID.randomUUID(), Instant.now(), Instant.now());
+
+        when(repository.getSupportResponsesByUserId(userId))
+                .thenThrow(new TransientDataAccessException("temp") {})
+                .thenReturn(List.of(r));
+
+        List<SupportResponse> list = service.getSupportResponsesByUserId(userId);
+
+        assertEquals(1, list.size());
+        verify(repository, times(2)).getSupportResponsesByUserId(userId);
+    }
+
+    @Test
+    void getSupportResponsesByUserId_retryFailsAllAttempts_returns503() {
+        clearCaches();
+
+        UUID userId = UUID.randomUUID();
+
+        when(repository.getSupportResponsesByUserId(userId))
+                .thenThrow(new TransientDataAccessException("temp") {})
+                .thenThrow(new TransientDataAccessException("temp") {})
+                .thenThrow(new TransientDataAccessException("temp") {})
+                .thenThrow(new TransientDataAccessException("temp") {});
+
+        ResponseStatusException ex = assertThrows(
+                ResponseStatusException.class,
+                () -> service.getSupportResponsesByUserId(userId)
+        );
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatusCode());
+        assertTrue(ex.getReason().contains(
+                "The support request system is temporarily unavailable due to high load. Please try again shortly."));
+
+        verify(repository, times(4)).getSupportResponsesByUserId(userId);
+    }
+
+    @Test
+    void writeOperations_shouldNotRetry() {
+        UUID id = UUID.randomUUID();
+        SupportResponse response = new SupportResponse(id, UUID.randomUUID(), "t",
+                UUID.randomUUID(), Instant.now(), Instant.now());
+
+        doThrow(new TransientDataAccessException("write fail") {})
+                .when(repository).update(any());
+
+        assertThrows(TransientDataAccessException.class, () -> service.updateSupportResponse(response));
+
+        // Must be EXACTLY one call — never retried.
+        verify(repository, times(1)).update(any());
+    }
 }
