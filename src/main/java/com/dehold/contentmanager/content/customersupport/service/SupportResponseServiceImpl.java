@@ -35,7 +35,6 @@ public class SupportResponseServiceImpl implements SupportResponseService {
     @Override
     @Retryable(
             include = {TransientDataAccessException.class},
-            exclude = {EntityNotFoundException.class},
             maxAttempts = 4,
             backoff = @Backoff(delay = 500, multiplier = 2.0, random = true)
     )
@@ -87,7 +86,12 @@ public class SupportResponseServiceImpl implements SupportResponseService {
     }
 
     @Recover
-    public SupportResponse recoverNotFound(EntityNotFoundException e, UUID id) {
+    public SupportResponse recover(Exception e, UUID id) throws Exception {
+        throw e;
+    }
+
+    @Recover
+    public List<SupportResponse> recoverList(Exception e, UUID id) throws Exception {
         throw e;
     }
 
