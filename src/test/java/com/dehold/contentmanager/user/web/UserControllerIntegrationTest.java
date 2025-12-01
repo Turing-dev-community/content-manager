@@ -91,8 +91,6 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
     @Autowired
     private GenericModelRepository genericModelRepository;
 
-    @InjectMocks
-    private ValidationServiceImpl service;
 
     private static final UUID FIXED_TEST_USER_ID = UUID.fromString("06c4f0e4-20d7-4886-841b-ebe0ca3622a5");
 
@@ -102,20 +100,6 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     private String baseUrl() {
         return "http://localhost:" + port;
-    }
-
-    @BeforeEach
-    void setup() {
-        MockitoAnnotations.openMocks(this);
-        service = new ValidationServiceImpl(
-                validationResultRepository,
-                mock(ValidationPipelineFactory.class),
-                mock(BlogPostService.class),
-                mock(SupportResponseService.class),
-                mock(SupportRequestRepository.class),
-                mock(GenericContentService.class),
-                userRepository
-        );
     }
 
     @Test
