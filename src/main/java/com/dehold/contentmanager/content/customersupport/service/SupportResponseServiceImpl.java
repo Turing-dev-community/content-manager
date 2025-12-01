@@ -1,8 +1,10 @@
 package com.dehold.contentmanager.content.customersupport.service;
 
+import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.model.SupportResponse;
 import com.dehold.contentmanager.content.customersupport.repository.SupportResponseRepository;
 import com.dehold.contentmanager.exception.EntityNotFoundException;
+
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.TransientDataAccessException;
@@ -33,6 +35,7 @@ public class SupportResponseServiceImpl implements SupportResponseService {
     @Override
     @Retryable(
             include = {TransientDataAccessException.class},
+            exclude = {EntityNotFoundException.class},
             maxAttempts = 4,
             backoff = @Backoff(delay = 500, multiplier = 2.0, random = true)
     )
@@ -81,6 +84,11 @@ public class SupportResponseServiceImpl implements SupportResponseService {
                 "The support request system is temporarily unavailable due to high load. Please try again shortly.",
                 e
         );
+    }
+
+    @Recover
+    public SupportResponse recoverNotFound(EntityNotFoundException e, UUID id) {
+        throw e;
     }
 
 }
