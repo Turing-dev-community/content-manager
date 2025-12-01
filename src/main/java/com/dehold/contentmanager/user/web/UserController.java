@@ -242,5 +242,14 @@ public class UserController {
                 .body(export.data());
     }
 
+    @PostMapping("/export-by-content-ids")
+    public ResponseEntity<byte[]> bulkDownloadByContentIds(
+            @RequestParam(name = "format", defaultValue = "json") String format,
+            @RequestParam(name = "contentType", required = true) String contentTypeParam,
+            @RequestBody(required = true) List<UUID> contentIds
+    ) throws Exception {
+        return blogPostService.bulkDownloadByContentIds(contentIds, format, contentTypeParam);
+    }
+
 
 }

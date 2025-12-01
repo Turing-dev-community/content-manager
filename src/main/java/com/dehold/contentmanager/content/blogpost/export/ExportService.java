@@ -9,7 +9,10 @@ import com.dehold.contentmanager.content.customersupport.repository.SupportReque
 import com.dehold.contentmanager.content.customersupport.repository.SupportResponseRepository;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -54,5 +57,27 @@ public class ExportService {
                 return exportAllForUser(userId);
         }
     }
+
+    public ExportResponse exportByContentIdsAndType(UUID contentId, ContentExportType contentType) {
+        if (contentType == null) {
+            return exportAllForUser(contentId);
+        }
+
+        switch (contentType) {
+            case BLOGPOST:
+                Optional<BlogPost> blogPosts = blogPostRepository.getBlogPost(contentId);
+                return new ExportResponse(blogPosts.map(List::of).orElse(List.of()), List.of(), List.of());
+            case SUPPORT_REQUEST:
+                Optional<SupportRequest> req = supportRequestRepository.getById(contentId);
+                return new ExportResponse(List.of(), req.map(List::of).orElse(List.of()), List.of());
+            case SUPPORT_RESPONSE:
+                Optional<SupportResponse> resp = supportResponseRepository.getById(contentId);
+                return new ExportResponse(List.of(), List.of(), resp.map(List::of).orElse(List.of()));
+            default:
+                // fallback to all
+                return exportAllForUser(contentId);
+        }
+    }
+
 }
 
