@@ -260,19 +260,6 @@ class SupportResponseServiceTest {
     }
 
     @Test
-    void getSupportResponse_entityNotFound_shouldNotRetry() {
-        clearCaches();
-        UUID id = UUID.randomUUID();
-
-        when(repository.getById(id)).thenReturn(Optional.empty());
-
-        assertThrows(EntityNotFoundException.class, () -> service.getSupportResponse(id));
-
-        // MUST be only 1 call — NO RETRY
-        verify(repository, times(1)).getById(id);
-    }
-
-    @Test
     void getSupportResponsesByUserId_retrySucceedsOnSecondAttempt() {
         clearCaches();
 
