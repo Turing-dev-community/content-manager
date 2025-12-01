@@ -57,7 +57,7 @@ public class BulkExportByContentIdsIntegrationTest extends ContentManagerApplica
         blogPostRepository.createBlogPost(b2);
 
         List<String> ids = List.of(b2.getId().toString());
-        String url = "http://localhost:" + port + "/api/blogposts/download/bulk-by-content-ids?format=json&contentType=blogpost";
+        String url = "http://localhost:" + port + "/api/users/export-by-content-ids?format=json&contentType=blogpost";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(ids), headers);
@@ -80,7 +80,7 @@ public class BulkExportByContentIdsIntegrationTest extends ContentManagerApplica
         supportRequestRepository.create(s2);
 
         List<String> ids = List.of(s1.getId().toString());
-        String url = "http://localhost:" + port + "/api/blogposts/download/bulk-by-content-ids?format=csv&contentType=supportrequest";
+        String url = "http://localhost:" + port + "/api/users/export-by-content-ids?format=csv&contentType=supportrequest";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(ids), headers);
@@ -104,7 +104,7 @@ public class BulkExportByContentIdsIntegrationTest extends ContentManagerApplica
         supportResponseRepository.create(r2);
 
         List<String> ids = List.of(r2.getId().toString());
-        String url = "http://localhost:" + port + "/api/blogposts/download/bulk-by-content-ids?format=xml&contentType=supportresponse";
+        String url = "http://localhost:" + port + "/api/users/export-by-content-ids?format=xml&contentType=supportresponse";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(ids), headers);
@@ -124,7 +124,7 @@ public class BulkExportByContentIdsIntegrationTest extends ContentManagerApplica
         blogPostRepository.createBlogPost(b1);
         UUID unknownId = UUID.randomUUID();
         List<String> ids = List.of(unknownId.toString(), b1.getId().toString());
-        String url = "http://localhost:" + port + "/api/blogposts/download/bulk-by-content-ids?format=json&contentType=blogpost";
+        String url = "http://localhost:" + port + "/api/users/export-by-content-ids?format=json&contentType=blogpost";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(ids), headers);
@@ -139,7 +139,7 @@ public class BulkExportByContentIdsIntegrationTest extends ContentManagerApplica
     @Test
     void bulkByContentIds_emptyList_returnsEmptyExport() throws Exception {
         List<String> ids = List.of();
-        String url = "http://localhost:" + port + "/api/blogposts/download/bulk-by-content-ids?format=json&contentType=blogpost";
+        String url = "http://localhost:" + port + "/api/users/export-by-content-ids?format=json&contentType=blogpost";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(ids), headers);
@@ -153,7 +153,7 @@ public class BulkExportByContentIdsIntegrationTest extends ContentManagerApplica
     @Test
     void bulkByContentIds_invalidContentType() throws Exception {
         List<String> ids = List.of(UUID.randomUUID().toString());
-        String url = "http://localhost:" + port + "/api/blogposts/download/bulk-by-content-ids?format=json&contentType=invalid";
+        String url = "http://localhost:" + port + "/api/users/export-by-content-ids?format=json&contentType=invalid";
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(ids), headers);
