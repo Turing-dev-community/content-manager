@@ -933,4 +933,151 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
 
         assertEquals(2, resp2.getBody().getContent().size());
     }
+    @Test
+    void submitForReview_shouldTransitionDraftToPendingReview() {
+        BlogPost draftPost = new BlogPost(UUID.randomUUID(), "Draft Title", "Draft Content", Instant.now(), Instant.now(), user1Id);
+        draftPost.setState(BlogPost.State.DRAFT);
+        blogPostRepository.createBlogPost(draftPost);
+
+        ResponseEntity<BlogPost> response = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/blogposts/" + draftPost.getId() + "/submit-for-review",
+            null,
+            BlogPost.class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(BlogPost.State.PENDING_REVIEW, response.getBody().getState());
+    }
+
+    @Test
+    void approveBlogPost_shouldTransitionPendingReviewToApproved() {
+        BlogPost pendingPost = new BlogPost(UUID.randomUUID(), "Pending Title", "Pending Content", Instant.now(), Instant.now(), user1Id);
+        pendingPost.setState(BlogPost.State.PENDING_REVIEW);
+        blogPostRepository.createBlogPost(pendingPost);
+
+        ResponseEntity<BlogPost> response = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/blogposts/" + pendingPost.getId() + "/approve",
+            null,
+            BlogPost.class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(BlogPost.State.APPROVED, response.getBody().getState());
+    }
+
+    @Test
+    void rejectBlogPost_shouldTransitionPendingReviewToRejected() {
+        BlogPost pendingPost = new BlogPost(UUID.randomUUID(), "Pending Title", "Pending Content", Instant.now(), Instant.now(), user1Id);
+        pendingPost.setState(BlogPost.State.PENDING_REVIEW);
+        blogPostRepository.createBlogPost(pendingPost);
+
+        ResponseEntity<BlogPost> response = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/blogposts/" + pendingPost.getId() + "/reject",
+            null,
+            BlogPost.class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(BlogPost.State.REJECTED, response.getBody().getState());
+    }
+
+    @Test
+    void submitForReview_shouldFailIfNotDraft() {
+        BlogPost approvedPost = new BlogPost(UUID.randomUUID(), "Approved Title", "Approved Content", Instant.now(), Instant.now(), user1Id);
+        approvedPost.setState(BlogPost.State.APPROVED);
+        blogPostRepository.createBlogPost(approvedPost);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/blogposts/" + approvedPost.getId() + "/submit-for-review",
+            null,
+            String.class
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("Only DRAFT posts can be submitted for review."));
+    }
+
+    @Test
+    void submitForReview_shouldReturnNotFoundForMissingPost() {
+        UUID missing = UUID.randomUUID();
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/blogposts/" + missing + "/submit-for-review",
+            null,
+            String.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("The entity BlogPost with id " + missing + " does not exist"));
+    }
+
+    @Test
+    void approveBlogPost_shouldFailIfNotPendingReview() {
+        BlogPost draftPost = new BlogPost(UUID.randomUUID(), "Draft Title", "Draft Content", Instant.now(), Instant.now(), user1Id);
+        draftPost.setState(BlogPost.State.DRAFT);
+        blogPostRepository.createBlogPost(draftPost);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/blogposts/" + draftPost.getId() + "/approve",
+            null,
+            String.class
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("Only PENDING_REVIEW posts can be approved."));
+    }
+
+    @Test
+    void approveBlogPost_shouldReturnNotFoundForMissingPost() {
+        UUID missing = UUID.randomUUID();
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/blogposts/" + missing + "/approve",
+            null,
+            String.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("The entity BlogPost with id " + missing + " does not exist"));
+    }
+
+    @Test
+    void rejectBlogPost_shouldFailIfNotPendingReview() {
+        BlogPost draftPost = new BlogPost(UUID.randomUUID(), "Draft Title", "Draft Content", Instant.now(), Instant.now(), user1Id);
+        draftPost.setState(BlogPost.State.DRAFT);
+        blogPostRepository.createBlogPost(draftPost);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/blogposts/" + draftPost.getId() + "/reject",
+            null,
+            String.class
+        );
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("Only PENDING_REVIEW posts can be rejected."));
+    }
+
+    @Test
+    void rejectBlogPost_shouldReturnNotFoundForMissingPost() {
+        UUID missing = UUID.randomUUID();
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/blogposts/" + missing + "/reject",
+            null,
+            String.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("The entity BlogPost with id " + missing + " does not exist"));
+    }
+
 }

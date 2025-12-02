@@ -106,4 +106,21 @@ public class BlogPostController {
         blogPostService.softDeleteBlogPost(id);
         return ResponseEntity.noContent().build();
     }
+    @PostMapping("/{id}/submit-for-review")
+    public ResponseEntity<BlogPost> submitForReview(@PathVariable UUID id) {
+        BlogPost updatedBlogPost = blogPostService.submitForReview(id);
+        return ResponseEntity.ok(updatedBlogPost);
+    }
+
+    @PostMapping("/{id}/approve")
+    public ResponseEntity<BlogPost> approveBlogPost(@PathVariable UUID id) {
+        BlogPost updatedBlogPost = blogPostService.approveBlogPost(id);
+        return ResponseEntity.ok(updatedBlogPost);
+    }
+
+    @PostMapping("/{id}/reject")
+    public ResponseEntity<BlogPost> rejectBlogPost(@PathVariable UUID id) {
+        BlogPost updatedBlogPost = blogPostService.rejectBlogPost(id);
+        return ResponseEntity.ok(updatedBlogPost);
+    }
 }

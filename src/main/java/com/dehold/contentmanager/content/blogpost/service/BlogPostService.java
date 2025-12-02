@@ -13,6 +13,7 @@ import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
 import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.model.SupportResponse;
 import com.dehold.contentmanager.exception.EntityNotFoundException;
+import com.dehold.contentmanager.common.exception.InvalidStateTransitionException;
 import com.dehold.contentmanager.content.blogpost.model.Page;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -310,4 +311,37 @@ public class BlogPostService {
         return new Page<>(posts, page, size, total);
     }
 
+
+    public BlogPost submitForReview(UUID id) {
+        BlogPost blogPost = getBlogPost(id);
+        if (blogPost.getState() != BlogPost.State.DRAFT) {
+            throw new InvalidStateTransitionException("Only DRAFT posts can be submitted for review.");
+        }
+        blogPost.setState(BlogPost.State.PENDING_REVIEW);
+        blogPost.setUpdatedAt(Instant.now());
+        blogPostRepository.updateBlogPost(blogPost);
+        return blogPost;
+    }
+
+    public BlogPost approveBlogPost(UUID id) {
+        BlogPost blogPost = getBlogPost(id);
+        if (blogPost.getState() != BlogPost.State.PENDING_REVIEW) {
+            throw new InvalidStateTransitionException("Only PENDING_REVIEW posts can be approved.");
+        }
+        blogPost.setState(BlogPost.State.APPROVED);
+        blogPost.setUpdatedAt(Instant.now());
+        blogPostRepository.updateBlogPost(blogPost);
+        return blogPost;
+    }
+
+    public BlogPost rejectBlogPost(UUID id) {
+        BlogPost blogPost = getBlogPost(id);
+        if (blogPost.getState() != BlogPost.State.PENDING_REVIEW) {
+            throw new InvalidStateTransitionException("Only PENDING_REVIEW posts can be rejected.");
+        }
+        blogPost.setState(BlogPost.State.REJECTED);
+        blogPost.setUpdatedAt(Instant.now());
+        blogPostRepository.updateBlogPost(blogPost);
+        return blogPost;
+    }
 }

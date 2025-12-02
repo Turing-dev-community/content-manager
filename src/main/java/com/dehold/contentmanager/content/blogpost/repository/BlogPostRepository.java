@@ -24,15 +24,16 @@ public class BlogPostRepository {
 
     public void createBlogPost(BlogPost blogPost) {
         jdbcTemplate.update(
-                "INSERT INTO blog_post (id, title, content, created_at, updated_at, user_id, soft_deleted, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                blogPost.getId(),
-                blogPost.getTitle(),
-                blogPost.getContent(),
-                blogPost.getCreatedAt(),
-                blogPost.getUpdatedAt(),
-                blogPost.getUserId(),
-                blogPost.isSoftDeleted(),
-                blogPost.getDeletedAt()
+            "INSERT INTO blog_post (id, title, content, created_at, updated_at, state, user_id, soft_deleted, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            blogPost.getId(),
+            blogPost.getTitle(),
+            blogPost.getContent(),
+            blogPost.getCreatedAt(),
+            blogPost.getUpdatedAt(),
+            blogPost.getState() == null ? "DRAFT" : blogPost.getState().name(),
+            blogPost.getUserId(),
+            blogPost.isSoftDeleted(),
+            blogPost.getDeletedAt()
         );
         if (blogPost.getComments() != null) {
             for (Comment c : blogPost.getComments()) {
@@ -74,10 +75,11 @@ public class BlogPostRepository {
 
     public void updateBlogPost(BlogPost blogPost) {
         jdbcTemplate.update(
-                "UPDATE blog_post SET title = ?, content = ?, updated_at = ? WHERE id = ?",
+                "UPDATE blog_post SET title = ?, content = ?, updated_at = ?, state = ? WHERE id = ?",
                 blogPost.getTitle(),
                 blogPost.getContent(),
                 blogPost.getUpdatedAt(),
+                blogPost.getState() == null ? "DRAFT" : blogPost.getState().name(),
                 blogPost.getId()
         );
     }
@@ -97,6 +99,20 @@ public class BlogPostRepository {
                 UUID.fromString(rs.getString("user_id"))
         );
 
+        // --- restore persisted state if present in the result set ---
+        try {
+            String stateStr = rs.getString("state");
+            if (stateStr != null && !stateStr.isBlank()) {
+                try {
+                    bp.setState(BlogPost.State.valueOf(stateStr));
+                } catch (IllegalArgumentException e) {
+                    // unknown state stored in DB — fallback to DRAFT
+                    bp.setState(BlogPost.State.DRAFT);
+                }
+            }
+        } catch (SQLException ignored) {
+            // Column might not exist in older schemas — keep default DRAFT
+        }
         // ------- SAFE soft-delete handling (optional columns) --------
         try {
             boolean softDeleted = rs.getBoolean("soft_deleted");

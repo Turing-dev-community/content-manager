@@ -9,6 +9,13 @@ import java.util.UUID;
 
 public class BlogPost implements Content {
 
+    public enum State {
+        DRAFT,
+        PENDING_REVIEW,
+        APPROVED,
+        REJECTED
+    }
+
     private UUID id;
     private String title;
     private String content;
@@ -18,6 +25,7 @@ public class BlogPost implements Content {
     private List<Comment> comments = new ArrayList<>();
     private boolean softDeleted;
     private Instant deletedAt;
+    private State state = State.DRAFT; // Default state is DRAFT
 
     public BlogPost() {
     }
@@ -119,5 +127,13 @@ public class BlogPost implements Content {
 
     public void setDeletedAt(Instant deletedAt) {
         this.deletedAt = deletedAt;
+    }
+
+    public State getState() {
+        return state;
+    }
+
+    public void setState(State state) {
+        this.state = state;
     }
 }

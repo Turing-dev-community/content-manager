@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS blog_post (
     content TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
+    state VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
     user_id UUID,
     soft_deleted BOOLEAN DEFAULT FALSE,
     deleted_at TIMESTAMP,
