@@ -57,6 +57,7 @@ Please update for each new feature:
 | 2025-11-20      | riddhi.s@turing.com     | Integrate RegexValidator into Validation Pipeline                                                                                               | Enabled `REGEX_VALIDATION` step in user-defined validation pipelines via `POST /api/validation-pipelines`. Fully integrated with `/api/users/{id}/validate-blogposts` — runs case-insensitive, returns `REGEX_VALIDATION_FAILED` with field name and pattern in message.                                                                                                                                                                                      | [#102](https://github.com/Turing-dev-community/content-manager/issues/102) |
 | 2025-11-20      | ankita.k@turing.com     | Implement Ratelimit per API                                                                                                                     | Make rate limits configurable per API                                                                                                                                                                                                                                                                                                                                                                                                                         | [#97](https://github.com/Turing-dev-community/content-manager/issues/97)   |
 | 2025-11-20      | pushpendra.s@turing.com  | Add detail validation reporting                                                                                                                | Validation result reporting was introduced with #57 . This structure provides an overall count on validation errors and a coutn for validation errors per error type. However, users might be interested in more details such as: Errors per content type Errors per content type and error type                                                                                                                                                              | [#103](https://github.com/Turing-dev-community/content-manager/issues/103)                                                                                                                                                                                                            |
+| 2025-12-02      | siddhartha.s@turing.com          | Add FaqPage content type                                                                                                                        | New `FaqPage` content type (title, introduction, list of `FaqItem` objects) with repository persistence and integration tests. No controller API required for initial persistence verification.                                                                                                                                                | [#93](https://github.com/Turing-dev-community/content-manager/issues/93)                         |
 | 2025-11-21      | ankita.k@turing.com     | Implement Soft delete for blog posts                                                                                                            | soft-delete functionality for blog posts and enhances all GET endpoints to optionally return soft-deleted data.                                                                                                                                                                                                                                                                                                                                               | [#120](https://github.com/Turing-dev-community/content-manager/issues/120) |
 | 2025-11-21      | denis.h@turing.com      | Add a Numeric Range Validator                                                                                                                   | A validator that checks numeric value ranges.                                                                                                                                                                                                                                                                                                                                                                                                                 | [#148](https://github.com/Turing-dev-community/content-manager/issues/148) |
 | 2025-11-21      | riddhi.s@turing.com | Add caching to BlogPost & SupportResponse APIs | Implemented high-performance caching using Spring Cache + Caffeine across all read-heavy endpoints for `BlogPost` and `SupportResponse`. Follows the proven pattern from #112. Includes proper `@Cacheable` on all list/single/paginated/search reads and `@CacheEvict(allEntries=true)` on create/update/delete/restore. Export and history endpoints intentionally excluded (documented).                                                                   | [#113](https://github.com/Turing-dev-community/content-manager/issues/113) |
@@ -67,6 +68,67 @@ Please update for each new feature:
 | 2025-11-24      | riddhi.s@turing.com | Full caching rollout: Webhook + User services | Completed high-performance caching (Spring Cache + Caffeine) for **WebhookService** and **UserService**. Added `@Cacheable` on `getUser(UUID)`, `getWebhookById(UUID)`, and `getWebhooksByUserId(UUID)` with proper `@CacheEvict` on all mutations (create/update/delete).                                                                                                                                                                                    | [#159](https://github.com/Turing-dev-community/content-manager/issues/159) |
 | 2025-11-25      | ankita.k@turing.com     |Validated Version-Restore Mechanism in BlogPostService.                                                                                                | Restoring a historical blog post version should automatically run all validation pipelines configured for the user, persist all validation results, and return them to the client. | [#114](https://github.com/Turing-dev-community/content-manager/issues/114) |
 | 2025-11-25      | ankita.k@turing.com     | Export Validation Report Json                                                                                                                   | Export Validation Report in Json   format                                                                                                                                                                                                                                                                                                                                                                                                                     | [#115](https://github.com/Turing-dev-community/content-manager/issues/115) |
+
+| 2025-12-02      | siddhartha.s@turing.com | Add Blog Post Moderation Workflow (DRAFT/PENDING_REVIEW/APPROVED/REJECTED) | Introduce `state` enum on `BlogPost` and add endpoints `POST /api/blogposts/{id}/submit-for-review`, `/approve`, `/reject`. Persist `state` (default `DRAFT`), validate transitions in `BlogPostService` (throw `InvalidStateTransitionException` → mapped to HTTP 400 via `GlobalExceptionHandler`), and add unit + integration tests including 404 handling via `EntityNotFoundException`. | [#94](https://github.com/Turing-dev-community/content-manager/issues/94) |
+
+### Blog Post Moderation Workflow
+
+This project includes a moderation workflow for `BlogPost` entities. The workflow introduces four states and API endpoints to explicitly move posts through review and approval.
+
+- States:
+  - `DRAFT` (default on creation)
+  - `PENDING_REVIEW`
+  - `APPROVED`
+  - `REJECTED`
+
+- API Endpoints:
+  - `POST /api/blogposts/{id}/submit-for-review`
+    - Moves a `DRAFT` post to `PENDING_REVIEW`.
+    - Responses:
+      - `200 OK`: returns the updated `BlogPost` with `state: PENDING_REVIEW`.
+      - `404 Not Found`: when the blog post id does not exist. This uses `EntityNotFoundException` handled by `GlobalExceptionHandler` to produce a `CustomErrorResponse` (see example below).
+      - `400 Bad Request`: invalid transition, returns `CustomErrorResponse` with a clear message (e.g. "Only DRAFT posts can be submitted for review.").
+
+  - `POST /api/blogposts/{id}/approve`
+    - Moves a `PENDING_REVIEW` post to `APPROVED`.
+    - Responses: `200 OK`, `404 Not Found`, `400 Bad Request` (e.g. "Only PENDING_REVIEW posts can be approved.").
+
+  - `POST /api/blogposts/{id}/reject`
+    - Moves a `PENDING_REVIEW` post to `REJECTED`.
+    - Responses: `200 OK`, `404 Not Found`, `400 Bad Request` (e.g. "Only PENDING_REVIEW posts can be rejected.").
+
+- Implementation notes:
+  - Add a `state` enum to the `BlogPost` model and persist it in the `blog_post` table. Existing rows should default to `DRAFT` via schema migration.
+  - Enforce transitions in `BlogPostService`. Throw an `InvalidStateTransitionException` for invalid transitions and map it to HTTP 400 in `GlobalExceptionHandler` so responses use `CustomErrorResponse`.
+  - Add unit tests for service-level transition logic and integration tests for controller endpoints to verify HTTP behavior and error payloads.
+
+- Example success payload (`200 OK`):
+
+```json
+{
+  "id": "cfe786d4-1303-4cae-978f-df93b4b84a6b",
+  "title": "My Post",
+  "content": "…",
+  "userId": "123e4567-e89b-12d3-a456-426614174000",
+  "createdAt": "2025-11-20T10:00:00Z",
+  "updatedAt": "2025-11-20T10:05:00Z",
+  "state": "PENDING_REVIEW"
+}
+```
+
+- Example 404 `CustomErrorResponse` (tests expect the `message` to follow this pattern):
+
+```json
+{
+  "timestamp": "2025-11-20T10:00:00Z",
+  "status": 404,
+  "error": "Not Found",
+  "message": "The entity BlogPost with id cfe786d4-1303-4cae-978f-df93b4b84a6b does not exist",
+  "path": "/api/blogposts/cfe786d4-1303-4cae-978f-df93b4b84a6b/submit-for-review"
+}
+```
+
+See `.github/ISSUE_TEMPLATE/blogpost-moderation.md` for a canonical issue body and examples used by tests.
 
 ### Overview
 - **Content Management**: Create, read, update, and delete various content types
@@ -182,6 +244,57 @@ By checking the `web` and `service` layers, you can get a good idea of the detai
   "enabled": "boolean"
 }
 ```
+
+### FAQ Pages
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/faqpages` | Create new FAQ page |
+| GET | `/api/faqpages/{id}` | Get FAQ page by ID |
+| GET | `/api/faqpages/users/{userId}` | Retrieve FAQ pages owned by a specific user |
+
+**FAQ Page Model:**
+```json
+{
+  "id": "uuid",
+  "userId": "uuid",
+  "title": "string",
+  "introduction": "string",
+  "faqItems": [
+    {
+      "title": "string",
+      "text": "string"
+    }
+  ],
+  "createdAt": "timestamp",
+  "updatedAt": "timestamp"
+}
+```
+
+### FaqPage Feature Details
+
+- **Summary**: Adds a simple FAQ content type (`FaqPage`) that stores a `title`, `introduction`, and a list of `FaqItem` objects (each with `title` and `text`). The feature provides a repository implementation for persisting FAQ pages in the project's H2/MySQL schema and integration tests that validate persistence and JSON (faq_items) serialization.
+
+- **Acceptance criteria**:
+  - `FaqPage` and `FaqItem` model classes exist with sensible fields.
+  - `FaqPageRepository` persists and retrieves `FaqPage` objects (FAQ items stored as JSON text in `faq_items` column).
+  - DB schema contains a `faq_page` table with `faq_items` column.
+  - Integration tests verify storing and reading `FaqPage` from the H2 in-memory database.
+
+- **DB / Migration notes**:
+  - `faq_items` is stored as JSON text in `faq_page.faq_items` (TEXT column). If your project uses migrations (Flyway/Liquibase), convert the DDL in `src/main/resources/schema.sql` into a migration script.
+
+- **How to run integration tests**:
+  1. Run the repository integration tests only:
+     ```powershell
+     .\mvnw test -Dtest=FaqPageRepositoryIntegrationTest
+     ```
+  2. Or run all tests:
+     ```powershell
+     .\mvnw test
+     ```
+
+These tests validate persistence, JSON (faq_items) round-trip, and expected cascade behavior when a user is deleted.
 
 ### Blog Posts
 
