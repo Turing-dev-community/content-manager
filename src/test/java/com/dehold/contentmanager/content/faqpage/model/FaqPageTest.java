@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-
+import com.dehold.contentmanager.content.Content;
 import static org.junit.jupiter.api.Assertions.*;
 
 class FaqPageTest {
@@ -92,6 +92,6 @@ class FaqPageTest {
     @Test
     void implementsContentInterface() {
         FaqPage page = new FaqPage();
-        assertTrue(page instanceof com.dehold.contentmanager.content.Content);
+        assertTrue(page instanceof Content);
     }
 }
