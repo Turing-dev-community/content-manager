@@ -4,6 +4,7 @@ import com.dehold.contentmanager.content.blogpost.service.BlogPostService;
 import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
 import com.dehold.contentmanager.content.customersupport.service.SupportResponseService;
 import com.dehold.contentmanager.content.generic.service.GenericContentService;
+import com.dehold.contentmanager.user.repository.UserRepository;
 import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.pipeline.ValidationPipelineFactory;
@@ -37,7 +38,8 @@ class ValidationServiceGenerateReportTest {
                 mock(BlogPostService.class),
                 mock(SupportResponseService.class),
                 mock(SupportRequestRepository.class),
-                mock(GenericContentService.class)
+                mock(GenericContentService.class),
+                mock(UserRepository.class)
         );
     }
 

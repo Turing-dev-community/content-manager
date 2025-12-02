@@ -3,6 +3,9 @@ package com.dehold.contentmanager.user.web;
 import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
+import com.dehold.contentmanager.content.blogpost.service.BlogPostService;
+import com.dehold.contentmanager.content.customersupport.service.SupportResponseService;
+import com.dehold.contentmanager.content.generic.service.GenericContentService;
 import com.dehold.contentmanager.exception.CustomErrorResponse;
 import com.dehold.contentmanager.user.model.User;
 import com.dehold.contentmanager.user.repository.UserRepository;
@@ -12,6 +15,8 @@ import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
+import com.dehold.contentmanager.validation.pipeline.ValidationPipelineFactory;
+import com.dehold.contentmanager.validation.service.ValidationServiceImpl;
 import com.dehold.contentmanager.validation.step.LengthValidator;
 import com.dehold.contentmanager.validation.step.PhoneNumberForbiddenValidator;
 import com.dehold.contentmanager.validation.web.dto.BlogPostValidationRequest;
@@ -33,7 +38,12 @@ import com.dehold.contentmanager.content.webhook.model.Webhook;
 import com.dehold.contentmanager.content.webhook.web.dto.CreateWebhookRequest;
 import com.dehold.contentmanager.content.webhook.web.dto.UpdateWebhookRequest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.validation.Valid;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -46,10 +56,13 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 @ActiveProfiles("test")
 class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
@@ -77,6 +90,7 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     @Autowired
     private GenericModelRepository genericModelRepository;
+
 
     private static final UUID FIXED_TEST_USER_ID = UUID.fromString("06c4f0e4-20d7-4886-841b-ebe0ca3622a5");
 
@@ -1599,4 +1613,289 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     }
 
+    @Test
+    void givenValidRestoredBlogPost_whenValidateRestoredBlogpost_thenReturnValidResults() {
+        UUID userId = createTestUser();
+        UUID postId = UUID.randomUUID();
+
+        BlogPost restored = new BlogPost(
+                postId,
+                "Valid Title",
+                "This is valid restored blog post content with enough length.",
+                null, null,
+                userId
+        );
+        ValidationPipelineCreateDto pipeline = new ValidationPipelineCreateDto();
+        pipeline.setUserId(userId);
+        pipeline.setContentType("blogpost");
+        pipeline.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content",
+                        Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+
+        restTemplate.postForEntity(
+                baseUrl() + "/api/validation-pipelines",
+                pipeline,
+                ValidationPipelineModel.class
+        );
+        ResponseEntity<ValidationResponse[]> response =
+                restTemplate.postForEntity(
+                        baseUrl() + "/api/users/" + userId + "/validate-restored-blogpost",
+                        restored,
+                        ValidationResponse[].class
+                );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+
+        assertEquals(1, response.getBody().length);
+
+        ValidationResultDto result = response.getBody()[0].getValidationResult();
+        assertEquals(userId, result.getUserId());
+        assertEquals(postId, result.getContentId());
+        assertTrue(result.isValid());
+        assertEquals(0, result.getErrors().size());
+    }
+
+
+    @Test
+    void givenInvalidRestoredBlogPost_whenValidateRestoredBlogpost_thenReturnValidationErrors() {
+        // Arrange
+        UUID userid = createTestUser();
+        UUID postId = UUID.randomUUID();
+
+        BlogPost restored = new BlogPost(
+                postId,
+                "Bad",
+                "Short",
+                null, null,
+                userid
+        );
+
+        ValidationPipelineCreateDto pipeline = new ValidationPipelineCreateDto();
+        pipeline.setUserId(userid);
+        pipeline.setContentType("blogpost");
+        pipeline.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content",
+                        Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+
+        restTemplate.postForEntity(baseUrl() + "/api/validation-pipelines",
+                pipeline, ValidationPipelineModel.class);
+
+        // Act
+        ResponseEntity<ValidationResponse[]> response =
+                restTemplate.postForEntity(
+                        baseUrl() + "/api/users/" + userid + "/validate-restored-blogpost",
+                        restored,
+                        ValidationResponse[].class
+                );
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().length);
+
+        ValidationResultDto result = response.getBody()[0].getValidationResult();
+        assertFalse(result.isValid());
+        assertEquals(2, result.getErrors().size());
+    }
+
+    @Test
+    void givenRestoredBlogPost_whenValidateRestoredBlogpost_thenResultsArePersisted() {
+        // Arrange
+        UUID userid = createTestUser();
+        UUID postId = UUID.randomUUID();
+
+        BlogPost restored = new BlogPost(
+                postId,
+                "Valid Title",
+                "This is valid restored content with enough length.",
+                null, null,
+                userid
+        );
+
+        ValidationPipelineCreateDto pipeline = new ValidationPipelineCreateDto();
+        pipeline.setUserId(userid);
+        pipeline.setContentType("blogpost");
+        pipeline.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true)
+        ));
+
+        restTemplate.postForEntity(baseUrl() + "/api/validation-pipelines",
+                pipeline, ValidationPipelineModel.class);
+
+        // Act
+        restTemplate.postForEntity(
+                baseUrl() + "/api/users/" + userid + "/validate-restored-blogpost",
+                restored,
+                ValidationResponse[].class
+        );
+
+        // Assert
+        List<ValidationResult> persisted = validationResultRepository.findByUserId(userid);
+        assertEquals(1, persisted.size());
+        assertTrue(persisted.get(0).isValid());
+    }
+
+    @Test
+    void givenNonExistentUser_whenValidateRestoredBlogpost_thenReturn404() {
+        UUID fakeUser = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+
+        BlogPost restored = new BlogPost(
+                postId,
+                "Any Title",
+                "Any Content",
+                null,
+                null,
+                fakeUser
+        );
+
+        ResponseEntity<CustomErrorResponse> response = restTemplate.postForEntity(
+                baseUrl() + "/api/users/" + fakeUser + "/validate-restored-blogpost",
+                restored,
+                CustomErrorResponse.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(
+                "The entity User with id " + fakeUser + " does not exist",
+                response.getBody().getError()
+        );
+    }
+
+
+    @Test
+    void exportValidationReport_forNonExistentUser_shouldReturn404() {
+        UUID nonExistingId = UUID.randomUUID();
+
+        ResponseEntity<CustomErrorResponse> response = restTemplate.getForEntity(
+                baseUrl() + "/api/users/" + nonExistingId + "/validation-report/export",
+                CustomErrorResponse.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(
+                "The entity User with id " + nonExistingId + " does not exist",
+                response.getBody().getError()
+        );
+    }
+
+    @Test
+    void exportValidationReport_shouldReturnJsonFileWhenDetailedFalse() throws JsonProcessingException {
+
+        User user = new User(
+                UUID.randomUUID(),
+                "Detailed Export User",
+                "dexport-" + UUID.randomUUID() + "@example.com",
+                Instant.now(),
+                Instant.now(),
+                uniqueUsername(),
+                "pass",
+                true
+        );
+        userRepository.createUser(user);
+
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Not a Valid Title: Is too short", "This is valid content" +
+                " for the blog " +
+                "post."
+                , Instant.now(), Instant.now(), user.getId());
+        BlogPostValidationRequest request = new BlogPostValidationRequest(50, 100, 10, 1000, blogPost);
+
+        // validating the blog post
+        var response = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/blogpost", request,
+                ValidationResponse.class);
+
+        assertEquals(200, response.getStatusCode().value());
+
+        // exporting the blog post report into binary file (byte[])
+        ResponseEntity<byte[]> exportResponse = restTemplate.getForEntity(
+                baseUrl() + "/api/users/" + user.getId() + "/validation-report/export",
+                byte[].class
+        );
+
+        assertEquals(HttpStatus.OK, exportResponse.getStatusCode());
+        assertTrue(exportResponse.getHeaders().getContentDisposition().getFilename()
+                .contains(user.getId().toString()));
+        assertEquals("application/json", exportResponse.getHeaders().getContentType().toString());
+        assertNotNull(exportResponse.getBody());
+        assertTrue(exportResponse.getBody().length > 0);
+
+        //Converting the byte array into the ValidationReportDto DTO to check if the
+        // errorCountsPerContentTypes & errorCountsPerContentTypesAndErrorCode fields are null in case of detailed=false
+
+        String json = new String(exportResponse.getBody(), StandardCharsets.UTF_8);
+        ObjectMapper mapper = new ObjectMapper();
+        ValidationReportDto dto = mapper.readValue(json, ValidationReportDto.class);
+        assertNull(dto.getErrorCountsPerContentTypes());
+        assertNull(dto.getErrorCountsPerContentTypesAndErrorCode());
+        assertEquals(1, dto.getTotalErrorCount());
+    }
+
+    @Test
+    void exportValidationReport_shouldReturnJsonFileWhenDetailedTrue() throws JsonProcessingException {
+
+        User user = new User(
+                UUID.randomUUID(),
+                "Detailed Export User",
+                "dexport-" + UUID.randomUUID() + "@example.com",
+                Instant.now(),
+                Instant.now(),
+                uniqueUsername(),
+                "pass",
+                true
+        );
+        userRepository.createUser(user);
+
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Not a Valid Title: Is too short", "This is valid content" +
+                " for the blog " +
+                "post."
+                , Instant.now(), Instant.now(), user.getId());
+        BlogPostValidationRequest request = new BlogPostValidationRequest(50, 100, 10, 1000, blogPost);
+
+        // validating the blog post
+        var response = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/blogpost", request,
+                ValidationResponse.class);
+
+        assertEquals(200, response.getStatusCode().value());
+
+        // exporting the blog post report into binary file (byte[])
+        ResponseEntity<byte[]> exportResponse = restTemplate.getForEntity(
+                baseUrl() + "/api/users/" + user.getId() + "/validation-report/export?detailed=true",
+                byte[].class
+        );
+
+        assertEquals(HttpStatus.OK, exportResponse.getStatusCode());
+        assertTrue(exportResponse.getHeaders().getContentDisposition().getFilename()
+                .contains(user.getId().toString()));
+        assertEquals("application/json", exportResponse.getHeaders().getContentType().toString());
+        assertNotNull(exportResponse.getBody());
+        assertTrue(exportResponse.getBody().length > 0);
+
+        //Converting the byte array into the ValidationReportDto DTO to check if the
+        // errorCountsPerContentTypes & errorCountsPerContentTypesAndErrorCode fields are not null and contains values in case of detailed=true
+
+        String json = new String(exportResponse.getBody(), StandardCharsets.UTF_8);
+        ObjectMapper mapper = new ObjectMapper();
+        ValidationReportDto dto = mapper.readValue(json, ValidationReportDto.class);
+        assertNotNull(dto.getErrorCountsPerContentTypes());
+        assertNotNull(dto.getErrorCountsPerContentTypesAndErrorCode());
+        assertEquals(1, dto.getTotalErrorCount());
+        assertEquals("1", dto.getErrorCodeToErrorCount().get("LENGTH_VALIDATION_FAILED"));
+
+        Map<String, Integer> perType = dto.getErrorCountsPerContentTypes();
+        assertEquals(1, perType.get("blogpost"));
+
+        // Per content + error code
+        Map<String, Map<String, Integer>> perTypeCode = dto.getErrorCountsPerContentTypesAndErrorCode();
+        assertEquals(1, perTypeCode.get("blogpost").get("LENGTH_VALIDATION_FAILED"));
+    }
 }
