@@ -2,15 +2,20 @@ package com.dehold.contentmanager.validation.web.dto;
 
 import com.dehold.contentmanager.validation.model.ValidationStepType;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
+
 import java.util.Map;
 import java.util.UUID;
 
 public class ValidationStepDto {
     private UUID id;
+    @NotNull(message = "stepType is required")
     private ValidationStepType stepType;
+    @NotBlank(message = "fieldName is required")
     private String fieldName;
     private Map<String, String> parameters;
-    private boolean isEnabled;
+    private boolean isEnabled = true;
 
     public ValidationStepDto() {
     }
@@ -62,5 +67,9 @@ public class ValidationStepDto {
 
     public void setEnabled(boolean isEnabled) {
         this.isEnabled = isEnabled;
+    }
+
+    public String getPattern() {
+        return parameters != null ? parameters.get("pattern") : null;
     }
 }

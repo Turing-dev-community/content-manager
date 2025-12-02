@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS blog_post (
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
     user_id UUID,
+    soft_deleted BOOLEAN DEFAULT FALSE,
+    deleted_at TIMESTAMP,
     CONSTRAINT fk_user FOREIGN KEY (user_id) REFERENCES "user" (id) ON DELETE CASCADE
 );
 
@@ -46,7 +48,8 @@ CREATE TABLE IF NOT EXISTS validation_result (
     content_type VARCHAR(255) NOT NULL,
     is_valid BOOLEAN NOT NULL,
     errors TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL
+    created_at TIMESTAMP NOT NULL,
+    run_id UUID
 );
 
 CREATE TABLE IF NOT EXISTS forbidden_words (
@@ -139,3 +142,37 @@ CREATE TABLE IF NOT EXISTS comments (
     updated_at TIMESTAMP NOT NULL,
     CONSTRAINT fk_blog_post FOREIGN KEY (blog_post_id) REFERENCES blog_post (id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS webhook (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    url VARCHAR(512) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_webhook_user
+        FOREIGN KEY (user_id) REFERENCES "user"(id) ON DELETE CASCADE,
+    CONSTRAINT chk_webhook_url
+        CHECK (url ~ '^https?://.+')
+);
+
+CREATE TABLE authorities (
+    username VARCHAR(255) NOT NULL,
+    authority VARCHAR(255) NOT NULL,
+     FOREIGN KEY (username) REFERENCES "user"(username) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX ix_auth_username
+  on authorities (username,authority);
+
+
+
+-- rate_limit_config table: stores per-endpoint overrides
+CREATE TABLE IF NOT EXISTS rate_limit_config (
+    id UUID PRIMARY KEY,
+    path_pattern VARCHAR(255) NOT NULL UNIQUE, -- e.g. /api/users
+    capacity BIGINT NOT NULL,
+    refill_tokens BIGINT NOT NULL,
+    refill_interval_millis BIGINT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+

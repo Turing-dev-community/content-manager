@@ -48,14 +48,113 @@ class ValidationResultRepositoryTest {
 
         verify(jdbcTemplate, times(1)).update(
                 eq("INSERT INTO validation_result (id, user_id, content_id, content_type, is_valid, errors, " +
-                        "created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"),
+                        "created_at, run_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
                 eq(id),
                 eq(userId),
                 eq(contentId),
                 eq(contentType),
                 eq(isValid),
                 eq("[]"),
-                eq(createdAt)
+                eq(createdAt),
+                any(UUID.class)
         );
     }
+
+    @Test
+    void whenUpsertInsertsNewRecord_thenJdbcTemplateMergeCalledWithCorrectValues() {
+        UUID id = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID contentId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        String contentType = "supportrequest";
+
+        Instant createdAt = Instant.now();
+        ValidationResult vr = ValidationResult.fromPersistence(
+                id, userId, contentType, contentId, true, Collections.emptyList(), createdAt
+        );
+
+        validationResultRepository.upsert(vr, runId);
+
+        verify(jdbcTemplate, times(1)).update(
+                startsWith("MERGE INTO validation_result"),
+                eq(id),
+                eq(userId),
+                eq(contentId),
+                eq(contentType),
+                eq(true),
+                eq("[]"),
+                eq(createdAt),
+                eq(runId)
+        );
+    }
+
+    @Test
+    void whenUpsertCalledTwiceWithDifferentRunIds_thenTwoSeparateCallsAreMade() {
+        UUID id = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID contentId = UUID.randomUUID();
+        String contentType = "supportrequest";
+        Instant createdAt = Instant.now();
+
+        ValidationResult vr = ValidationResult.fromPersistence(
+                id, userId, contentType, contentId, true, Collections.emptyList(), createdAt
+        );
+
+        UUID run1 = UUID.randomUUID();
+        UUID run2 = UUID.randomUUID();
+
+        validationResultRepository.upsert(vr, run1);
+        validationResultRepository.upsert(vr, run2);
+
+        verify(jdbcTemplate, times(2)).update(
+                startsWith("MERGE INTO validation_result"),
+                any(), any(), any(), any(), any(), any(), any(), any()
+        );
+    }
+
+    @Test
+    void whenUpsertCalledTwiceWithSameIdentifiers_thenSecondCallUpdatesValues() {
+
+        UUID id = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+        UUID contentId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        String contentType = "supportrequest";
+
+        Instant createdAt = Instant.now();
+
+        ValidationResult vr1 = ValidationResult.fromPersistence(
+                id, userId, contentType, contentId, true, Collections.emptyList(), createdAt
+        );
+
+        ValidationResult vr2 = ValidationResult.fromPersistence(
+                id, userId, contentType, contentId, false, Collections.emptyList(), createdAt
+        );
+
+        // first upsert
+        validationResultRepository.upsert(vr1, runId);
+
+        // second upsert (UPDATE case)
+        validationResultRepository.upsert(vr2, runId);
+
+        // verify call count
+        verify(jdbcTemplate, times(2)).update(
+                startsWith("MERGE INTO validation_result"),
+                any(), any(), any(), any(), any(), any(), any(), any()
+        );
+
+        // verify updated values in SECOND call
+        verify(jdbcTemplate).update(
+                startsWith("MERGE INTO validation_result"),
+                eq(id),
+                eq(userId),
+                eq(contentId),
+                eq(contentType),
+                eq(false),
+                eq("[]"),
+                eq(createdAt),
+                eq(runId)
+        );
+    }
+
 }

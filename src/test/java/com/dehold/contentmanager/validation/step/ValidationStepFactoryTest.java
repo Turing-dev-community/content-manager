@@ -61,4 +61,18 @@ class ValidationStepFactoryTest {
         assertEquals("testField", step.getFieldName());
     }
 
+    @Test
+    void givenValidationStepTypeRegexValidation_whenCreateValidationStep_thenReturnRegexValidator() {
+        ValidationStepFactory factory = new ValidationStepFactory(null); 
+        ValidationStep<?> step = factory.createValidationStep(
+            ValidationStepType.REGEX_VALIDATION,
+            content -> "test content",
+            Map.of("pattern", "\\bspam\\b"),  // simple regex pattern
+            "content",
+            UUID.randomUUID()
+        );
+
+        assertInstanceOf(RegexValidator.class, step);
+        assertEquals("content", step.getFieldName());
+    }
 }

@@ -5,6 +5,8 @@ import com.dehold.contentmanager.content.productoffer.model.ProductOffer;
 import com.dehold.contentmanager.content.productoffer.repository.ProductOfferRepository;
 import com.dehold.contentmanager.exception.EntityNotFoundException;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +24,10 @@ public class ProductOfferServiceImpl implements ProductOfferService {
     }
 
     @Override
+    @CacheEvict(
+        value = {"productOfferById", "productOffersAll", "productOffersByUser"}, 
+        allEntries = true
+    )
     public ProductOffer createProductOffer(ProductOffer offer) {
         offer.setId(UUID.randomUUID());
         offer.setCreatedAt(Instant.now());
@@ -31,6 +37,10 @@ public class ProductOfferServiceImpl implements ProductOfferService {
     }
 
     @Override
+    @Cacheable(
+        value = "productOfferById", 
+        key = "#id"
+    )
     public ProductOffer getProductOffer(UUID id) {
         try {
             return productOfferRepository.findById(id);
@@ -40,16 +50,25 @@ public class ProductOfferServiceImpl implements ProductOfferService {
     }
 
     @Override
+    @Cacheable("productOffersAll")
     public List<ProductOffer> getAllProductOffers() {
         return productOfferRepository.findAll();
     }
 
     @Override
+    @Cacheable(
+        value = "productOffersByUser", 
+        key = "#userId"
+    )
     public List<ProductOffer> getProductOffersByUserId(UUID userId) {
         return productOfferRepository.findByUserId(userId);
     }
 
     @Override
+    @CacheEvict(
+        value = {"productOfferById", "productOffersAll", "productOffersByUser"}, 
+        allEntries = true
+    )
     public ProductOffer updateProductOffer(UUID id, ProductOffer offer) {
         ProductOffer existing = productOfferRepository.findById(id);
         if (existing == null) {
@@ -74,6 +93,10 @@ public class ProductOfferServiceImpl implements ProductOfferService {
     }
 
     @Override
+    @CacheEvict(
+        value = {"productOfferById", "productOffersAll", "productOffersByUser"}, 
+        allEntries = true
+    )
     public void deleteProductOffer(UUID id) {
         productOfferRepository.delete(id);
     }

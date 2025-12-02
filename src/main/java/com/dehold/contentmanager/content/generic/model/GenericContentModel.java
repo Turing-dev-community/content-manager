@@ -1,10 +1,12 @@
 package com.dehold.contentmanager.content.generic.model;
 
+import com.dehold.contentmanager.content.Content;
+
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
-public class GenericContentModel {
+public class GenericContentModel implements Content {
     private UUID id;
     private UUID userId;
     private String type;
@@ -25,6 +27,7 @@ public class GenericContentModel {
         this.parentId = parentId;
     }
 
+    @Override
     public UUID getId() {
         return id;
     }
@@ -33,6 +36,7 @@ public class GenericContentModel {
         this.id = id;
     }
 
+    @Override
     public UUID getUserId() {
         return userId;
     }

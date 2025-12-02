@@ -3,6 +3,9 @@ package com.dehold.contentmanager.user.web;
 import com.dehold.contentmanager.ContentManagerApplicationTests;
 import com.dehold.contentmanager.content.blogpost.model.BlogPost;
 import com.dehold.contentmanager.content.blogpost.repository.BlogPostRepository;
+import com.dehold.contentmanager.content.blogpost.service.BlogPostService;
+import com.dehold.contentmanager.content.customersupport.service.SupportResponseService;
+import com.dehold.contentmanager.content.generic.service.GenericContentService;
 import com.dehold.contentmanager.exception.CustomErrorResponse;
 import com.dehold.contentmanager.user.model.User;
 import com.dehold.contentmanager.user.repository.UserRepository;
@@ -12,6 +15,8 @@ import com.dehold.contentmanager.validation.model.ValidationError;
 import com.dehold.contentmanager.validation.model.ValidationPipelineModel;
 import com.dehold.contentmanager.validation.model.ValidationResult;
 import com.dehold.contentmanager.validation.model.ValidationStepType;
+import com.dehold.contentmanager.validation.pipeline.ValidationPipelineFactory;
+import com.dehold.contentmanager.validation.service.ValidationServiceImpl;
 import com.dehold.contentmanager.validation.step.LengthValidator;
 import com.dehold.contentmanager.validation.step.PhoneNumberForbiddenValidator;
 import com.dehold.contentmanager.validation.web.dto.BlogPostValidationRequest;
@@ -20,15 +25,26 @@ import com.dehold.contentmanager.validation.web.dto.ValidationReportDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationResponse;
 import com.dehold.contentmanager.validation.web.dto.ValidationResultDto;
 import com.dehold.contentmanager.validation.web.dto.ValidationStepDto;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.dehold.contentmanager.validation.repository.ValidationResultRepository;
 import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.model.SupportResponse;
 import com.dehold.contentmanager.content.customersupport.repository.SupportRequestRepository;
 import com.dehold.contentmanager.content.customersupport.repository.SupportResponseRepository;
+import com.dehold.contentmanager.content.generic.model.ContentFieldValue;
+import com.dehold.contentmanager.content.generic.model.GenericContentModel;
+import com.dehold.contentmanager.content.generic.model.ValueType;
+import com.dehold.contentmanager.content.generic.repository.GenericModelRepository;
+import com.dehold.contentmanager.content.webhook.model.Webhook;
+import com.dehold.contentmanager.content.webhook.web.dto.CreateWebhookRequest;
+import com.dehold.contentmanager.content.webhook.web.dto.UpdateWebhookRequest;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.validation.Valid;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.MockitoAnnotations;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.HttpEntity;
@@ -37,15 +53,18 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonMappingException;
+import org.springframework.test.context.ActiveProfiles;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
-
+@ActiveProfiles("test")
 class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
 
     @LocalServerPort
@@ -69,8 +88,18 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
     @Autowired
     private SupportResponseRepository supportResponseRepository;
 
+    @Autowired
+    private GenericModelRepository genericModelRepository;
+
+
+    private static final UUID FIXED_TEST_USER_ID = UUID.fromString("06c4f0e4-20d7-4886-841b-ebe0ca3622a5");
+
     private String uniqueUsername() {
         return "TestUser-" + UUID.randomUUID();
+    }
+
+    private String baseUrl() {
+        return "http://localhost:" + port;
     }
 
     @Test
@@ -112,8 +141,9 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
         request.setUsername("TestName");
         request.setPassword("TestUser-" + UUID.randomUUID());
         request.isEnabled();
+        TestRestTemplate authClient = restTemplate.withBasicAuth("user", "pass");
         HttpEntity<UpdateUserRequest> entity = new HttpEntity<>(request);
-        ResponseEntity<User> response = restTemplate.exchange("http://localhost:" + port + "/api/users/" + user.getId(), HttpMethod.PUT, entity, User.class);
+        ResponseEntity<User> response = authClient.exchange("http://localhost:" + port + "/api/users/" + user.getId(), HttpMethod.PUT, entity, User.class);
         assertEquals(200, response.getStatusCode().value());
         assertNotNull(response.getBody());
         assertEquals(request.getAlias(), response.getBody().getAlias());
@@ -1116,5 +1146,756 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
         assertEquals(1, persisted.size());
         assertEquals(user.getId(), persisted.get(0).getUserId());
         assertEquals(sr.getId(), persisted.get(0).getContentId());
+    }
+
+    @Test
+    void getWebhooks_shouldReturnUserWebhooks() {
+        UUID userId = createTestUser();
+
+        createWebhook(userId, "https://hook1.com");
+        createWebhook(userId, "https://hook2.com");
+
+        ResponseEntity<Webhook[]> response = restTemplate.getForEntity(
+                baseUrl() + "/api/users/" + userId + "/webhooks",
+                Webhook[].class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(response.getBody().length >= 2);
+    }
+
+    @Test
+    void getWebhook_shouldReturnSingleWebhook() {
+        UUID userId = createTestUser();
+        UUID webhookId = createWebhook(userId,"https://single.com");
+
+        assertNotNull(webhookId, "createWebhook returned webhook with NULL id!");
+        String url = baseUrl() + "/api/users/" + userId + "/webhooks/" + webhookId;
+        ResponseEntity<Webhook> response =
+                restTemplate.getForEntity(url, Webhook.class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+
+        Webhook body = response.getBody();
+
+        assertEquals(webhookId, body.getId());
+        assertEquals("https://single.com", body.getUrl());
+        assertEquals(userId, body.getUserId());
+    }
+
+
+    @Test
+    void updateWebhook_shouldUpdateUrl() {
+
+        UUID userId = createTestUser();
+
+        UUID webhookId = createWebhook(userId, "https://old.com");
+
+        UpdateWebhookRequest req = new UpdateWebhookRequest();
+        req.setUrl("https://new.com");
+
+        ResponseEntity<Webhook> response = restTemplate.exchange(
+                baseUrl() + "/api/users/" + userId + "/webhooks/" + webhookId,
+                HttpMethod.PUT,
+                new HttpEntity<>(req),
+                Webhook.class
+        );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals("https://new.com", response.getBody().getUrl());
+    }
+
+    @Test
+    void deleteWebhook_shouldDeleteWebhook() {
+        UUID userId = createTestUser();
+        UUID webhookId = createWebhook(userId, "https://del.com");
+
+        ResponseEntity<Void> deleteResponse = restTemplate.exchange(
+                baseUrl() + "/api/users/" + userId + "/webhooks/" + webhookId,
+                HttpMethod.DELETE,
+                null,
+                Void.class
+        );
+        assertEquals(HttpStatus.NO_CONTENT, deleteResponse.getStatusCode());
+        ResponseEntity<String> after = restTemplate.getForEntity(
+                baseUrl() + "/api/users/" + userId + "/webhooks/" + webhookId,
+                String.class
+        );
+        assertEquals(HttpStatus.NOT_FOUND, after.getStatusCode());
+    }
+
+    @Test
+    void invalidUrl_shouldReturn400() {
+        CreateWebhookRequest request = new CreateWebhookRequest();
+        request.setUrl("not-a-url");
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + FIXED_TEST_USER_ID + "/webhooks",
+                request, String.class);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void getWebhooks_forNonExistentUser_shouldReturn404() {
+        UUID fakeUserId = UUID.randomUUID();
+
+        ResponseEntity<CustomErrorResponse> response = restTemplate.getForEntity(
+                "http://localhost:" + port + "/api/users/" + fakeUserId + "/webhooks",
+                CustomErrorResponse.class);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("The entity User with id " + fakeUserId + " does not exist", 
+                        response.getBody().getError());
+    }
+
+    @Test
+    void getWebhook_forNonExistentWebhook_shouldReturn404() {
+        UUID userId = createTestUser();
+
+        UUID missingWebhookId = UUID.randomUUID();
+
+        ResponseEntity<String> response = restTemplate.getForEntity(
+                baseUrl() + "/api/users/" + userId + "/webhooks/" + missingWebhookId,
+                String.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertTrue(response.getBody().contains("Webhook"));
+    }
+
+    private UUID createWebhook(UUID userId, String url) {
+        CreateWebhookRequest req = new CreateWebhookRequest();
+        req.setUrl(url);
+
+        return restTemplate.postForEntity(
+                baseUrl() + "/api/users/" + userId + "/webhooks",
+                req,
+                Webhook.class
+        ).getBody().getId();
+    }
+
+    private UUID createTestUser() {
+        CreateUserRequest req = new CreateUserRequest();
+        req.setAlias("Test");
+        req.setEmail("t@" + UUID.randomUUID() + ".com");
+        req.setUsername("u-" + UUID.randomUUID());
+        req.setPassword("pass");
+        req.setEnabled(true);
+
+        return restTemplate.postForEntity(
+                baseUrl() + "/api/users", req, User.class
+        ).getBody().getId();
+    }
+
+    @Test
+    void givenValidCustomContentAndPersistedValidationPipeline_validateGenericContentForUser_shouldReturnValidationResult() {
+        User user = new User(UUID.randomUUID(), "Generic Content User", "genericuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        Map<String, ContentFieldValue> fields = new HashMap<>();
+        fields.put("description", new ContentFieldValue("description", ValueType.STRING, "This is a valid custom content description"));
+        fields.put("status", new ContentFieldValue("status", ValueType.STRING, "active"));
+
+        GenericContentModel genericContent = new GenericContentModel(
+                UUID.randomUUID(),
+                user.getId(),
+                "customContent",
+                fields,
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        genericModelRepository.save(genericContent);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("customContent");
+        pipelineDto.setDescription("Test pipeline for custom content validation");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "description",
+                        Map.of("minLength", "10", "maxLength", "500"), true)
+        ));
+
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto, ValidationPipelineModel.class);
+
+        ResponseEntity<ValidationResponse[]> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent?contentType=customContent",
+                null, ValidationResponse[].class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        ValidationResponse[] results = response.getBody();
+        assertNotNull(results);
+        assertEquals(1, results.length);
+
+        ValidationResponse validationResponse = results[0];
+        assertEquals("customContent", validationResponse.getContentType());
+        ValidationResultDto result = validationResponse.getValidationResult();
+        assertEquals("customContent", result.getContentType());
+        assertEquals(user.getId(), result.getUserId());
+        assertTrue(result.isValid());
+        assertEquals(0, result.getErrors().size());
+    }
+
+    @Test
+    void givenInvalidCustomContentAndPersistedValidationPipeline_validateGenericContentForUser_shouldReturnValidationResultWithErrors() {
+        User user = new User(UUID.randomUUID(), "Generic Content User", "genericuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        Map<String, ContentFieldValue> fields = new HashMap<>();
+        fields.put("description", new ContentFieldValue("description", ValueType.STRING, "Short"));
+        fields.put("status", new ContentFieldValue("status", ValueType.STRING, "active"));
+
+        GenericContentModel genericContent = new GenericContentModel(
+                UUID.randomUUID(),
+                user.getId(),
+                "customContent",
+                fields,
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        genericModelRepository.save(genericContent);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("customContent");
+        pipelineDto.setDescription("Test pipeline for custom content validation");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "description",
+                        Map.of("minLength", "10", "maxLength", "500"), true)
+        ));
+
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto, ValidationPipelineModel.class);
+
+        ResponseEntity<ValidationResponse[]> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent?contentType=customContent",
+                null, ValidationResponse[].class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        ValidationResponse[] results = response.getBody();
+        assertNotNull(results);
+        assertEquals(1, results.length);
+
+        ValidationResponse validationResponse = results[0];
+        assertEquals("customContent", validationResponse.getContentType());
+        ValidationResultDto result = validationResponse.getValidationResult();
+        assertEquals("customContent", result.getContentType());
+        assertEquals(user.getId(), result.getUserId());
+        assertFalse(result.isValid());
+        assertEquals(1, result.getErrors().size());
+
+        assertTrue(result.getErrors().stream().anyMatch(
+                e -> e.code().equals(LengthValidator.ERROR_CODE) &&
+                        e.message().equals(LengthValidator.errorMessageTooShort("description"))
+        ));
+    }
+
+    @Test
+    void givenCustomContentWithMultipleInvalidFieldsAndPersistedValidationPipeline_validateGenericContentForUser_shouldReturnMultipleValidationErrors() {
+        User user = new User(UUID.randomUUID(), "Generic Content User", "genericuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        Map<String, ContentFieldValue> fields = new HashMap<>();
+        fields.put("description", new ContentFieldValue("description", ValueType.STRING, "Hi"));
+        fields.put("title", new ContentFieldValue("title", ValueType.STRING, "No"));
+
+        GenericContentModel genericContent = new GenericContentModel(
+                UUID.randomUUID(),
+                user.getId(),
+                "customContent",
+                fields,
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        genericModelRepository.save(genericContent);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("customContent");
+        pipelineDto.setDescription("Test pipeline for custom content validation");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "description",
+                        Map.of("minLength", "10", "maxLength", "500"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true)
+        ));
+
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto, ValidationPipelineModel.class);
+
+        ResponseEntity<ValidationResponse[]> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent?contentType=customContent",
+                null, ValidationResponse[].class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        ValidationResponse[] results = response.getBody();
+        assertNotNull(results);
+        assertEquals(1, results.length);
+
+        ValidationResponse validationResponse = results[0];
+        assertEquals("customContent", validationResponse.getContentType());
+        ValidationResultDto result = validationResponse.getValidationResult();
+        assertEquals("customContent", result.getContentType());
+        assertEquals(user.getId(), result.getUserId());
+        assertFalse(result.isValid());
+        assertEquals(2, result.getErrors().size());
+
+        assertTrue(result.getErrors().stream().anyMatch(
+                e -> e.code().equals(LengthValidator.ERROR_CODE) &&
+                        e.message().equals(LengthValidator.errorMessageTooShort("description"))
+        ));
+        assertTrue(result.getErrors().stream().anyMatch(
+                e -> e.code().equals(LengthValidator.ERROR_CODE) &&
+                        e.message().equals(LengthValidator.errorMessageTooShort("title"))
+        ));
+    }
+
+    @Test
+    void givenMultipleCustomContentWithMixedValidityAndPersistedValidationPipeline_validateGenericContentForUser_shouldReturnAllValidationResults() {
+        User user = new User(UUID.randomUUID(), "Generic Content User", "genericuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        Map<String, ContentFieldValue> validFields = new HashMap<>();
+        validFields.put("description", new ContentFieldValue("description", ValueType.STRING, "This is a valid description with enough length"));
+        validFields.put("title", new ContentFieldValue("title", ValueType.STRING, "Valid Title"));
+
+        GenericContentModel validContent = new GenericContentModel(
+                UUID.randomUUID(),
+                user.getId(),
+                "customContent",
+                validFields,
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        genericModelRepository.save(validContent);
+
+        Map<String, ContentFieldValue> invalidFields = new HashMap<>();
+        invalidFields.put("description", new ContentFieldValue("description", ValueType.STRING, "Short"));
+        invalidFields.put("title", new ContentFieldValue("title", ValueType.STRING, "No"));
+
+        GenericContentModel invalidContent = new GenericContentModel(
+                UUID.randomUUID(),
+                user.getId(),
+                "customContent",
+                invalidFields,
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        genericModelRepository.save(invalidContent);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("customContent");
+        pipelineDto.setDescription("Test pipeline for custom content validation");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "description",
+                        Map.of("minLength", "10", "maxLength", "500"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true)
+        ));
+
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto, ValidationPipelineModel.class);
+
+        ResponseEntity<ValidationResponse[]> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent?contentType=customContent",
+                null, ValidationResponse[].class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        ValidationResponse[] results = response.getBody();
+        assertNotNull(results);
+        assertEquals(2, results.length);
+
+        List<ValidationResponse> resultList = List.of(results);
+
+        ValidationResponse validResponse = resultList.stream()
+                .filter(vr -> vr.getValidationResult().isValid())
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Expected one valid result"));
+
+        assertEquals("customContent", validResponse.getContentType());
+        ValidationResultDto validResult = validResponse.getValidationResult();
+        assertEquals("customContent", validResult.getContentType());
+        assertEquals(user.getId(), validResult.getUserId());
+        assertEquals(0, validResult.getErrors().size());
+
+        ValidationResponse invalidResponse = resultList.stream()
+                .filter(vr -> !vr.getValidationResult().isValid())
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Expected one invalid result"));
+
+        assertEquals("customContent", invalidResponse.getContentType());
+        ValidationResultDto invalidResult = invalidResponse.getValidationResult();
+        assertEquals("customContent", invalidResult.getContentType());
+        assertEquals(user.getId(), invalidResult.getUserId());
+        assertEquals(2, invalidResult.getErrors().size());
+        assertTrue(invalidResult.getErrors().stream().anyMatch(
+                e -> e.code().equals(LengthValidator.ERROR_CODE) &&
+                        e.message().equals(LengthValidator.errorMessageTooShort("description"))
+        ));
+        assertTrue(invalidResult.getErrors().stream().anyMatch(
+                e -> e.code().equals(LengthValidator.ERROR_CODE) &&
+                        e.message().equals(LengthValidator.errorMessageTooShort("title"))
+        ));
+    }
+
+    @Test
+    void givenNonExistentUser_validateGenericContentForUser_shouldReturn404() {
+        UUID nonExistentUserId = UUID.randomUUID();
+
+        ResponseEntity<CustomErrorResponse> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + nonExistentUserId + "/validate-genericcontent?contentType=customContent",
+                null, CustomErrorResponse.class);
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals("The entity User with id " + nonExistentUserId + " does not exist",
+                response.getBody().getError());
+    }
+
+    @Test
+    void givenNoContentOfSpecifiedType_validateGenericContentForUser_shouldReturnEmptyResults() {
+        User user = new User(UUID.randomUUID(), "Generic Content User", "genericuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        Map<String, ContentFieldValue> fields = new HashMap<>();
+        fields.put("description", new ContentFieldValue("description", ValueType.STRING, "Some content"));
+
+        GenericContentModel otherTypeContent = new GenericContentModel(
+                UUID.randomUUID(),
+                user.getId(),
+                "otherContentType",
+                fields,
+                Instant.now(),
+                Instant.now(),
+                null
+        );
+        genericModelRepository.save(otherTypeContent);
+
+        ValidationPipelineCreateDto pipelineDto = new ValidationPipelineCreateDto();
+        pipelineDto.setUserId(user.getId());
+        pipelineDto.setContentType("customContent");
+        pipelineDto.setDescription("Test pipeline for custom content validation");
+        pipelineDto.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "description",
+                        Map.of("minLength", "10", "maxLength", "500"), true)
+        ));
+
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validation-pipelines",
+                pipelineDto, ValidationPipelineModel.class);
+
+        ResponseEntity<ValidationResponse[]> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent?contentType=customContent",
+                null, ValidationResponse[].class);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        ValidationResponse[] results = response.getBody();
+        assertNotNull(results);
+        assertEquals(0, results.length);
+    }
+
+    @Test
+    void givenMissingContentTypeQueryParam_validateGenericContentForUser_shouldReturn400() {
+        User user = new User(UUID.randomUUID(), "Generic Content User", "genericuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestUser-" + UUID.randomUUID(), true);
+        userRepository.createUser(user);
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+                "http://localhost:" + port + "/api/users/" + user.getId() + "/validate-genericcontent",
+                null, String.class);
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void givenValidRestoredBlogPost_whenValidateRestoredBlogpost_thenReturnValidResults() {
+        UUID userId = createTestUser();
+        UUID postId = UUID.randomUUID();
+
+        BlogPost restored = new BlogPost(
+                postId,
+                "Valid Title",
+                "This is valid restored blog post content with enough length.",
+                null, null,
+                userId
+        );
+        ValidationPipelineCreateDto pipeline = new ValidationPipelineCreateDto();
+        pipeline.setUserId(userId);
+        pipeline.setContentType("blogpost");
+        pipeline.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content",
+                        Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+
+        restTemplate.postForEntity(
+                baseUrl() + "/api/validation-pipelines",
+                pipeline,
+                ValidationPipelineModel.class
+        );
+        ResponseEntity<ValidationResponse[]> response =
+                restTemplate.postForEntity(
+                        baseUrl() + "/api/users/" + userId + "/validate-restored-blogpost",
+                        restored,
+                        ValidationResponse[].class
+                );
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+
+        assertEquals(1, response.getBody().length);
+
+        ValidationResultDto result = response.getBody()[0].getValidationResult();
+        assertEquals(userId, result.getUserId());
+        assertEquals(postId, result.getContentId());
+        assertTrue(result.isValid());
+        assertEquals(0, result.getErrors().size());
+    }
+
+
+    @Test
+    void givenInvalidRestoredBlogPost_whenValidateRestoredBlogpost_thenReturnValidationErrors() {
+        // Arrange
+        UUID userid = createTestUser();
+        UUID postId = UUID.randomUUID();
+
+        BlogPost restored = new BlogPost(
+                postId,
+                "Bad",
+                "Short",
+                null, null,
+                userid
+        );
+
+        ValidationPipelineCreateDto pipeline = new ValidationPipelineCreateDto();
+        pipeline.setUserId(userid);
+        pipeline.setContentType("blogpost");
+        pipeline.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true),
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "content",
+                        Map.of("minLength", "10", "maxLength", "1000"), true)
+        ));
+
+        restTemplate.postForEntity(baseUrl() + "/api/validation-pipelines",
+                pipeline, ValidationPipelineModel.class);
+
+        // Act
+        ResponseEntity<ValidationResponse[]> response =
+                restTemplate.postForEntity(
+                        baseUrl() + "/api/users/" + userid + "/validate-restored-blogpost",
+                        restored,
+                        ValidationResponse[].class
+                );
+
+        // Assert
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().length);
+
+        ValidationResultDto result = response.getBody()[0].getValidationResult();
+        assertFalse(result.isValid());
+        assertEquals(2, result.getErrors().size());
+    }
+
+    @Test
+    void givenRestoredBlogPost_whenValidateRestoredBlogpost_thenResultsArePersisted() {
+        // Arrange
+        UUID userid = createTestUser();
+        UUID postId = UUID.randomUUID();
+
+        BlogPost restored = new BlogPost(
+                postId,
+                "Valid Title",
+                "This is valid restored content with enough length.",
+                null, null,
+                userid
+        );
+
+        ValidationPipelineCreateDto pipeline = new ValidationPipelineCreateDto();
+        pipeline.setUserId(userid);
+        pipeline.setContentType("blogpost");
+        pipeline.setSteps(List.of(
+                new ValidationStepDto(null, ValidationStepType.LENGTH_VALIDATION, "title",
+                        Map.of("minLength", "5", "maxLength", "100"), true)
+        ));
+
+        restTemplate.postForEntity(baseUrl() + "/api/validation-pipelines",
+                pipeline, ValidationPipelineModel.class);
+
+        // Act
+        restTemplate.postForEntity(
+                baseUrl() + "/api/users/" + userid + "/validate-restored-blogpost",
+                restored,
+                ValidationResponse[].class
+        );
+
+        // Assert
+        List<ValidationResult> persisted = validationResultRepository.findByUserId(userid);
+        assertEquals(1, persisted.size());
+        assertTrue(persisted.get(0).isValid());
+    }
+
+    @Test
+    void givenNonExistentUser_whenValidateRestoredBlogpost_thenReturn404() {
+        UUID fakeUser = UUID.randomUUID();
+        UUID postId = UUID.randomUUID();
+
+        BlogPost restored = new BlogPost(
+                postId,
+                "Any Title",
+                "Any Content",
+                null,
+                null,
+                fakeUser
+        );
+
+        ResponseEntity<CustomErrorResponse> response = restTemplate.postForEntity(
+                baseUrl() + "/api/users/" + fakeUser + "/validate-restored-blogpost",
+                restored,
+                CustomErrorResponse.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(
+                "The entity User with id " + fakeUser + " does not exist",
+                response.getBody().getError()
+        );
+    }
+
+
+    @Test
+    void exportValidationReport_forNonExistentUser_shouldReturn404() {
+        UUID nonExistingId = UUID.randomUUID();
+
+        ResponseEntity<CustomErrorResponse> response = restTemplate.getForEntity(
+                baseUrl() + "/api/users/" + nonExistingId + "/validation-report/export",
+                CustomErrorResponse.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(
+                "The entity User with id " + nonExistingId + " does not exist",
+                response.getBody().getError()
+        );
+    }
+
+    @Test
+    void exportValidationReport_shouldReturnJsonFileWhenDetailedFalse() throws JsonProcessingException {
+
+        User user = new User(
+                UUID.randomUUID(),
+                "Detailed Export User",
+                "dexport-" + UUID.randomUUID() + "@example.com",
+                Instant.now(),
+                Instant.now(),
+                uniqueUsername(),
+                "pass",
+                true
+        );
+        userRepository.createUser(user);
+
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Not a Valid Title: Is too short", "This is valid content" +
+                " for the blog " +
+                "post."
+                , Instant.now(), Instant.now(), user.getId());
+        BlogPostValidationRequest request = new BlogPostValidationRequest(50, 100, 10, 1000, blogPost);
+
+        // validating the blog post
+        var response = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/blogpost", request,
+                ValidationResponse.class);
+
+        assertEquals(200, response.getStatusCode().value());
+
+        // exporting the blog post report into binary file (byte[])
+        ResponseEntity<byte[]> exportResponse = restTemplate.getForEntity(
+                baseUrl() + "/api/users/" + user.getId() + "/validation-report/export",
+                byte[].class
+        );
+
+        assertEquals(HttpStatus.OK, exportResponse.getStatusCode());
+        assertTrue(exportResponse.getHeaders().getContentDisposition().getFilename()
+                .contains(user.getId().toString()));
+        assertEquals("application/json", exportResponse.getHeaders().getContentType().toString());
+        assertNotNull(exportResponse.getBody());
+        assertTrue(exportResponse.getBody().length > 0);
+
+        //Converting the byte array into the ValidationReportDto DTO to check if the
+        // errorCountsPerContentTypes & errorCountsPerContentTypesAndErrorCode fields are null in case of detailed=false
+
+        String json = new String(exportResponse.getBody(), StandardCharsets.UTF_8);
+        ObjectMapper mapper = new ObjectMapper();
+        ValidationReportDto dto = mapper.readValue(json, ValidationReportDto.class);
+        assertNull(dto.getErrorCountsPerContentTypes());
+        assertNull(dto.getErrorCountsPerContentTypesAndErrorCode());
+        assertEquals(1, dto.getTotalErrorCount());
+    }
+
+    @Test
+    void exportValidationReport_shouldReturnJsonFileWhenDetailedTrue() throws JsonProcessingException {
+
+        User user = new User(
+                UUID.randomUUID(),
+                "Detailed Export User",
+                "dexport-" + UUID.randomUUID() + "@example.com",
+                Instant.now(),
+                Instant.now(),
+                uniqueUsername(),
+                "pass",
+                true
+        );
+        userRepository.createUser(user);
+
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Not a Valid Title: Is too short", "This is valid content" +
+                " for the blog " +
+                "post."
+                , Instant.now(), Instant.now(), user.getId());
+        BlogPostValidationRequest request = new BlogPostValidationRequest(50, 100, 10, 1000, blogPost);
+
+        // validating the blog post
+        var response = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/blogpost", request,
+                ValidationResponse.class);
+
+        assertEquals(200, response.getStatusCode().value());
+
+        // exporting the blog post report into binary file (byte[])
+        ResponseEntity<byte[]> exportResponse = restTemplate.getForEntity(
+                baseUrl() + "/api/users/" + user.getId() + "/validation-report/export?detailed=true",
+                byte[].class
+        );
+
+        assertEquals(HttpStatus.OK, exportResponse.getStatusCode());
+        assertTrue(exportResponse.getHeaders().getContentDisposition().getFilename()
+                .contains(user.getId().toString()));
+        assertEquals("application/json", exportResponse.getHeaders().getContentType().toString());
+        assertNotNull(exportResponse.getBody());
+        assertTrue(exportResponse.getBody().length > 0);
+
+        //Converting the byte array into the ValidationReportDto DTO to check if the
+        // errorCountsPerContentTypes & errorCountsPerContentTypesAndErrorCode fields are not null and contains values in case of detailed=true
+
+        String json = new String(exportResponse.getBody(), StandardCharsets.UTF_8);
+        ObjectMapper mapper = new ObjectMapper();
+        ValidationReportDto dto = mapper.readValue(json, ValidationReportDto.class);
+        assertNotNull(dto.getErrorCountsPerContentTypes());
+        assertNotNull(dto.getErrorCountsPerContentTypesAndErrorCode());
+        assertEquals(1, dto.getTotalErrorCount());
+        assertEquals("1", dto.getErrorCodeToErrorCount().get("LENGTH_VALIDATION_FAILED"));
+
+        Map<String, Integer> perType = dto.getErrorCountsPerContentTypes();
+        assertEquals(1, perType.get("blogpost"));
+
+        // Per content + error code
+        Map<String, Map<String, Integer>> perTypeCode = dto.getErrorCountsPerContentTypesAndErrorCode();
+        assertEquals(1, perTypeCode.get("blogpost").get("LENGTH_VALIDATION_FAILED"));
     }
 }
