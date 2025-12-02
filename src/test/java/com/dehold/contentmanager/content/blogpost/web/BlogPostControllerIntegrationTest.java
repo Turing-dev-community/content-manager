@@ -996,9 +996,24 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
             String.class
         );
 
-        assertTrue(response.getStatusCode() == HttpStatus.BAD_REQUEST || response.getStatusCode() == HttpStatus.CONFLICT);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
         assertTrue(response.getBody().contains("Only DRAFT posts can be submitted for review."));
+    }
+
+    @Test
+    void submitForReview_shouldReturnNotFoundForMissingPost() {
+        UUID missing = UUID.randomUUID();
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/blogposts/" + missing + "/submit-for-review",
+            null,
+            String.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("The entity BlogPost with id " + missing + " does not exist"));
     }
 
     @Test
@@ -1013,9 +1028,24 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
             String.class
         );
 
-        assertTrue(response.getStatusCode() == HttpStatus.BAD_REQUEST || response.getStatusCode() == HttpStatus.CONFLICT);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
         assertTrue(response.getBody().contains("Only PENDING_REVIEW posts can be approved."));
+    }
+
+    @Test
+    void approveBlogPost_shouldReturnNotFoundForMissingPost() {
+        UUID missing = UUID.randomUUID();
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/blogposts/" + missing + "/approve",
+            null,
+            String.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("The entity BlogPost with id " + missing + " does not exist"));
     }
 
     @Test
@@ -1030,9 +1060,24 @@ class BlogPostControllerIntegrationTest extends ContentManagerApplicationTests {
             String.class
         );
 
-        assertTrue(response.getStatusCode() == HttpStatus.BAD_REQUEST || response.getStatusCode() == HttpStatus.CONFLICT);
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertNotNull(response.getBody());
         assertTrue(response.getBody().contains("Only PENDING_REVIEW posts can be rejected."));
+    }
+
+    @Test
+    void rejectBlogPost_shouldReturnNotFoundForMissingPost() {
+        UUID missing = UUID.randomUUID();
+
+        ResponseEntity<String> response = restTemplate.postForEntity(
+            "http://localhost:" + port + "/api/blogposts/" + missing + "/reject",
+            null,
+            String.class
+        );
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertTrue(response.getBody().contains("The entity BlogPost with id " + missing + " does not exist"));
     }
 
 }
