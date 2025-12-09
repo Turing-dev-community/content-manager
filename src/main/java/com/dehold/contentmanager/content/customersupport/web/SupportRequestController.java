@@ -3,6 +3,7 @@ package com.dehold.contentmanager.content.customersupport.web;
 import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.service.SupportRequestService;
 import com.dehold.contentmanager.content.customersupport.web.dto.CustomerRequestDto;
+import com.dehold.contentmanager.content.customersupport.web.dto.PartialResultResponse;
 import com.dehold.contentmanager.content.customersupport.web.dto.SubscribeRequestDto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,17 +23,48 @@ public class SupportRequestController {
         this.service = service;
     }
 
+    /**
+     * Get all customer requests with retry logic
+     * Returns PartialResultResponse which includes successful results and any failed IDs
+     */
     @GetMapping
-    public List<CustomerRequestDto> getAll() {
-        return service.findAll().stream()
-                .map(this::toDto)
-                .collect(Collectors.toList());
+    public ResponseEntity<PartialResultResponse<CustomerRequestDto>> getAll() {
+        PartialResultResponse<SupportRequest> result = service.findAllWithRetry();
+        
+        PartialResultResponse<CustomerRequestDto> response = new PartialResultResponse<>(
+            result.getSuccessfulResults().stream()
+                    .map(this::toDto)
+                    .collect(Collectors.toList()),
+            result.getFailedIds(),
+            result.getRetryInfo()
+        );
+        response.setPartial(result.isPartial());
+        response.setTimestamp(result.getTimestamp());
+        
+        return ResponseEntity.ok(response);
     }
 
+    /**
+     * Get customer request by ID with retry logic
+     * Returns PartialResultResponse which includes the successful result or failed ID info
+     */
     @GetMapping("/{id}")
-    public ResponseEntity<CustomerRequestDto> getById(@PathVariable UUID id) {
-        SupportRequest request = service.findById(id); // This will throw EntityNotFoundException if not found
-        return ResponseEntity.ok(toDto(request));
+    public ResponseEntity<PartialResultResponse<CustomerRequestDto>> getById(@PathVariable UUID id) {
+        PartialResultResponse<SupportRequest> result = service.findByIdWithRetry(id);
+        
+        PartialResultResponse<CustomerRequestDto> response = new PartialResultResponse<>(
+            result.getSuccessfulResults().stream()
+                    .map(this::toDto)
+                    .collect(Collectors.toList()),
+            result.getFailedIds(),
+            result.getRetryInfo()
+        );
+        response.setPartial(result.isPartial());
+        response.setTimestamp(result.getTimestamp());
+        
+        // Return 206 (Partial Content) if response is partial, 200 if successful
+        return ResponseEntity.status(response.isPartial() ? HttpStatus.PARTIAL_CONTENT : HttpStatus.OK)
+                .body(response);
     }
 
     @PostMapping
