@@ -78,7 +78,8 @@ public class ValidationServiceImpl implements ValidationService {
                 .build();
         ValidationResult result = pipeline.run(request.getBlogPost());
 
-        this.createValidationResult(result);
+        UUID runId = UUID.randomUUID();
+        validationResultRepository.upsert(result, runId);
 
         ValidationResultDto resultDto = ValidationResultDto.from(result);
         return new ValidationResponse(BlogPost.class.getSimpleName(), resultDto);
@@ -174,7 +175,8 @@ public class ValidationServiceImpl implements ValidationService {
                         "blogpost");
         List<ValidationResult> results = new LinkedList<>();
         collectResults(blogPost, pipelines, results);
-        persistsResults(results);
+        UUID runId = UUID.randomUUID();
+        persistsResults(results, runId);
         return results;
     }
 
@@ -182,12 +184,6 @@ public class ValidationServiceImpl implements ValidationService {
         for (ValidationPipeline<T> pipeline : pipelines) {
             ValidationResult result = pipeline.run(content);
             results.add(result);
-        }
-    }
-
-    private void persistsResults(List<ValidationResult> results) {
-        for(ValidationResult result : results) {
-            this.createValidationResult(result);
         }
     }
 
@@ -230,7 +226,8 @@ public class ValidationServiceImpl implements ValidationService {
                         "supportresponse");
         List<ValidationResult> results = new LinkedList<>();
         collectResults(response, pipelines, results);
-        persistsResults(results);
+        UUID runId = UUID.randomUUID();
+        persistsResults(results, runId);
         return results;
     }
 
@@ -268,7 +265,8 @@ public class ValidationServiceImpl implements ValidationService {
                 allResults.add(result);
             }
         }
-        persistsResults(allResults);
+        UUID runId = UUID.randomUUID();
+        persistsResults(allResults, runId);
         return allResults;
     }
 
@@ -291,7 +289,8 @@ public class ValidationServiceImpl implements ValidationService {
             ValidationResult result = pipeline.run(post);
             results.add(result);
         }
-        persistsResults(results);
+        UUID runId = UUID.randomUUID();
+        persistsResults(results, runId);
         return results;
     }
 }

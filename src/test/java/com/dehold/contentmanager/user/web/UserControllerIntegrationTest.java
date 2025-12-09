@@ -1898,4 +1898,128 @@ class UserControllerIntegrationTest  extends ContentManagerApplicationTests {
         Map<String, Map<String, Integer>> perTypeCode = dto.getErrorCountsPerContentTypesAndErrorCode();
         assertEquals(1, perTypeCode.get("blogpost").get("LENGTH_VALIDATION_FAILED"));
     }
+
+    // ---------------------------------------------------------
+    // DUPLICATE PREVENTION TESTS
+    // ---------------------------------------------------------
+
+    @Test
+    void givenSameBlogPostValidatedMultipleTimes_whenValidateBlogPost_thenNoDuplicatesCreated() {
+        User user = new User(UUID.randomUUID(), "Validation User", "validationuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestPassword@123", true);
+        userRepository.createUser(user);
+
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Valid Title", "This is a valid blogpost.", Instant.now(), Instant.now(), user.getId());
+        blogPostRepository.createBlogPost(blogPost);
+
+        BlogPostValidationRequest request = new BlogPostValidationRequest(3, 100, 10, 1000, blogPost);
+        
+        // First validation
+        ValidationResponse validationResponse1 = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/blogpost", 
+                request, ValidationResponse.class).getBody();
+        assertNotNull(validationResponse1);
+
+        // Second validation (same blogpost, same parameters)
+        ValidationResponse validationResponse2 = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/blogpost", 
+                request, ValidationResponse.class).getBody();
+        assertNotNull(validationResponse2);
+
+        // Third validation (same blogpost, same parameters)
+        ValidationResponse validationResponse3 = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/blogpost", 
+                request, ValidationResponse.class).getBody();
+        assertNotNull(validationResponse3);
+
+        // Verify no duplicates - should have only 1 result (upserted latest)
+        ResponseEntity<ValidationResultDto[]> response = restTemplate.getForEntity("http://localhost:" + port + "/api/users/" + 
+                user.getId() + "/validation-results", ValidationResultDto[].class);
+        
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().length, "Expected 1 validation result due to upsert, but got duplicates");
+    }
+
+    @Test
+    void givenSameBlogPostValidatedWithDifferentResults_whenValidateBlogPost_thenLatestResultUpdated() {
+        User user = new User(UUID.randomUUID(), "Validation User", "validationuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestPassword@123", true);
+        userRepository.createUser(user);
+
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Valid Title", "This is a valid blogpost.", Instant.now(), Instant.now(), user.getId());
+        blogPostRepository.createBlogPost(blogPost);
+
+        // First validation - with valid parameters
+        BlogPostValidationRequest validRequest = new BlogPostValidationRequest(3, 100, 10, 1000, blogPost);
+        ValidationResponse validationResponse1 = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/blogpost", 
+                validRequest, ValidationResponse.class).getBody();
+        assertNotNull(validationResponse1);
+        assertTrue(validationResponse1.getValidationResult().isValid(), "First validation should be valid");
+
+        // Second validation - with invalid parameters (title too short)
+        BlogPostValidationRequest invalidRequest = new BlogPostValidationRequest(50, 100, 10, 1000, blogPost);
+        ValidationResponse validationResponse2 = restTemplate.postForEntity("http://localhost:" + port + "/api/validate/blogpost", 
+                invalidRequest, ValidationResponse.class).getBody();
+        assertNotNull(validationResponse2);
+        assertFalse(validationResponse2.getValidationResult().isValid(), "Second validation should be invalid");
+
+        // Verify only 1 result exists and it's the latest (invalid)
+        ResponseEntity<ValidationResultDto[]> response = restTemplate.getForEntity("http://localhost:" + port + "/api/users/" + 
+                user.getId() + "/validation-results", ValidationResultDto[].class);
+        
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().length, "Expected 1 validation result due to upsert");
+        assertFalse(response.getBody()[0].isValid(), "Expected latest (invalid) result to be persisted");
+    }
+
+    @Test
+    void givenDifferentBlogPostsValidated_whenValidateBlogPost_thenAllResultsPersisted() {
+        User user = new User(UUID.randomUUID(), "Validation User", "validationuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestPassword@123", true);
+        userRepository.createUser(user);
+
+        BlogPost blogPost1 = new BlogPost(UUID.randomUUID(), "Valid Title 1", "This is valid blogpost 1.", Instant.now(), Instant.now(), user.getId());
+        BlogPost blogPost2 = new BlogPost(UUID.randomUUID(), "Valid Title 2", "This is valid blogpost 2.", Instant.now(), Instant.now(), user.getId());
+        blogPostRepository.createBlogPost(blogPost1);
+        blogPostRepository.createBlogPost(blogPost2);
+
+        BlogPostValidationRequest request1 = new BlogPostValidationRequest(3, 100, 10, 1000, blogPost1);
+        BlogPostValidationRequest request2 = new BlogPostValidationRequest(3, 100, 10, 1000, blogPost2);
+        
+        // Validate first blogpost
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validate/blogpost", request1, ValidationResponse.class);
+        // Validate second blogpost
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validate/blogpost", request2, ValidationResponse.class);
+
+        // Verify both results exist
+        ResponseEntity<ValidationResultDto[]> response = restTemplate.getForEntity("http://localhost:" + port + "/api/users/" + 
+                user.getId() + "/validation-results", ValidationResultDto[].class);
+        
+        assertEquals(200, response.getStatusCode().value());
+        assertNotNull(response.getBody());
+        assertEquals(2, response.getBody().length, "Expected 2 validation results for 2 different blogposts");
+    }
+
+    @Test
+    void givenValidationRunWithMultiplePipelines_whenValidateSameContent_thenDuplicatesNotPersisted() {
+        User user = new User(UUID.randomUUID(), "Validation User", "validationuser-" + UUID.randomUUID() + "@example.com", Instant.now(), Instant.now(), uniqueUsername(), "TestPassword@123", true);
+        userRepository.createUser(user);
+
+        BlogPost blogPost = new BlogPost(UUID.randomUUID(), "Valid Title", "This is a valid blogpost content that should pass all validations.", Instant.now(), Instant.now(), user.getId());
+        blogPostRepository.createBlogPost(blogPost);
+
+        BlogPostValidationRequest request = new BlogPostValidationRequest(3, 100, 10, 1000, blogPost);
+        
+        // First validation run
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validate/blogpost", request, ValidationResponse.class);
+        
+        // Verify 1 result
+        ResponseEntity<ValidationResultDto[]> response1 = restTemplate.getForEntity("http://localhost:" + port + "/api/users/" + 
+                user.getId() + "/validation-results", ValidationResultDto[].class);
+        assertEquals(1, response1.getBody().length);
+
+        // Second validation run (same content, same parameters)
+        restTemplate.postForEntity("http://localhost:" + port + "/api/validate/blogpost", request, ValidationResponse.class);
+        
+        // Verify still 1 result (not duplicated)
+        ResponseEntity<ValidationResultDto[]> response2 = restTemplate.getForEntity("http://localhost:" + port + "/api/users/" + 
+                user.getId() + "/validation-results", ValidationResultDto[].class);
+        assertEquals(1, response2.getBody().length, "Expected 1 validation result with upsert, but found duplicates");
+    }
 }
