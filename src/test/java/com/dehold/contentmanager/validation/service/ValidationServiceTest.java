@@ -77,7 +77,7 @@ class ValidationServiceTest {
                         Instant.now(), Instant.now(), UUID.randomUUID()));
         validationService.validateBlogPost(blogPostValidationRequest);
 
-        verify(repository, times(1)).create(any(ValidationResult.class));
+        verify(repository, times(1)).upsert(any(ValidationResult.class), any(UUID.class));
     }
 
     @Test
@@ -88,7 +88,7 @@ class ValidationServiceTest {
                         Instant.now(), Instant.now(), UUID.randomUUID()));
         validationService.validateBlogPost(blogPostValidationRequest);
 
-        verify(repository, times(1)).create(any(ValidationResult.class));
+        verify(repository, times(1)).upsert(any(ValidationResult.class), any(UUID.class));
     }
 
     @Test
@@ -99,7 +99,7 @@ class ValidationServiceTest {
         validationService.validateBlogPost(blogPostValidationRequest);
 
         ArgumentCaptor<ValidationResult> captor = ArgumentCaptor.forClass(ValidationResult.class);
-        verify(repository, times(1)).create(captor.capture());
+        verify(repository, times(1)).upsert(captor.capture(), any(UUID.class));
 
         ValidationResult captureResult = captor.getValue();
         assertNotNull(captureResult);
@@ -472,7 +472,7 @@ class ValidationServiceTest {
 
         assertEquals("The entity User with id " + userId + " does not exist", ex.getMessage());
         verifyNoInteractions(pipelineFactory);
-        verify(repository, never()).create(any());
+        verify(repository, never()).upsert(any(), any());
     }
 
     @Test
@@ -515,7 +515,7 @@ class ValidationServiceTest {
         assertTrue(results.contains(r1));
         assertTrue(results.contains(r2));
 
-        verify(repository, times(2)).create(any(ValidationResult.class));
+        verify(repository, times(2)).upsert(any(ValidationResult.class), any(UUID.class));
         verify(pipelineFactory, times(1))
                 .createValidationPipelineForUserAndContentType(userId, "blogpost");
     }
@@ -542,7 +542,177 @@ class ValidationServiceTest {
         List<ValidationResult> results = validationService.validateBlogpost(post);
 
         assertTrue(results.isEmpty());
-        verify(repository, never()).create(any());
+        verify(repository, never()).upsert(any(), any());
     }
 
+    // ---------------------------------------------------------
+    // TESTS FOR validateBlogPost() - Direct single validation
+    // ---------------------------------------------------------
+
+    @Test
+    void givenBlogPostValidationRequest_whenValidateBlogPost_thenUpsertCalledWithRunId() {
+        BlogPostValidationRequest request = new BlogPostValidationRequest(5, 100, 20, 500,
+                new BlogPost(UUID.randomUUID(), "Valid Title", "This is valid content.",
+                        Instant.now(), Instant.now(), UUID.randomUUID()));
+
+        validationService.validateBlogPost(request);
+
+        ArgumentCaptor<UUID> runIdCaptor = ArgumentCaptor.forClass(UUID.class);
+        verify(repository, times(1)).upsert(any(ValidationResult.class), runIdCaptor.capture());
+
+        assertNotNull(runIdCaptor.getValue());
+    }
+
+    @Test
+    void givenBlogPostValidationRequest_whenValidateBlogPostCalledTwice_thenDifferentRunIds() {
+        BlogPostValidationRequest request1 = new BlogPostValidationRequest(5, 100, 20, 500,
+                new BlogPost(UUID.randomUUID(), "Valid Title", "This is valid content.",
+                        Instant.now(), Instant.now(), UUID.randomUUID()));
+        BlogPostValidationRequest request2 = new BlogPostValidationRequest(5, 100, 20, 500,
+                new BlogPost(UUID.randomUUID(), "Valid Title 2", "This is valid content 2.",
+                        Instant.now(), Instant.now(), UUID.randomUUID()));
+
+        validationService.validateBlogPost(request1);
+        ArgumentCaptor<UUID> runIdCaptor1 = ArgumentCaptor.forClass(UUID.class);
+        verify(repository, times(1)).upsert(any(ValidationResult.class), runIdCaptor1.capture());
+
+        reset(repository);
+
+        validationService.validateBlogPost(request2);
+        ArgumentCaptor<UUID> runIdCaptor2 = ArgumentCaptor.forClass(UUID.class);
+        verify(repository, times(1)).upsert(any(ValidationResult.class), runIdCaptor2.capture());
+
+        assertNotEquals(runIdCaptor1.getValue(), runIdCaptor2.getValue());
+    }
+
+    // ---------------------------------------------------------
+    // TESTS FOR runBlogPostValidation() - Bulk blogpost validation
+    // ---------------------------------------------------------
+
+    @Test
+    void givenMultipleBlogPosts_whenRunBlogPostValidation_thenAllValidationsRun() {
+        UUID userId = UUID.randomUUID();
+        BlogPost bp1 = new BlogPost(UUID.randomUUID(), "Title 1", "Content 1", Instant.now(), Instant.now(), userId);
+        BlogPost bp2 = new BlogPost(UUID.randomUUID(), "Title 2", "Content 2", Instant.now(), Instant.now(), userId);
+
+        when(blogPostService.getBlogPostsByUserId(userId)).thenReturn(List.of(bp1, bp2));
+
+        ValidationPipeline<BlogPost> p1 = mock(ValidationPipeline.class);
+        ValidationPipeline<BlogPost> p2 = mock(ValidationPipeline.class);
+
+        ValidationResult res1 = ValidationResult.valid("blogpost", bp1.getId(), userId);
+        ValidationResult res2 = ValidationResult.valid("blogpost", bp2.getId(), userId);
+
+        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "blogpost"))
+                .thenReturn((List) List.of(p1, p2));
+
+        when(p1.run(bp1)).thenReturn(res1);
+        when(p1.run(bp2)).thenReturn(res2);
+        when(p2.run(bp1)).thenReturn(ValidationResult.valid("blogpost", bp1.getId(), userId));
+        when(p2.run(bp2)).thenReturn(ValidationResult.valid("blogpost", bp2.getId(), userId));
+
+        List<ValidationResult> results = validationService.runBlogPostValidation(userId);
+
+        assertEquals(4, results.size());
+        verify(repository, times(4)).upsert(any(ValidationResult.class), any(UUID.class));
+    }
+
+    @Test
+    void givenMultipleBlogPostsAndPipelines_whenRunBlogPostValidation_thenSameRunIdUsedPerContent() {
+        UUID userId = UUID.randomUUID();
+        BlogPost bp1 = new BlogPost(UUID.randomUUID(), "Title 1", "Content 1", Instant.now(), Instant.now(), userId);
+        BlogPost bp2 = new BlogPost(UUID.randomUUID(), "Title 2", "Content 2", Instant.now(), Instant.now(), userId);
+
+        when(blogPostService.getBlogPostsByUserId(userId)).thenReturn(List.of(bp1, bp2));
+
+        ValidationPipeline<BlogPost> p1 = mock(ValidationPipeline.class);
+        ValidationPipeline<BlogPost> p2 = mock(ValidationPipeline.class);
+
+        ValidationResult res1 = ValidationResult.valid("blogpost", bp1.getId(), userId);
+        ValidationResult res2 = ValidationResult.valid("blogpost", bp2.getId(), userId);
+
+        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "blogpost"))
+                .thenReturn((List) List.of(p1, p2));
+
+        when(p1.run(bp1)).thenReturn(res1);
+        when(p1.run(bp2)).thenReturn(res2);
+        when(p2.run(bp1)).thenReturn(res1);
+        when(p2.run(bp2)).thenReturn(res2);
+
+        validationService.runBlogPostValidation(userId);
+
+        ArgumentCaptor<UUID> runIdCaptor = ArgumentCaptor.forClass(UUID.class);
+        verify(repository, times(4)).upsert(any(ValidationResult.class), runIdCaptor.capture());
+
+        List<UUID> runIds = runIdCaptor.getAllValues();
+        // All should be from content 1 or content 2
+        assertEquals(4, runIds.size());
+    }
+
+    // ---------------------------------------------------------
+    // TESTS FOR runSupportResponseValidation()
+    // ---------------------------------------------------------
+
+    @Test
+    void givenMultipleSupportResponses_whenValidateSupportResponses_thenAllPersisted() {
+        UUID userId = UUID.randomUUID();
+        com.dehold.contentmanager.content.customersupport.model.SupportResponse sr1 = 
+            mock(com.dehold.contentmanager.content.customersupport.model.SupportResponse.class);
+        com.dehold.contentmanager.content.customersupport.model.SupportResponse sr2 = 
+            mock(com.dehold.contentmanager.content.customersupport.model.SupportResponse.class);
+
+        when(supportResponseService.getSupportResponsesByUserId(userId)).thenReturn(List.of(sr1, sr2));
+
+        ValidationPipeline<com.dehold.contentmanager.content.customersupport.model.SupportResponse> pipeline = 
+            mock(ValidationPipeline.class);
+
+        ValidationResult res1 = ValidationResult.valid("supportresponse", UUID.randomUUID(), userId);
+        ValidationResult res2 = ValidationResult.valid("supportresponse", UUID.randomUUID(), userId);
+
+        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportresponse"))
+                .thenReturn((List) List.of(pipeline));
+
+        when(pipeline.run(sr1)).thenReturn(res1);
+        when(pipeline.run(sr2)).thenReturn(res2);
+
+        List<ValidationResult> results = validationService.runSupportResponseValidation(userId);
+
+        assertEquals(2, results.size());
+        verify(repository, times(2)).upsert(any(ValidationResult.class), any(UUID.class));
+    }
+
+    @Test
+    void givenMultipleSupportResponses_whenValidateSupportResponses_thenSameRunIdPerResponse() {
+        UUID userId = UUID.randomUUID();
+        com.dehold.contentmanager.content.customersupport.model.SupportResponse sr1 = 
+            mock(com.dehold.contentmanager.content.customersupport.model.SupportResponse.class);
+        com.dehold.contentmanager.content.customersupport.model.SupportResponse sr2 = 
+            mock(com.dehold.contentmanager.content.customersupport.model.SupportResponse.class);
+
+        when(supportResponseService.getSupportResponsesByUserId(userId)).thenReturn(List.of(sr1, sr2));
+
+        ValidationPipeline<com.dehold.contentmanager.content.customersupport.model.SupportResponse> p1 = 
+            mock(ValidationPipeline.class);
+        ValidationPipeline<com.dehold.contentmanager.content.customersupport.model.SupportResponse> p2 = 
+            mock(ValidationPipeline.class);
+
+        ValidationResult res1 = ValidationResult.valid("supportresponse", UUID.randomUUID(), userId);
+        ValidationResult res2 = ValidationResult.valid("supportresponse", UUID.randomUUID(), userId);
+
+        when(pipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportresponse"))
+                .thenReturn((List) List.of(p1, p2));
+
+        when(p1.run(sr1)).thenReturn(res1);
+        when(p1.run(sr2)).thenReturn(res2);
+        when(p2.run(sr1)).thenReturn(res1);
+        when(p2.run(sr2)).thenReturn(res2);
+
+        validationService.runSupportResponseValidation(userId);
+
+        ArgumentCaptor<UUID> runIdCaptor = ArgumentCaptor.forClass(UUID.class);
+        verify(repository, times(4)).upsert(any(ValidationResult.class), runIdCaptor.capture());
+
+        List<UUID> runIds = runIdCaptor.getAllValues();
+        assertEquals(4, runIds.size());
+    }
 }
