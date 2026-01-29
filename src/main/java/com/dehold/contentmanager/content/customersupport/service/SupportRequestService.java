@@ -103,7 +103,7 @@ public class SupportRequestService {
         if (subs == null) {
             subs = new ArrayList<>();
         }
-        if (!subs.contains(userId)) {
+        if (subs.contains(userId)) {
             subs.add(userId);
             req.setSubscribers(subs);
             repository.update(req);

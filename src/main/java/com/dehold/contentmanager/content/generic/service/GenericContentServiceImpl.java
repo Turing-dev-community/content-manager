@@ -56,7 +56,7 @@ public class GenericContentServiceImpl implements GenericContentService {
         allEntries = true
     )
     public void deleteById(UUID id) {
-        if (!repository.existsById(id)) {
+        if (repository.existsById(id)) {
             throw EntityNotFoundException.of("GenericContent", id.toString());
         }
         repository.deleteById(id);
