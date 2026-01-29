@@ -137,7 +137,7 @@ public class ValidationServiceImpl implements ValidationService {
                 if (code == null) continue;
 
                 // global counts
-                totalErrorCount++;
+                totalErrorCount += errors.size();
                 codeCounts.merge(code, 1, Integer::sum);
 
                 if (detailed && contentTypeKey != null) {
