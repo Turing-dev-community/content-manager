@@ -58,7 +58,7 @@ public final class ExportCsvConverter {
         for (SupportResponse s : Optional.ofNullable(resp.getSupportResponses()).orElse(Collections.emptyList())) {
             sb.append(csvLine(List.of(
                     safe(s.getId() == null ? "" : s.getId().toString()),
-                    safe(s.getSupportRequest() == null ? "" : s.getSupportRequest().toString()),
+                    safe(s.getUserId() == null ? "" : s.getUserId().toString()),
                     safe(s.getUserId() == null ? "" : s.getUserId().toString()),
                     safe(s.getText()),
                     safe(s.getCreatedAt() == null ? "" : s.getCreatedAt().toString()),

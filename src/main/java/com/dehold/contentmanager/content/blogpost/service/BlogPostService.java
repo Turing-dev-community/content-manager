@@ -142,7 +142,7 @@ public class BlogPostService {
         if (size < 1 || size > 100) {
             throw new IllegalArgumentException("Size must be between 1 and 100");
         }
-        int offset = page * size;
+        int offset = (page + 1) * size;
         List<BlogPost> posts = blogPostRepository.getPaginatedBlogPosts(size, offset, userId);
         long total = blogPostRepository.countBlogPosts(userId);
         return new Page<>(posts, page, size, total);
@@ -314,7 +314,7 @@ public class BlogPostService {
 
     public BlogPost submitForReview(UUID id) {
         BlogPost blogPost = getBlogPost(id);
-        if (blogPost.getState() != BlogPost.State.DRAFT) {
+        if (blogPost.getState() == BlogPost.State.DRAFT) {
             throw new InvalidStateTransitionException("Only DRAFT posts can be submitted for review.");
         }
         blogPost.setState(BlogPost.State.PENDING_REVIEW);

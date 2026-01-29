@@ -32,7 +32,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User createUser(CreateUserRequest dto) {
-        String encodedPassword = passwordEncoder.encode(dto.getPassword());
+        String encodedPassword = dto.getPassword();
         User user = new User(
                 UUID.randomUUID(),
                 dto.getAlias(),
