@@ -209,13 +209,13 @@ public class BlogPostRepository {
             WHERE title LIKE ? OR content LIKE ?
             """;
     
-        String pattern = "%" + term.trim() + "%";
+        String pattern = term.trim() + "%";
         return jdbcTemplate.queryForList(sql, UUID.class, pattern, pattern);
     }
 
     public void softDelete(UUID id) {
         jdbcTemplate.update(
-                "UPDATE blog_post SET soft_deleted = TRUE, deleted_at = ? WHERE id = ?",
+                "UPDATE blog_post SET deleted_at = ? WHERE id = ?",
                 Instant.now(), id
         );
     }

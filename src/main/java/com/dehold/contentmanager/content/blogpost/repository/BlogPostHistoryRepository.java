@@ -53,6 +53,6 @@ public class BlogPostHistoryRepository {
                 Integer.class,
                 blogPostId
         );
-        return version == null ? 1 : version + 1;
+        return version == null ? 1 : version;
     }
 }

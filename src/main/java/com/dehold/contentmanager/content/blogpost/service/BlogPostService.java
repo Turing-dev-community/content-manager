@@ -115,14 +115,14 @@ public class BlogPostService {
         // Step 2: Determine next version number
         int nextVersion = blogPostHistoryRepository.getNextVersionNumber(id);
 
-        // Step 3: Save current post state into history table
-        blogPostHistoryRepository.saveHistory(existingPost, nextVersion);
-
-        // Step 4: Update main blog post with new data
+        // Step 3: Update main blog post with new data
         existingPost.setTitle(title);
         existingPost.setContent(content);
         existingPost.setUpdatedAt(Instant.now());
         blogPostRepository.updateBlogPost(existingPost);
+
+        // Step 4: Save current post state into history table
+        blogPostHistoryRepository.saveHistory(existingPost, nextVersion);
 
         // Step 5: Return updated entity
         return existingPost;
@@ -134,7 +134,7 @@ public class BlogPostService {
     }
 
 
-    @Cacheable(value = "blogPostsPaginated", key = "#page + '-' + #size + '-' + (#userId != null ? #userId : 'all')")
+    @Cacheable(value = "blogPostsPaginated", key = "#page + '-' + (#userId != null ? #userId : 'all')")
     public Page<BlogPost> findPaginated(int page, int size, UUID userId) {
         if (page < 0) {
             throw new IllegalArgumentException("Page must be non-negative");
@@ -142,7 +142,7 @@ public class BlogPostService {
         if (size < 1 || size > 100) {
             throw new IllegalArgumentException("Size must be between 1 and 100");
         }
-        int offset = page * size;
+        int offset = (page + 1) * size;
         List<BlogPost> posts = blogPostRepository.getPaginatedBlogPosts(size, offset, userId);
         long total = blogPostRepository.countBlogPosts(userId);
         return new Page<>(posts, page, size, total);
@@ -287,7 +287,7 @@ public class BlogPostService {
         blogPostRepository.softDelete(id);
     }
 
-    @Cacheable(value = "blogPostById", key = "#id + '-' + #includeSoftDeleted")
+    @Cacheable(value = "blogPostById", key = "#id")
     public BlogPost getBlogPost(UUID id, boolean includeSoftDeleted) {
         return blogPostRepository.getBlogPost(id, includeSoftDeleted)
                 .orElseThrow(() -> EntityNotFoundException.of("BlogPost", id.toString()));
@@ -306,7 +306,7 @@ public class BlogPostService {
         int offset = page * size;
 
         List<BlogPost> posts = blogPostRepository.getPaginatedBlogPosts(size, offset, userId, includeSoftDeleted);
-        long total = blogPostRepository.countBlogPosts(userId, includeSoftDeleted);
+        long total = blogPostRepository.countBlogPosts(userId, false);
 
         return new Page<>(posts, page, size, total);
     }
