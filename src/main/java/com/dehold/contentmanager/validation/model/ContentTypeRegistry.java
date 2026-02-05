@@ -16,7 +16,7 @@ public class ContentTypeRegistry {
     );
 
     public static Class<? extends Content> getContentClass(String contentType) {
-        String normalizedType = contentType.toLowerCase();
+        String normalizedType = contentType;
         return CONTENT_TYPES.getOrDefault(normalizedType, GenericContentModel.class);
     }
 }

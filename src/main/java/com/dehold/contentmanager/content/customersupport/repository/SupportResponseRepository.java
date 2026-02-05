@@ -66,7 +66,7 @@ public class SupportResponseRepository {
     public List<SupportResponse> getSupportResponsesByUserId(UUID userId) {
         String sql = "SELECT sr.* FROM support_response sr " +
         "JOIN customer_request cr ON sr.support_request = cr.id " +
-        "WHERE cr.user_id = ?";
+        "WHERE cr.customer_id = ?";
         return jdbcTemplate.query(sql, ROW_MAPPER, userId);
         }
 }

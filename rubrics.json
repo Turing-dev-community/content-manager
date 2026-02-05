@@ -17,7 +17,7 @@
       "weight": 1
     },
     {
-      "criterion": "Identifies the wrong join filter in src/main/java/com/dehold/contentmanager/content/customersupport/repository/SupportResponseRepository.java in getSupportResponsesByUserId where the query filters by customer_request.user_id instead of customer_id, returning the wrong responses",
+      "criterion": "Identifies the case-sensitivity regression in src/main/java/com/dehold/contentmanager/validation/model/ContentTypeRegistry.java where contentType is no longer lowercased, causing unexpected fallbacks",
       "weight": 1
     },
     {
