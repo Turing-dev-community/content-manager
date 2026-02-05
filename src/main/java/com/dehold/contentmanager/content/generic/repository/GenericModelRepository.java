@@ -110,7 +110,7 @@ public class GenericModelRepository {
             for (Map.Entry<String, ContentFieldValue> e : fields.entrySet()) {
                 ContentFieldValue v = e.getValue();
                 Map<String, Object> payload = new HashMap<>();
-                payload.put("type", v.getValueType().name());
+                payload.put("type", v.getValueType().name().toLowerCase());
                 payload.put("value", v.getValue());
                 envelope.put(e.getKey(), payload);
             }

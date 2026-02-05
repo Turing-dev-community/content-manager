@@ -129,7 +129,7 @@ public class ValidationServiceImpl implements ValidationService {
             if (errors == null || errors.isEmpty()) continue;
 
             String ct = result.getContentType();
-            String contentTypeKey = (ct == null) ? null : ct.toLowerCase();
+            String contentTypeKey = ct;
 
             for (ValidationError error : errors) {
                 if (error == null) continue;

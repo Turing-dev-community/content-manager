@@ -1,0 +1,40 @@
+{
+  "upload_directory": "/tmp/files/",
+  "output_directory": "/tmp/outputs/",
+  "system_prompt": "You are an expert code reviewer. Analyze the provided codebase for bugs, security issues, and correctness problems. Provide actionable feedback. All files are located in /tmp/files",
+  "task_prompt": "You are an expert code reviewer. Your task is to analyze the Content Manager Service codebase. This Spring Boot application manages blog posts, customer support requests, support responses, caching, exports, rate limiting, XML/CSV serialization, and security configuration. Identify subtle bugs, security regressions, data consistency issues, and logic flaws. Focus on issues detectable via static analysis. Write your findings to /tmp/outputs/review.md.",
+  "rubric": [
+    {
+      "criterion": "Identifies the pagination instability in src/main/java/com/dehold/contentmanager/content/blogpost/repository/BlogPostRepository.java in getPaginatedBlogPosts(... includeSoftDeleted) where the ORDER BY clause was removed, causing nondeterministic paging and duplicates across pages",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the generic content field lookup bug in src/main/java/com/dehold/contentmanager/validation/pipeline/ValidationPipelineFactory.java where the extractor uses capitalize(fieldName) for GenericContentModel fields, causing lookups to miss and validations to be skipped",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the regex case-sensitivity regression in src/main/java/com/dehold/contentmanager/validation/step/RegexValidator.java where CASE_INSENSITIVE was removed, letting differently cased forbidden patterns pass",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the reporting aggregation drift in src/main/java/com/dehold/contentmanager/validation/service/ValidationServiceImpl.java in generateValidationReport where contentType is no longer normalized to lower-case, splitting counts across mixed-case keys",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the InputStream leak in src/main/java/com/dehold/contentmanager/validation/service/ForbiddenWordsService.java in getDefaultForbiddenWords where the InputStream is no longer closed, leaking resources over time",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the ValueType serialization bug in src/main/java/com/dehold/contentmanager/content/generic/repository/GenericModelRepository.java in serializeFields where the type is stored in lower-case, causing ValueType.valueOf to fail on read",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the authority username update omission in src/main/java/com/dehold/contentmanager/user/service/UserServiceImpl.java in updateUser where updateAuthorityUsername is no longer called, leaving stale credentials",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the orphaned authorities bug in src/main/java/com/dehold/contentmanager/user/service/UserServiceImpl.java in deleteUser where deleteSecurityAuthorities is no longer called, leaving stale authority rows",
+      "weight": 1
+    }
+  ]
+}
