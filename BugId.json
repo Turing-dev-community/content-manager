@@ -1,0 +1,128 @@
+{
+  "upload_directory": "/tmp/files/",
+  "output_directory": "/tmp/outputs/",
+  "system_prompt": "You are an expert code reviewer. Analyze the provided codebase for bugs, security issues, and correctness problems. Provide actionable feedback. All files are located in /tmp/files",
+  "task_prompt": "You are an expert code reviewer. Your task is to analyze the Content Manager Service codebase. This Spring Boot application manages blog posts, customer support requests, support responses, caching, exports, rate limiting, XML/CSV serialization, and security configuration. Identify subtle bugs, security regressions, data consistency issues, and logic flaws. Focus on issues detectable via static analysis. Write your findings to /tmp/outputs/review.md.",
+  "rubric": [
+    {
+      "criterion": "Identifies the retry disablement in src/main/java/com/dehold/contentmanager/ContentManagerApplication.java where @EnableRetry was removed, preventing retryable operations from retrying on transient failures",
+      "weight": "B41"
+    },
+    {
+      "criterion": "Identifies the cache TTL regression in src/main/java/com/dehold/contentmanager/config/CacheConfig.java where expireAfterWrite uses seconds instead of minutes, causing rapid cache expiry and higher load",
+      "weight": "B42"
+    },
+    {
+      "criterion": "Identifies the negative caching risk in src/main/java/com/dehold/contentmanager/config/CacheConfig.java where allowNullValues is set to true, allowing null entries to be cached and masking newly created data",
+      "weight": "B43"
+    },
+    {
+      "criterion": "Identifies the weak-key eviction change in src/main/java/com/dehold/contentmanager/config/CacheConfig.java where weakKeys() is enabled, causing nondeterministic cache eviction under GC pressure",
+      "weight": "B44"
+    },
+    {
+      "criterion": "Identifies the over-broad CSRF disablement in src/main/java/com/dehold/contentmanager/config/SecurityConfig.java where CSRF is ignored for /api/**, weakening protection across all APIs",
+      "weight": "B45"
+    },
+    {
+      "criterion": "Identifies the authorization ordering regression in src/main/java/com/dehold/contentmanager/config/SecurityConfig.java where a broad /api/** permitAll rule precedes the /api/admin/** rule, effectively opening admin endpoints",
+      "weight": "B46"
+    },
+    {
+      "criterion": "Identifies the authentication query drift in src/main/java/com/dehold/contentmanager/config/SecurityConfig.java where usersByUsernameQuery uses email instead of username, breaking username-based login",
+      "weight": "B47"
+    },
+    {
+      "criterion": "Identifies the rate limiter coverage gap in src/main/java/com/dehold/contentmanager/config/WebMvcConfig.java where the interceptor pattern is /api/* instead of /api/**, skipping nested endpoints",
+      "weight": "B48"
+    },
+    {
+      "criterion": "Identifies the wrong HTTP status in src/main/java/com/dehold/contentmanager/exception/GlobalExceptionHandler.java where InvalidPayloadException returns 404 instead of 400",
+      "weight": "B49"
+    },
+    {
+      "criterion": "Identifies the information leak in src/main/java/com/dehold/contentmanager/exception/GlobalExceptionHandler.java where request.getDescription(true) is used, exposing session details in error responses",
+      "weight": "B50"
+    },
+    {
+      "criterion": "Identifies the swapped error message fields in src/main/java/com/dehold/contentmanager/exception/EntityNotFoundException.java where entityType and id are reversed in the formatted message",
+      "weight": "B51"
+    },
+    {
+      "criterion": "Identifies the error/path swap in src/main/java/com/dehold/contentmanager/exception/CustomErrorResponse.java where the constructor assigns path to error and error to path",
+      "weight": "B52"
+    },
+    {
+      "criterion": "Identifies the incorrect content-type mapping in src/main/java/com/dehold/contentmanager/validation/model/ContentTypeRegistry.java where supportrequest maps to SupportResponse.class",
+      "weight": "B53"
+    },
+    {
+      "criterion": "Identifies the case-sensitivity regression in src/main/java/com/dehold/contentmanager/validation/model/ContentTypeRegistry.java where contentType is no longer lowercased, causing unexpected fallbacks",
+      "weight": "B54"
+    },
+    {
+      "criterion": "Identifies the missing timestamp initialization in src/main/java/com/dehold/contentmanager/validation/model/ForbiddenWords.java where createdAt/updatedAt are no longer set in the constructor",
+      "weight": "B55"
+    },
+    {
+      "criterion": "Identifies the ValidationError field order swap in src/main/java/com/dehold/contentmanager/validation/model/ValidationError.java where the record now stores message before code, inverting error semantics",
+      "weight": "B56"
+    },
+    {
+      "criterion": "Identifies the contentId/userId swap in src/main/java/com/dehold/contentmanager/validation/model/ValidationResult.java where valid/invalid factory methods pass userId as contentId",
+      "weight": "B57"
+    },
+    {
+      "criterion": "Identifies the isValid override in src/main/java/com/dehold/contentmanager/validation/model/ValidationResult.java where fromPersistence forces isValid to true, corrupting stored results",
+      "weight": "B58"
+    },
+    {
+      "criterion": "Identifies the empty-steps nulling in src/main/java/com/dehold/contentmanager/validation/model/ValidationPipelineModel.java where setSteps turns empty lists into null, causing pipelines to appear absent",
+      "weight": "B59"
+    },
+    {
+      "criterion": "Identifies the enablement inversion in src/main/java/com/dehold/contentmanager/validation/model/ValidationStepModel.java where isEnabled() returns the negation of the stored flag",
+      "weight": "B60"
+    },
+    {
+      "criterion": "Identifies the enum contract drift in src/main/java/com/dehold/contentmanager/validation/model/ValidationStepType.java where REGEX_VALIDATION was renamed to REGEX_VALIDATOR, breaking persisted values",
+      "weight": "B61"
+    },
+    {
+      "criterion": "Identifies the forbidden words serialization mismatch in src/main/java/com/dehold/contentmanager/validation/repository/ForbiddenWordsRepository.java where words are joined with ';' instead of ','",
+      "weight": "B62"
+    },
+    {
+      "criterion": "Identifies the cross-user leakage in src/main/java/com/dehold/contentmanager/validation/repository/ForbiddenWordsRepository.java where findByUserIdAndContentType no longer filters by user_id",
+      "weight": "B63"
+    },
+    {
+      "criterion": "Identifies the pipeline step linkage bug in src/main/java/com/dehold/contentmanager/validation/repository/ValidationPipelineRepository.java where insertValidationStep uses step.getPipelineId() instead of the provided pipelineId",
+      "weight": "B64"
+    },
+    {
+      "criterion": "Identifies the update duplication bug in src/main/java/com/dehold/contentmanager/validation/repository/ValidationPipelineRepository.java where existing steps are no longer deleted on update, leading to duplicates",
+      "weight": "B65"
+    },
+    {
+      "criterion": "Identifies the ordering regression in src/main/java/com/dehold/contentmanager/validation/repository/ValidationPipelineRepository.java where loadStepsForPipeline orders by id DESC, changing step execution order",
+      "weight": "B66"
+    },
+    {
+      "criterion": "Identifies the run_id grouping bug in src/main/java/com/dehold/contentmanager/validation/repository/ValidationResultRepository.java where create always generates a new run_id, breaking grouping",
+      "weight": "B67"
+    },
+    {
+      "criterion": "Identifies the error swallowing in src/main/java/com/dehold/contentmanager/validation/repository/ValidationResultRepository.java where deserializeErrors returns an empty list on JSON parse failure",
+      "weight": "B68"
+    },
+    {
+      "criterion": "Identifies the missing defaults in src/main/java/com/dehold/contentmanager/validation/service/ForbiddenWordsService.java where addDefaultForbiddenWords returns early for empty custom lists, skipping system defaults",
+      "weight": "B69"
+    },
+    {
+      "criterion": "Identifies the update-creates-new bug in src/main/java/com/dehold/contentmanager/validation/service/ValidationPipelineService.java where update nulls the id before save, inserting new pipelines instead of updating",
+      "weight": "B70"
+    }
+  ]
+}
