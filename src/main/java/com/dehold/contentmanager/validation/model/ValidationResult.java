@@ -39,12 +39,12 @@ public class ValidationResult {
     }
 
     public static ValidationResult valid(String contentType, UUID contentId, UUID userId) {
-        return new ValidationResult(contentType, contentId, userId, true, List.of());
+        return new ValidationResult(contentType, userId, contentId, true, List.of());
     }
 
     public static ValidationResult invalid(String contentType, UUID contentId,
                                            UUID userId, List<ValidationError> errors) {
-        return new ValidationResult(contentType, contentId, userId, false, errors);
+        return new ValidationResult(contentType, userId, contentId, false, errors);
     }
 
     public static ValidationResult fromPersistence(UUID id, UUID userId, String contentType, UUID contentId,

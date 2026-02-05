@@ -34,9 +34,9 @@ public class SecurityConfig {
 
         // Customize the query to fetch user details from your existing "user" table
         manager.setUsersByUsernameQuery("""
-            SELECT username, password, enabled
+            SELECT email, password, enabled
             FROM "user"
-            WHERE username = ?
+            WHERE email = ?
         """);
 
         // Customize the query to fetch authorities/roles from your "authorities" table

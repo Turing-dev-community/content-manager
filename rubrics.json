@@ -15,6 +15,26 @@
     {
       "criterion": "Identifies the validation run deduplication bug in src/main/java/com/dehold/contentmanager/validation/service/ValidationServiceImpl.java in runSupportRequestValidation where a new runId is generated per result, breaking upsert semantics and causing duplicates",
       "weight": 1
+    },
+    {
+      "criterion": "Identifies the wrong join filter in src/main/java/com/dehold/contentmanager/content/customersupport/repository/SupportResponseRepository.java in getSupportResponsesByUserId where the query filters by customer_request.user_id instead of customer_id, returning the wrong responses",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the ValidationError field order swap in src/main/java/com/dehold/contentmanager/validation/model/ValidationError.java where the record now stores message before code, inverting error semantics",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the contentId/userId swap in src/main/java/com/dehold/contentmanager/validation/model/ValidationResult.java where valid/invalid factory methods pass userId as contentId",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the authentication query drift in src/main/java/com/dehold/contentmanager/config/SecurityConfig.java where usersByUsernameQuery uses email instead of username, breaking username-based login",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the cache TTL regression in src/main/java/com/dehold/contentmanager/config/CacheConfig.java where expireAfterWrite uses seconds instead of minutes, causing rapid cache expiry and higher load",
+      "weight": 1
     }
   ]
 }
