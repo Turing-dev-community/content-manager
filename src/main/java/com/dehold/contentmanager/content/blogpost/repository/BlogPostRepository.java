@@ -209,7 +209,7 @@ public class BlogPostRepository {
             WHERE title LIKE ? OR content LIKE ?
             """;
     
-        String pattern = term.trim() + "%";
+        String pattern = "%" + term.trim() + "%";
         return jdbcTemplate.queryForList(sql, UUID.class, pattern, pattern);
     }
 

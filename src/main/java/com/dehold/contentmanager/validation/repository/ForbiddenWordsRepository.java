@@ -77,8 +77,8 @@ public class ForbiddenWordsRepository {
     }
 
     public ForbiddenWords findByUserIdAndContentType(UUID userId, String contentType) {
-        String sql = "SELECT * FROM forbidden_words WHERE user_id = ? AND content_type = ?";
-        return jdbcTemplate.query(sql, FORBIDDEN_WORDS_ROW_MAPPER, userId, contentType).stream().findFirst()
+        String sql = "SELECT * FROM forbidden_words WHERE content_type = ?";
+        return jdbcTemplate.query(sql, FORBIDDEN_WORDS_ROW_MAPPER, contentType).stream().findFirst()
                 .orElse(null);
     }
 

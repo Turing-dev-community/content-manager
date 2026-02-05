@@ -5,19 +5,7 @@
   "task_prompt": "You are an expert code reviewer. Your task is to analyze the Content Manager Service codebase. This Spring Boot application manages blog posts, customer support requests, support responses, caching, exports, rate limiting, XML/CSV serialization, and security configuration. Identify subtle bugs, security regressions, data consistency issues, and logic flaws. Focus on issues detectable via static analysis. Write your findings to /tmp/outputs/review.md.",
   "rubric": [
     {
-      "criterion": "Identifies the cache key collision in src/main/java/com/dehold/contentmanager/content/blogpost/service/BlogPostService.java on the @Cacheable blogPostsPaginated key that omits the size parameter, causing requests for the same page but different sizes to share cached data",
-      "weight": 1
-    },
-    {
-      "criterion": "Identifies the cache key bug in src/main/java/com/dehold/contentmanager/content/blogpost/service/BlogPostService.java in getBlogPost(UUID id, boolean includeSoftDeleted) where the @Cacheable key uses only the id, causing soft-deleted and non-soft-deleted fetches to return stale or incorrect results",
-      "weight": 1
-    },
-    {
       "criterion": "Identifies the count mismatch bug in src/main/java/com/dehold/contentmanager/content/blogpost/service/BlogPostService.java in findPaginated(int page, int size, UUID userId, boolean includeSoftDeleted) where total is computed using countBlogPosts(userId, false) regardless of includeSoftDeleted, leading to incorrect pagination metadata",
-      "weight": 1
-    },
-    {
-      "criterion": "Identifies the search pattern regression in src/main/java/com/dehold/contentmanager/content/blogpost/repository/BlogPostRepository.java in searchByTerm(String term) where the LIKE pattern is built as term + \"%\" instead of \"%term%\", limiting matches to prefixes only",
       "weight": 1
     },
     {
@@ -34,6 +22,22 @@
     },
     {
       "criterion": "Identifies the missing defaults in src/main/java/com/dehold/contentmanager/validation/service/ForbiddenWordsService.java where addDefaultForbiddenWords returns early for empty custom lists, skipping system defaults",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the missing timestamp initialization in src/main/java/com/dehold/contentmanager/validation/model/ForbiddenWords.java where createdAt/updatedAt are no longer set in the constructor",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the cross-user leakage in src/main/java/com/dehold/contentmanager/validation/repository/ForbiddenWordsRepository.java where findByUserIdAndContentType no longer filters by user_id",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the information leak in src/main/java/com/dehold/contentmanager/exception/GlobalExceptionHandler.java where request.getDescription(true) is used, exposing session details in error responses",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the over-broad CSRF disablement in src/main/java/com/dehold/contentmanager/config/SecurityConfig.java where CSRF is ignored for /api/**, weakening protection across all APIs",
       "weight": 1
     }
   ]

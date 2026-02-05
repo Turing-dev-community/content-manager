@@ -54,7 +54,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/users/**")
+                        .ignoringRequestMatchers("/api/**")
                 )
                 .authorizeHttpRequests(auth -> auth
                         // Authorization rules remain the same

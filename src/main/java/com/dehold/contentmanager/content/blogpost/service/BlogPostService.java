@@ -134,7 +134,7 @@ public class BlogPostService {
     }
 
 
-    @Cacheable(value = "blogPostsPaginated", key = "#page + '-' + (#userId != null ? #userId : 'all')")
+    @Cacheable(value = "blogPostsPaginated", key = "#page + '-' + #size + '-' + (#userId != null ? #userId : 'all')")
     public Page<BlogPost> findPaginated(int page, int size, UUID userId) {
         if (page < 0) {
             throw new IllegalArgumentException("Page must be non-negative");
@@ -287,7 +287,7 @@ public class BlogPostService {
         blogPostRepository.softDelete(id);
     }
 
-    @Cacheable(value = "blogPostById", key = "#id")
+    @Cacheable(value = "blogPostById", key = "#id + '-' + #includeSoftDeleted")
     public BlogPost getBlogPost(UUID id, boolean includeSoftDeleted) {
         return blogPostRepository.getBlogPost(id, includeSoftDeleted)
                 .orElseThrow(() -> EntityNotFoundException.of("BlogPost", id.toString()));
