@@ -5,8 +5,6 @@ import com.dehold.contentmanager.content.customersupport.model.SupportRequest;
 import com.dehold.contentmanager.content.customersupport.model.SupportResponse;
 
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.Optional;
@@ -30,7 +28,7 @@ public final class ExportXmlConverter {
     private ExportXmlConverter() {
     }
 
-    private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+    private static final DateTimeFormatter ISO = DateTimeFormatter.ISO_INSTANT;
 
     public static byte[] toXmlBytes(ExportResponse resp) {
         StringBuilder sb = new StringBuilder();
@@ -44,8 +42,8 @@ public final class ExportXmlConverter {
             appendXmlElement(sb, "id", safe(b.getId() == null ? "" : b.getId().toString()));
             appendXmlElement(sb, "title", safe(b.getTitle()));
             appendXmlElement(sb, "content", safe(b.getContent()));
-            appendXmlElement(sb, "createdAt", formatInstant(b.getCreatedAt()));
-            appendXmlElement(sb, "updatedAt", formatInstant(b.getUpdatedAt()));
+            appendXmlElement(sb, "createdAt", b.getCreatedAt() == null ? "" : ISO.format(b.getCreatedAt()));
+            appendXmlElement(sb, "updatedAt", b.getUpdatedAt() == null ? "" : ISO.format(b.getUpdatedAt()));
             appendXmlElement(sb, "userId", safe(b.getUserId() == null ? "" : b.getUserId().toString()));
             sb.append("    </blogPost>\n");
         }
@@ -59,8 +57,8 @@ public final class ExportXmlConverter {
             appendXmlElement(sb, "userId", safe(r.getUserId() == null ? "" : r.getUserId().toString()));
             appendXmlElement(sb, "text", safe(r.getText()));
             appendXmlElement(sb, "customerId", safe(r.getCustomerId() == null ? "" : r.getCustomerId().toString()));
-            appendXmlElement(sb, "createdAt", formatInstant(r.getCreatedAt()));
-            appendXmlElement(sb, "updatedAt", formatInstant(r.getUpdatedAt()));
+            appendXmlElement(sb, "createdAt", r.getCreatedAt() == null ? "" : ISO.format(r.getCreatedAt()));
+            appendXmlElement(sb, "updatedAt", r.getUpdatedAt() == null ? "" : ISO.format(r.getUpdatedAt()));
             sb.append("    </supportRequest>\n");
         }
         sb.append("  </supportRequests>\n");
@@ -73,8 +71,8 @@ public final class ExportXmlConverter {
             appendXmlElement(sb, "supportRequestId", safe(s.getSupportRequest() == null ? "" : s.getSupportRequest().toString()));
             appendXmlElement(sb, "userId", safe(s.getUserId() == null ? "" : s.getUserId().toString()));
             appendXmlElement(sb, "text", safe(s.getText()));
-            appendXmlElement(sb, "createdAt", formatInstant(s.getCreatedAt()));
-            appendXmlElement(sb, "updatedAt", formatInstant(s.getUpdatedAt()));
+            appendXmlElement(sb, "createdAt", s.getCreatedAt() == null ? "" : ISO.format(s.getCreatedAt()));
+            appendXmlElement(sb, "updatedAt", s.getUpdatedAt() == null ? "" : ISO.format(s.getUpdatedAt()));
             sb.append("    </supportResponse>\n");
         }
         sb.append("  </supportResponses>\n");
@@ -88,12 +86,6 @@ public final class ExportXmlConverter {
         sb.append("      <").append(name).append(">");
         sb.append(escapeXml(value));
         sb.append("</").append(name).append(">\n");
-    }
-
-    private static String formatInstant(java.time.Instant instant) {
-        if (instant == null) return "";
-        LocalDateTime local = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
-        return ISO.format(local);
     }
 
     private static String safe(String s) {

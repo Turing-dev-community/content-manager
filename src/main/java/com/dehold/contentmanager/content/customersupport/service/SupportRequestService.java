@@ -83,7 +83,7 @@ public class SupportRequestService {
         repository.create(supportRequest);
     }
 
-    @CacheEvict(value = "supportRequests", key = "#supportRequest.id")
+    @CacheEvict(value = {"supportRequests", "supportRequestById"}, key = "#supportRequest.id")
     public void updateCustomerRequest(SupportRequest supportRequest) {
         repository.update(supportRequest);
     }
