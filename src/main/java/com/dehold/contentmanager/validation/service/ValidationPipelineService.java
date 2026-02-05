@@ -36,6 +36,11 @@ public class ValidationPipelineService {
     }
 
     public ValidationPipelineModel update(ValidationPipelineModel entity) {
+        if (entity.getId() == null) {
+            repository.save(entity);
+            return entity;
+        }
+        entity.setId(null);
         repository.save(entity);
         return entity;
     }

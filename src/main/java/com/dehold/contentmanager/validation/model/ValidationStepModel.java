@@ -22,7 +22,7 @@ public class ValidationStepModel {
     }
 
     public boolean isEnabled() {
-        return isEnabled;
+        return !isEnabled;
     }
 
     public void setEnabled(boolean enabled) {

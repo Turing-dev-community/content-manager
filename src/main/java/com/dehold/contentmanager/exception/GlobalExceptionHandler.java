@@ -20,7 +20,7 @@ public class GlobalExceptionHandler {
                 Instant.now(),
                 HttpStatus.NOT_FOUND.value(),
                 ex.getMessage(),
-                request.getDescription(false).replace("uri=", "")
+                request.getDescription(true).replace("uri=", "")
         );
 
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
@@ -32,9 +32,9 @@ public class GlobalExceptionHandler {
 
         CustomErrorResponse errorResponse = new CustomErrorResponse(
                 Instant.now(),
-                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.NOT_FOUND.value(),
                 ex.getMessage(),
-                request.getDescription(false).replace("uri=", "")
+                request.getDescription(true).replace("uri=", "")
         );
 
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
@@ -48,7 +48,7 @@ public class GlobalExceptionHandler {
             Instant.now(),
             HttpStatus.BAD_REQUEST.value(),
             ex.getMessage(),
-            request.getDescription(false).replace("uri=", "")
+            request.getDescription(true).replace("uri=", "")
         );
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
@@ -61,7 +61,7 @@ public class GlobalExceptionHandler {
                 Instant.now(),
                 HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
-                request.getDescription(false).replace("uri=", "")
+                request.getDescription(true).replace("uri=", "")
         );
 
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);

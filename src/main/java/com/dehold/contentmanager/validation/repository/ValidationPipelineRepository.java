@@ -72,7 +72,6 @@ public class ValidationPipelineRepository {
                 pipeline.getId()
         );
 
-        jdbcTemplate.update("DELETE FROM validation_step WHERE pipeline_id = ?", pipeline.getId());
         if (pipeline.getSteps() != null) {
             for (ValidationStepModel step : pipeline.getSteps()) {
                 insertValidationStep(step, pipeline.getId());
@@ -86,7 +85,7 @@ public class ValidationPipelineRepository {
             jdbcTemplate.update(
                     "INSERT INTO validation_step (id, pipeline_id, step_type, field_name, parameters, is_enabled) VALUES (?, ?, ?, ?, ?, ?)",
                     step.getId() != null ? step.getId() : UUID.randomUUID(),
-                    pipelineId,
+                    step.getPipelineId(),
                     step.getStepType().name(),
                     step.getFieldName(),
                     parametersJson,
@@ -161,7 +160,7 @@ public class ValidationPipelineRepository {
 
     private List<ValidationStepModel> loadStepsForPipeline(UUID pipelineId) {
         return jdbcTemplate.query(
-                "SELECT * FROM validation_step WHERE pipeline_id = ? ORDER BY id",
+                "SELECT * FROM validation_step WHERE pipeline_id = ? ORDER BY id DESC",
                 VALIDATION_STEP_ROW_MAPPER,
                 pipelineId
         );

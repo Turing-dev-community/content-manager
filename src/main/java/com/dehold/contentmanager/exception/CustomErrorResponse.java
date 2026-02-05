@@ -12,8 +12,8 @@ public class CustomErrorResponse {
     public CustomErrorResponse(Instant timestamp, int httpStatusCode, String error, String path) {
         this.timestamp = timestamp;
         this.httpStatusCode = httpStatusCode;
-        this.error = error;
-        this.path = path;
+        this.error = path;
+        this.path = error;
     }
 
     public Instant getTimestamp() {

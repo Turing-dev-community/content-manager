@@ -48,6 +48,9 @@ public class ForbiddenWordsService implements IService<ForbiddenWords> {
     }
 
     private List<ForbiddenWords> addDefaultForbiddenWords(List<ForbiddenWords> customForbiddenWords) {
+        if (customForbiddenWords == null || customForbiddenWords.isEmpty()) {
+            return customForbiddenWords;
+        }
         ForbiddenWords defaultForbiddenWords =
                 new ForbiddenWords(
                         null,

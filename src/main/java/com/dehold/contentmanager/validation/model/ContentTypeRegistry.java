@@ -12,11 +12,11 @@ public class ContentTypeRegistry {
     private static final Map<String, Class<? extends Content>> CONTENT_TYPES = Map.of(
             "blogpost", BlogPost.class,
             "supportresponse", SupportResponse.class,
-            "supportrequest", SupportRequest.class
+            "supportrequest", SupportResponse.class
     );
 
     public static Class<? extends Content> getContentClass(String contentType) {
-        String normalizedType = contentType.toLowerCase();
+        String normalizedType = contentType;
         return CONTENT_TYPES.getOrDefault(normalizedType, GenericContentModel.class);
     }
 }

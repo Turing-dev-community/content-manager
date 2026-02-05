@@ -34,9 +34,9 @@ public class SecurityConfig {
 
         // Customize the query to fetch user details from your existing "user" table
         manager.setUsersByUsernameQuery("""
-            SELECT username, password, enabled
+            SELECT email, password, enabled
             FROM "user"
-            WHERE username = ?
+            WHERE email = ?
         """);
 
         // Customize the query to fetch authorities/roles from your "authorities" table
@@ -54,12 +54,13 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/users/**")
+                        .ignoringRequestMatchers("/api/**")
                 )
                 .authorizeHttpRequests(auth -> auth
                         // Authorization rules remain the same
                         .requestMatchers(HttpMethod.PUT, "/api/users/*").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/users/*").authenticated()
+                        .requestMatchers("/api/**").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().permitAll()
                 )

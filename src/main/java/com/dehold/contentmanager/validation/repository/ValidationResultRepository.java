@@ -35,7 +35,7 @@ public class ValidationResultRepository {
                 validationResult.isValid(),
                 serializeErrors(validationResult.getErrors()),
                 validationResult.getCreatedAt(),
-                validationResult.getRunId()!= null ? validationResult.getRunId() : UUID.randomUUID()
+                UUID.randomUUID()
         );
     }
 
@@ -75,7 +75,7 @@ public class ValidationResultRepository {
             }
             return objectMapper.readValue(errorsJson, new TypeReference<List<ValidationError>>() {});
         } catch (Exception e) {
-            throw new RuntimeException("Failed to deserialize errors", e);
+            return Collections.emptyList();
         }
     }
 

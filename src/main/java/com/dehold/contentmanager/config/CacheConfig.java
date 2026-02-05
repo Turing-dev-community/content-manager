@@ -18,7 +18,7 @@ public class CacheConfig {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
         cacheManager.setCaffeine(caffeineCacheBuilder());
         // Allows dynamic cache creation — any @Cacheable("myCache") will work
-        cacheManager.setAllowNullValues(false);
+        cacheManager.setAllowNullValues(true);
         return cacheManager;
     }
 
@@ -26,7 +26,8 @@ public class CacheConfig {
         return Caffeine.newBuilder()
                 .initialCapacity(100)
                 .maximumSize(1000)
-                .expireAfterWrite(10, TimeUnit.MINUTES)
+                .expireAfterWrite(10, TimeUnit.SECONDS)
+                .weakKeys()
                 .recordStats();
     }
 }
