@@ -25,7 +25,7 @@
       "weight": 1
     },
     {
-      "criterion": "Identifies the cross-user leakage in src/main/java/com/dehold/contentmanager/validation/repository/ForbiddenWordsRepository.java where findByUserIdAndContentType no longer filters by user_id",
+      "criterion": "Identifies the rate limiter coverage gap in src/main/java/com/dehold/contentmanager/config/WebMvcConfig.java where the interceptor pattern is /api/* instead of /api/**, skipping nested endpoints",
       "weight": 1
     },
     {
