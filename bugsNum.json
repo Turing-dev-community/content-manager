@@ -1,0 +1,128 @@
+{
+  "upload_directory": "/tmp/files/",
+  "output_directory": "/tmp/outputs/",
+  "system_prompt": "You are an expert code reviewer. Analyze the provided codebase for bugs, security issues, and correctness problems. Provide actionable feedback. All files are located in /tmp/files",
+  "task_prompt": "You are an expert code reviewer. Your task is to analyze the Content Manager Service codebase. This Spring Boot application manages blog posts, customer support requests, support responses, caching, exports, rate limiting, XML/CSV serialization, and security configuration. Identify subtle bugs, security regressions, data consistency issues, and logic flaws. Focus on issues detectable via static analysis. Write your findings to /tmp/outputs/review.md.",
+  "rubric": [
+    {
+      "criterion": "Identifies the pagination instability in src/main/java/com/dehold/contentmanager/content/blogpost/repository/BlogPostRepository.java in getPaginatedBlogPosts(... includeSoftDeleted) where the ORDER BY clause was removed, causing nondeterministic paging and duplicates across pages",
+      "weight": "B09"
+    },
+    {
+      "criterion": "Identifies the restore version selection bug in src/main/java/com/dehold/contentmanager/content/blogpost/service/BlogPostService.java in restoreVersion(UUID,int) where the filter uses versionNumber >= requested instead of equality, restoring a newer version than requested",
+      "weight": "B10"
+    },
+    {
+      "criterion": "Identifies the timestamp format drift in src/main/java/com/dehold/contentmanager/content/blogpost/export/ExportXmlConverter.java where ISO_LOCAL_DATE_TIME with system default zone is used instead of UTC Instant formatting, altering exported timestamps",
+      "weight": "B11"
+    },
+    {
+      "criterion": "Identifies the CSV escaping regression in src/main/java/com/dehold/contentmanager/content/blogpost/export/ExportCsvConverter.java in quote(String) where internal quotes are no longer escaped, producing malformed CSV when values contain quotes",
+      "weight": "B12"
+    },
+    {
+      "criterion": "Identifies the export filter bypass in src/main/java/com/dehold/contentmanager/content/blogpost/export/ExportService.java in exportForUserByType where the method ignores contentType and always returns all content",
+      "weight": "B13"
+    },
+    {
+      "criterion": "Identifies the cache invalidation gap in src/main/java/com/dehold/contentmanager/content/customersupport/service/SupportRequestService.java in updateCustomerRequest where supportRequestById is no longer evicted, causing stale reads",
+      "weight": "B14"
+    },
+    {
+      "criterion": "Identifies the subscriber persistence bug in src/main/java/com/dehold/contentmanager/content/customersupport/service/SupportRequestService.java in addSubscriber where repository.update is never called after modifying subscribers",
+      "weight": "B15"
+    },
+    {
+      "criterion": "Identifies the created_at corruption bug in src/main/java/com/dehold/contentmanager/content/customersupport/repository/SupportRequestRepository.java in update where created_at is set using updatedAt, overwriting the original creation timestamp",
+      "weight": "B16"
+    },
+    {
+      "criterion": "Identifies the wrong join filter in src/main/java/com/dehold/contentmanager/content/customersupport/repository/SupportResponseRepository.java in getSupportResponsesByUserId where the query filters by customer_request.user_id instead of customer_id, returning the wrong responses",
+      "weight": "B17"
+    },
+    {
+      "criterion": "Identifies the generic content field lookup bug in src/main/java/com/dehold/contentmanager/validation/pipeline/ValidationPipelineFactory.java where the extractor uses capitalize(fieldName) for GenericContentModel fields, causing lookups to miss and validations to be skipped",
+      "weight": "B18"
+    },
+    {
+      "criterion": "Identifies the silent misconfiguration bug in src/main/java/com/dehold/contentmanager/validation/pipeline/ValidationPipelineFactory.java where missing getter methods now return a null extractor instead of throwing, hiding invalid pipeline configurations",
+      "weight": "B19"
+    },
+    {
+      "criterion": "Identifies the swapped length bounds in src/main/java/com/dehold/contentmanager/validation/step/ValidationStepFactory.java where minLength is parsed from maxLength and maxLength from minLength, inverting validation thresholds",
+      "weight": "B20"
+    },
+    {
+      "criterion": "Identifies the regex case-sensitivity regression in src/main/java/com/dehold/contentmanager/validation/step/RegexValidator.java where CASE_INSENSITIVE was removed, letting differently cased forbidden patterns pass",
+      "weight": "B21"
+    },
+    {
+      "criterion": "Identifies the inclusive boundary inversion in src/main/java/com/dehold/contentmanager/validation/step/NumericRangeValidator.java where min/max inclusive checks are reversed, misclassifying boundary values",
+      "weight": "B22"
+    },
+    {
+      "criterion": "Identifies the forbidden words lookup key mismatch in src/main/java/com/dehold/contentmanager/validation/step/ForbiddenWordValidator.java where content type is derived from getClass().getName() instead of simple name, preventing custom forbidden words from applying",
+      "weight": "B23"
+    },
+    {
+      "criterion": "Identifies the validation run deduplication bug in src/main/java/com/dehold/contentmanager/validation/service/ValidationServiceImpl.java in runSupportRequestValidation where a new runId is generated per result, breaking upsert semantics and causing duplicates",
+      "weight": "B24"
+    },
+    {
+      "criterion": "Identifies the upsert collision bug in src/main/java/com/dehold/contentmanager/validation/repository/ValidationResultRepository.java where content_type was removed from the MERGE ON clause, allowing different content types to overwrite each other",
+      "weight": "B25"
+    },
+    {
+      "criterion": "Identifies the disabled-step inversion in src/main/java/com/dehold/contentmanager/validation/repository/ValidationPipelineRepository.java where is_enabled is persisted as the negation of step.isEnabled(), flipping enabled/disabled behavior",
+      "weight": "B26"
+    },
+    {
+      "criterion": "Identifies the reporting aggregation drift in src/main/java/com/dehold/contentmanager/validation/service/ValidationServiceImpl.java in generateValidationReport where contentType is no longer normalized to lower-case, splitting counts across mixed-case keys",
+      "weight": "B27"
+    },
+    {
+      "criterion": "Identifies the InputStream leak in src/main/java/com/dehold/contentmanager/validation/service/ForbiddenWordsService.java in getDefaultForbiddenWords where the InputStream is no longer closed, leaking resources over time",
+      "weight": "B28"
+    },
+    {
+      "criterion": "Identifies the ValueType serialization bug in src/main/java/com/dehold/contentmanager/content/generic/repository/GenericModelRepository.java in serializeFields where the type is stored in lower-case, causing ValueType.valueOf to fail on read",
+      "weight": "B29"
+    },
+    {
+      "criterion": "Identifies the decimal precision loss in src/main/java/com/dehold/contentmanager/content/generic/repository/GenericModelRepository.java in coerce where DECIMAL values are coerced using intValue, truncating fractions",
+      "weight": "B30"
+    },
+    {
+      "criterion": "Identifies the silent upsert behavior in src/main/java/com/dehold/contentmanager/content/generic/service/GenericContentServiceImpl.java in update where the existence check was removed, allowing updates to create new records instead of 404",
+      "weight": "B31"
+    },
+    {
+      "criterion": "Identifies the price field swap in src/main/java/com/dehold/contentmanager/content/productoffer/repository/ProductOfferRepository.java in create where original_price and offer_price parameters are inverted",
+      "weight": "B32"
+    },
+    {
+      "criterion": "Identifies the offer price assignment bug in src/main/java/com/dehold/contentmanager/content/productoffer/service/ProductOfferServiceImpl.java in updateProductOffer where offerPrice is set from originalPrice instead of the provided offerPrice",
+      "weight": "B33"
+    },
+    {
+      "criterion": "Identifies the authority username update omission in src/main/java/com/dehold/contentmanager/user/service/UserServiceImpl.java in updateUser where updateAuthorityUsername is no longer called, leaving stale credentials",
+      "weight": "B34"
+    },
+    {
+      "criterion": "Identifies the orphaned authorities bug in src/main/java/com/dehold/contentmanager/user/service/UserServiceImpl.java in deleteUser where deleteSecurityAuthorities is no longer called, leaving stale authority rows",
+      "weight": "B35"
+    },
+    {
+      "criterion": "Identifies the webhook ownership check removal in src/main/java/com/dehold/contentmanager/user/web/UserController.java where get/update/delete webhook endpoints no longer verify the webhook belongs to the requesting user",
+      "weight": "B36"
+    },
+    {
+      "criterion": "Identifies the security regression in src/main/java/com/dehold/contentmanager/config/SecurityConfig.java in filterChain where PUT/DELETE on /api/users/* are permitted to all instead of requiring authentication",
+      "weight": "B37"
+    },
+    {
+      "criterion": "Identifies the token refill unit bug in src/main/java/com/dehold/contentmanager/ratelimiter/config/TokenBucket.java in refill where slots are computed using elapsed/1000 instead of elapsed/refillIntervalMillis, distorting rate limits",
+      "weight": "B38"
+    }
+  ]
+}
