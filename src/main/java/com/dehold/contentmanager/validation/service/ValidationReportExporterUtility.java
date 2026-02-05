@@ -24,7 +24,7 @@ public class ValidationReportExporterUtility {
             if(dto != null){
                 return objectMapper.writeValueAsBytes(dto);
             } else {
-                return new byte[0];
+                return "null".getBytes(java.nio.charset.StandardCharsets.UTF_8);
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to export ValidationReportDto to JSON", e);

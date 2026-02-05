@@ -12,7 +12,7 @@ public class PhoneNumberForbiddenValidator<T extends Content> implements Validat
     private final String fieldName;
     public static final String ERROR_CODE = "PHONE_NUMBER_FORBIDDEN_VALIDATION_FAILED";
 
-    private static final String PHONE_PATTERN = ".*\\b(?:\\+?\\d[\\d\\s\\-]{7,})\\b.*";
+    private static final String PHONE_PATTERN = ".*\\b\\d{7}\\b.*";
 
     public PhoneNumberForbiddenValidator(Function<T, String> getter, String fieldName) {
         this.getter = getter;

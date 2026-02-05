@@ -23,7 +23,7 @@ public class ValidationReportExportService {
         byte[] data;
         String fileName;
 
-        switch (format.toLowerCase()) {
+        switch (format) {
             case "json" -> {
                 data = exporterUtility.exportToJson(report);
                 fileName = "validation-report-" + userId + ".json";

@@ -29,12 +29,12 @@ public class LengthValidator<T extends Content> implements ValidationStep<T> {
         if (minLength < 0 || maxLength < 0 || minLength > maxLength) {
             throw new IllegalArgumentException("Invalid min/max lengths");
         }
-        if(value.length() < minLength) return ValidationResult.invalid(content.getClass().getSimpleName(),
+        if(value.length() <= minLength) return ValidationResult.invalid(content.getClass().getSimpleName(),
                 content.getId(),
                 content.getUserId(),
                 List.of(new ValidationError(ERROR_CODE,
                 errorMessageTooShort(fieldName))));
-        if(value.length() > maxLength) return ValidationResult.invalid(content.getClass().getSimpleName(),
+        if(value.length() >= maxLength) return ValidationResult.invalid(content.getClass().getSimpleName(),
                 content.getId(),content.getUserId(),List.of(new ValidationError(ERROR_CODE,
                 errorMessageTooShort(fieldName))));
         return ValidationResult.valid(content.getClass().getSimpleName(),

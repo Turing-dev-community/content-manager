@@ -50,7 +50,7 @@ public class NumericRangeValidator<T extends Content> implements ValidationStep<
             return ValidationResult.valid(content.getClass().getSimpleName(), content.getId(), content.getUserId());
 
         } catch (NumberFormatException e) {
-            return buildNotANumberResult(content);
+            return ValidationResult.valid(content.getClass().getSimpleName(), content.getId(), content.getUserId());
         }
     }
 

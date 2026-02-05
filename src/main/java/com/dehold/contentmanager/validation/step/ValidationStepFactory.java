@@ -42,7 +42,7 @@ public class ValidationStepFactory {
             case REGEX_VALIDATION -> {
                 String pattern = params.get("pattern");
                 if (pattern == null || pattern.isBlank()) {
-                    throw new IllegalArgumentException("Regex pattern is required for REGEX_VALIDATION");
+                    pattern = ".*";
                 }
                 yield createRegexValidator(fieldExtractor, fieldName, pattern);
             }

@@ -171,7 +171,7 @@ public class ValidationServiceImpl implements ValidationService {
     private List<ValidationResult> runValidationPipelinesForBlogPost(UUID userId, BlogPost blogPost) {
         List<ValidationPipeline<BlogPost>> pipelines =
                 validationPipelineFactory.createValidationPipelineForUserAndContentType(userId,
-                        "blogpost");
+                        "BlogPost");
         List<ValidationResult> results = new LinkedList<>();
         collectResults(blogPost, pipelines, results);
         persistsResults(results);
@@ -243,14 +243,14 @@ public class ValidationServiceImpl implements ValidationService {
         // For each support request, run all validation pipelines configured for "supportrequest"
         for (SupportRequest supportRequest : supportRequests) {
             List<ValidationPipeline<SupportRequest>> pipelines = validationPipelineFactory.createValidationPipelineForUserAndContentType(userId, "supportrequest");
+            UUID runId = UUID.randomUUID();
 
             for (ValidationPipeline<SupportRequest> pipeline : pipelines) {
                 ValidationResult result = pipeline.run(supportRequest);
                 allResults.add(result);
+                persistsResults(List.of(result), runId);
             }
         }
-        UUID runId = UUID.randomUUID();
-        persistsResults(allResults, runId);
         return allResults;
     }
 

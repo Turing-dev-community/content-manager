@@ -1,0 +1,44 @@
+{
+  "upload_directory": "/tmp/files/",
+  "output_directory": "/tmp/outputs/",
+  "system_prompt": "You are an expert code reviewer. Analyze the provided codebase for bugs, security issues, and correctness problems. Provide actionable feedback. All files are located in /tmp/files",
+  "task_prompt": "You are an expert code reviewer. Your task is to analyze the Content Manager Service codebase. This Spring Boot application manages blog posts, customer support requests, support responses, caching, exports, rate limiting, XML/CSV serialization, and security configuration. Identify subtle bugs, security regressions, data consistency issues, and logic flaws. Focus on issues detectable via static analysis. Write your findings to /tmp/outputs/review.md.",
+  "rubric": [
+    {
+      "criterion": "Identifies the case-sensitive format bug in src/main/java/com/dehold/contentmanager/validation/service/ValidationReportExportService.java where format is used without lowercasing, rejecting inputs like JSON",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the null export behavior change in src/main/java/com/dehold/contentmanager/validation/service/ValidationReportExporterUtility.java where null reports return \"null\" bytes instead of an empty payload",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the contentType mismatch in src/main/java/com/dehold/contentmanager/validation/service/ValidationServiceImpl.java where blogpost pipelines are looked up with \"BlogPost\" instead of \"blogpost\", skipping validations",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the per-pipeline runId duplication in src/main/java/com/dehold/contentmanager/validation/service/ValidationServiceImpl.java in runSupportRequestValidation where each pipeline uses its own runId and persists results inside the loop, causing duplicates",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the regex defaulting bug in src/main/java/com/dehold/contentmanager/validation/step/ValidationStepFactory.java where blank patterns are replaced with \".*\", making all regex validations fail",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the boundary off-by-one regression in src/main/java/com/dehold/contentmanager/validation/step/LengthValidator.java where <= and >= are used, rejecting boundary-length values",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the numeric parse handling regression in src/main/java/com/dehold/contentmanager/validation/step/NumericRangeValidator.java where non-numeric values are treated as valid instead of invalid",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the overly strict phone pattern in src/main/java/com/dehold/contentmanager/validation/step/PhoneNumberForbiddenValidator.java where PHONE_PATTERN only matches seven consecutive digits, missing common phone formats",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the regex matching semantic change in src/main/java/com/dehold/contentmanager/validation/step/RegexValidator.java where matcher.matches() is used instead of find(), missing substring matches",
+      "weight": 1
+    }
+  ]
+}

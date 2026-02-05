@@ -39,7 +39,7 @@ public class RegexValidator<T extends Content> implements ValidationStep<T> {
         }
 
         Matcher matcher = pattern.matcher(value);
-        if (matcher.find()) {
+        if (matcher.matches()) {
             ValidationError err = new ValidationError(ERROR_CODE, errorMessageRegexMatch(fieldName, pattern.pattern()));
             return ValidationResult.invalid(content.getClass().getSimpleName(),
                     content.getId(), content.getUserId(), List.of(err));
