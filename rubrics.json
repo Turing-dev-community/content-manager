@@ -1,0 +1,40 @@
+{
+  "upload_directory": "/tmp/files/",
+  "output_directory": "/tmp/outputs/",
+  "system_prompt": "You are an expert code reviewer. Analyze the provided codebase for bugs, security issues, and correctness problems. Provide actionable feedback. All files are located in /tmp/files",
+  "task_prompt": "You are an expert code reviewer. Your task is to analyze the Content Manager Service codebase. This Spring Boot application manages blog posts, customer support requests, support responses, caching, exports, rate limiting, XML/CSV serialization, and security configuration. Identify subtle bugs, security regressions, data consistency issues, and logic flaws. Focus on issues detectable via static analysis. Write your findings to /tmp/outputs/review.md.",
+  "rubric": [
+    {
+      "criterion": "Identifies the silent misconfiguration bug in src/main/java/com/dehold/contentmanager/validation/pipeline/ValidationPipelineFactory.java where missing getter methods return a null extractor instead of throwing, hiding invalid pipeline configurations",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the cache invalidation gap in src/main/java/com/dehold/contentmanager/content/customersupport/service/SupportRequestService.java in updateCustomerRequest where supportRequestById is no longer evicted, causing stale reads",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the silent upsert behavior in src/main/java/com/dehold/contentmanager/content/generic/service/GenericContentServiceImpl.java in update where the existence check was removed, allowing updates to create new records instead of 404",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the forbidden words lookup key mismatch in src/main/java/com/dehold/contentmanager/validation/step/ForbiddenWordValidator.java where content type is derived from getClass().getName() instead of simple name, preventing custom forbidden words from applying",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the timestamp format drift in src/main/java/com/dehold/contentmanager/content/blogpost/export/ExportXmlConverter.java where ISO_LOCAL_DATE_TIME with system default zone is used instead of UTC Instant formatting, altering exported timestamps",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the webhook ownership check removal in src/main/java/com/dehold/contentmanager/user/web/UserController.java where get/update/delete webhook endpoints no longer verify the webhook belongs to the requesting user",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the upsert collision bug in src/main/java/com/dehold/contentmanager/validation/repository/ValidationResultRepository.java where content_type was removed from the MERGE ON clause, allowing different content types to overwrite each other",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the validation run deduplication bug in src/main/java/com/dehold/contentmanager/validation/service/ValidationServiceImpl.java in runSupportRequestValidation where a new runId is generated per result, breaking upsert semantics and causing duplicates",
+      "weight": 1
+    }
+  ]
+}

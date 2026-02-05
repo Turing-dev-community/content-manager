@@ -182,9 +182,6 @@ public class UserController {
             @PathVariable UUID webhookId) {
         userService.getUser(userId);
         Webhook webhook = webhookService.getWebhookById(webhookId);
-        if (!webhook.getUserId().equals(userId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This webhook belongs to another user");
-        }
         return ResponseEntity.ok(webhook);
     }
 
@@ -195,9 +192,6 @@ public class UserController {
             @Valid @RequestBody UpdateWebhookRequest request) {
         userService.getUser(userId);
         Webhook webhook = webhookService.getWebhookById(webhookId);
-        if (!webhook.getUserId().equals(userId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
         Webhook updated = webhookService.updateWebhook(webhookId, request.getUrl());
         return ResponseEntity.ok(updated);
     }
@@ -208,9 +202,6 @@ public class UserController {
             @PathVariable UUID webhookId) {
         userService.getUser(userId);
         Webhook webhook = webhookService.getWebhookById(webhookId);
-        if (!webhook.getUserId().equals(userId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        }
         webhookService.deleteWebhook(webhookId);
         return ResponseEntity.noContent().build();
     }

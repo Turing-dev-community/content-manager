@@ -83,7 +83,7 @@ public class ValidationPipelineFactory {
                 }
             });
         } catch (NoSuchMethodException e) {
-            throw new IllegalArgumentException("Field '" + fieldName + "' not found in class: " + contentClass.getSimpleName());
+            return (Function<T, String>) (content -> null);
         }
     }
 

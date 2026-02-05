@@ -249,8 +249,9 @@ public class ValidationServiceImpl implements ValidationService {
                 allResults.add(result);
             }
         }
-        UUID runId = UUID.randomUUID();
-        persistsResults(allResults, runId);
+        for (ValidationResult result : allResults) {
+            persistsResults(List.of(result), UUID.randomUUID());
+        }
         return allResults;
     }
 
