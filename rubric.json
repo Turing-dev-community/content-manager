@@ -5,10 +5,6 @@
   "task_prompt": "You are an expert code reviewer. Your task is to analyze the Content Manager Service codebase. This Spring Boot application manages blog posts, customer support requests, support responses, caching, exports, rate limiting, XML/CSV serialization, and security configuration. Identify subtle bugs, security regressions, data consistency issues, and logic flaws. Focus on issues detectable via static analysis. Write your findings to /tmp/outputs/review.md.",
   "rubric": [
     {
-      "criterion": "Identifies the pagination offset bug in src/main/java/com/dehold/contentmanager/content/blogpost/service/BlogPostService.java in findPaginated(int page, int size, UUID userId) where offset is computed as (page + 1) * size, causing page 0 to skip the first page of results",
-      "weight": 1
-    },
-    {
       "criterion": "Identifies the cache key collision in src/main/java/com/dehold/contentmanager/content/blogpost/service/BlogPostService.java on the @Cacheable blogPostsPaginated key that omits the size parameter, causing requests for the same page but different sizes to share cached data",
       "weight": 1
     },
@@ -17,23 +13,27 @@
       "weight": 1
     },
     {
-      "criterion": "Identifies the soft-delete persistence bug in src/main/java/com/dehold/contentmanager/content/blogpost/repository/BlogPostRepository.java in softDelete(UUID id) where only deleted_at is set and soft_deleted is never set to true, so soft-deleted posts continue to appear in normal queries",
-      "weight": 1
-    },
-    {
-      "criterion": "Identifies the version increment bug in src/main/java/com/dehold/contentmanager/content/blogpost/repository/BlogPostHistoryRepository.java in getNextVersionNumber(UUID blogPostId) where it returns the current max version instead of max + 1, producing duplicate version numbers",
-      "weight": 1
-    },
-    {
-      "criterion": "Identifies the history capture ordering bug in src/main/java/com/dehold/contentmanager/content/blogpost/service/BlogPostService.java in updateBlogPostVersion(UUID id, String title, String content) where history is saved after the blog post is updated, causing the history record to store the new values instead of the prior version",
-      "weight": 1
-    },
-    {
       "criterion": "Identifies the count mismatch bug in src/main/java/com/dehold/contentmanager/content/blogpost/service/BlogPostService.java in findPaginated(int page, int size, UUID userId, boolean includeSoftDeleted) where total is computed using countBlogPosts(userId, false) regardless of includeSoftDeleted, leading to incorrect pagination metadata",
       "weight": 1
     },
     {
       "criterion": "Identifies the search pattern regression in src/main/java/com/dehold/contentmanager/content/blogpost/repository/BlogPostRepository.java in searchByTerm(String term) where the LIKE pattern is built as term + \"%\" instead of \"%term%\", limiting matches to prefixes only",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the empty-steps nulling in src/main/java/com/dehold/contentmanager/validation/model/ValidationPipelineModel.java where setSteps turns empty lists into null, causing pipelines to appear absent",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the enum contract drift in src/main/java/com/dehold/contentmanager/validation/model/ValidationStepType.java where REGEX_VALIDATION was renamed to REGEX_VALIDATOR, breaking persisted values",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the error swallowing in src/main/java/com/dehold/contentmanager/validation/repository/ValidationResultRepository.java where deserializeErrors returns an empty list on JSON parse failure",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the missing defaults in src/main/java/com/dehold/contentmanager/validation/service/ForbiddenWordsService.java where addDefaultForbiddenWords returns early for empty custom lists, skipping system defaults",
       "weight": 1
     }
   ]

@@ -39,7 +39,7 @@ public class ValidationStepFactory {
             case PHONE_NUMBER_FORBIDDEN_VALIDATION ->
                     createPhoneNumberValidator(fieldExtractor, fieldName);
             
-            case REGEX_VALIDATION -> {
+            case REGEX_VALIDATOR -> {
                 String pattern = params.get("pattern");
                 if (pattern == null || pattern.isBlank()) {
                     throw new IllegalArgumentException("Regex pattern is required for REGEX_VALIDATION");

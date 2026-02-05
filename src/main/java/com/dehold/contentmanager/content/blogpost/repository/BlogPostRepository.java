@@ -215,7 +215,7 @@ public class BlogPostRepository {
 
     public void softDelete(UUID id) {
         jdbcTemplate.update(
-                "UPDATE blog_post SET deleted_at = ? WHERE id = ?",
+                "UPDATE blog_post SET soft_deleted = TRUE, deleted_at = ? WHERE id = ?",
                 Instant.now(), id
         );
     }

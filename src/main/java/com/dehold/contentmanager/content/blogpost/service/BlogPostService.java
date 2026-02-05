@@ -115,14 +115,14 @@ public class BlogPostService {
         // Step 2: Determine next version number
         int nextVersion = blogPostHistoryRepository.getNextVersionNumber(id);
 
-        // Step 3: Update main blog post with new data
+        // Step 3: Save current post state into history table
+        blogPostHistoryRepository.saveHistory(existingPost, nextVersion);
+
+        // Step 4: Update main blog post with new data
         existingPost.setTitle(title);
         existingPost.setContent(content);
         existingPost.setUpdatedAt(Instant.now());
         blogPostRepository.updateBlogPost(existingPost);
-
-        // Step 4: Save current post state into history table
-        blogPostHistoryRepository.saveHistory(existingPost, nextVersion);
 
         // Step 5: Return updated entity
         return existingPost;
@@ -142,7 +142,7 @@ public class BlogPostService {
         if (size < 1 || size > 100) {
             throw new IllegalArgumentException("Size must be between 1 and 100");
         }
-        int offset = (page + 1) * size;
+        int offset = page * size;
         List<BlogPost> posts = blogPostRepository.getPaginatedBlogPosts(size, offset, userId);
         long total = blogPostRepository.countBlogPosts(userId);
         return new Page<>(posts, page, size, total);

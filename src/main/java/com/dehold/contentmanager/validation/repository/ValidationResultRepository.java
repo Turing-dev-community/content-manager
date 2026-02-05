@@ -75,7 +75,7 @@ public class ValidationResultRepository {
             }
             return objectMapper.readValue(errorsJson, new TypeReference<List<ValidationError>>() {});
         } catch (Exception e) {
-            throw new RuntimeException("Failed to deserialize errors", e);
+            return Collections.emptyList();
         }
     }
 
