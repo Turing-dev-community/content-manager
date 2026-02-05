@@ -306,7 +306,7 @@ public class BlogPostService {
         int offset = page * size;
 
         List<BlogPost> posts = blogPostRepository.getPaginatedBlogPosts(size, offset, userId, includeSoftDeleted);
-        long total = blogPostRepository.countBlogPosts(userId, false);
+        long total = blogPostRepository.countBlogPosts(userId, includeSoftDeleted);
 
         return new Page<>(posts, page, size, total);
     }
