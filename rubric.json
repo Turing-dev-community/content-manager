@@ -1,0 +1,40 @@
+{
+  "upload_directory": "/tmp/files/",
+  "output_directory": "/tmp/outputs/",
+  "system_prompt": "You are an expert code reviewer. Analyze the provided codebase for bugs, security issues, and correctness problems. Provide actionable feedback. All files are located in /tmp/files",
+  "task_prompt": "You are an expert code reviewer. Your task is to analyze the Content Manager Service codebase. This Spring Boot application manages blog posts, customer support requests, support responses, caching, exports, rate limiting, XML/CSV serialization, and security configuration. Identify subtle bugs, security regressions, data consistency issues, and logic flaws. Focus on issues detectable via static analysis. Write your findings to /tmp/outputs/review.md.",
+  "rubric": [
+    {
+      "criterion": "Identifies the empty-steps nulling in src/main/java/com/dehold/contentmanager/validation/model/ValidationPipelineModel.java where setSteps turns empty lists into null, causing pipelines to appear absent",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the enum contract drift in src/main/java/com/dehold/contentmanager/validation/model/ValidationStepType.java where REGEX_VALIDATION was renamed to REGEX_VALIDATOR, breaking persisted values",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the error swallowing in src/main/java/com/dehold/contentmanager/validation/repository/ValidationResultRepository.java where deserializeErrors returns an empty list on JSON parse failure",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the missing defaults in src/main/java/com/dehold/contentmanager/validation/service/ForbiddenWordsService.java where addDefaultForbiddenWords returns early for empty custom lists, skipping system defaults",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the missing timestamp initialization in src/main/java/com/dehold/contentmanager/validation/model/ForbiddenWords.java where createdAt/updatedAt are no longer set in the constructor",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the rate limiter coverage gap in src/main/java/com/dehold/contentmanager/config/WebMvcConfig.java where the interceptor pattern is /api/* instead of /api/**, skipping nested endpoints",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the information leak in src/main/java/com/dehold/contentmanager/exception/GlobalExceptionHandler.java where request.getDescription(true) is used, exposing session details in error responses",
+      "weight": 1
+    },
+    {
+      "criterion": "Identifies the over-broad CSRF disablement in src/main/java/com/dehold/contentmanager/config/SecurityConfig.java where CSRF is ignored for /api/**, weakening protection across all APIs",
+      "weight": 1
+    }
+  ]
+}

@@ -59,6 +59,10 @@ public class ValidationPipelineModel {
     }
 
     public void setSteps(List<ValidationStepModel> steps) {
+        if (steps != null && steps.isEmpty()) {
+            this.steps = null;
+            return;
+        }
         this.steps = steps;
     }
 

@@ -22,8 +22,6 @@ public class ForbiddenWords {
         this.contentType = contentType;
         this.fieldName = fieldName;
         this.words = words;
-        this.createdAt = Instant.now();
-        this.updatedAt = Instant.now();
     }
 
     public UUID getId() {
