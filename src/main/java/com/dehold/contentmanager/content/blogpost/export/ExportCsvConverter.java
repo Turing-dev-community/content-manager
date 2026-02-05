@@ -82,8 +82,7 @@ public final class ExportCsvConverter {
 
     private static String quote(String s) {
         if (s == null) s = "";
-        String escaped = s.replace("\"", "\"\""); // escape double quotes by doubling
-        return "\"" + escaped + "\"";
+        return "\"" + s + "\"";
     }
 
     private static String safe(String s) {

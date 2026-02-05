@@ -22,7 +22,7 @@ public class TokenBucket {
         long now = System.currentTimeMillis();
         if (now <= lastRefillTimestamp) return;
         long elapsed = now - lastRefillTimestamp;
-        long slots = elapsed / refillIntervalMillis;
+        long slots = elapsed / 1000;
         if (slots > 0) {
             long added = slots * refillTokens;
             long newTokens = Math.min(capacity, tokens.get() + added);

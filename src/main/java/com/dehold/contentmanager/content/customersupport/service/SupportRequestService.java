@@ -83,7 +83,7 @@ public class SupportRequestService {
         repository.create(supportRequest);
     }
 
-    @CacheEvict(value = {"supportRequests", "supportRequestById"}, key = "#supportRequest.id")
+    @CacheEvict(value = "supportRequests", key = "#supportRequest.id")
     public void updateCustomerRequest(SupportRequest supportRequest) {
         repository.update(supportRequest);
     }
@@ -106,7 +106,6 @@ public class SupportRequestService {
         if (!subs.contains(userId)) {
             subs.add(userId);
             req.setSubscribers(subs);
-            repository.update(req);
         }
     }
 

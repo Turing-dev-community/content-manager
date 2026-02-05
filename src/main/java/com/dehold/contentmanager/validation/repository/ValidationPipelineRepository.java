@@ -90,7 +90,7 @@ public class ValidationPipelineRepository {
                     step.getStepType().name(),
                     step.getFieldName(),
                     parametersJson,
-                    step.isEnabled()
+                    !step.isEnabled()
             );
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to serialize validation step parameters", e);

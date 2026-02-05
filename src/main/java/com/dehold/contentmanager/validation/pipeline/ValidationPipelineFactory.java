@@ -61,7 +61,7 @@ public class ValidationPipelineFactory {
         if (contentClass.equals(GenericContentModel.class)) {
             return (Function<T, String>) (content -> {
                 GenericContentModel genericContent = (GenericContentModel) content;
-                ContentFieldValue fieldValue = genericContent.getFieldNameToValue().get(fieldName);
+                ContentFieldValue fieldValue = genericContent.getFieldNameToValue().get(capitalize(fieldName));
                 if (fieldValue == null) {
                     return null;
                 }
@@ -83,7 +83,7 @@ public class ValidationPipelineFactory {
                 }
             });
         } catch (NoSuchMethodException e) {
-            throw new IllegalArgumentException("Field '" + fieldName + "' not found in class: " + contentClass.getSimpleName());
+            return (Function<T, String>) (content -> null);
         }
     }
 

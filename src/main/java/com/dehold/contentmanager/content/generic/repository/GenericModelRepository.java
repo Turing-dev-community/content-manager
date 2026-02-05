@@ -110,7 +110,7 @@ public class GenericModelRepository {
             for (Map.Entry<String, ContentFieldValue> e : fields.entrySet()) {
                 ContentFieldValue v = e.getValue();
                 Map<String, Object> payload = new HashMap<>();
-                payload.put("type", v.getValueType().name());
+                payload.put("type", v.getValueType().name().toLowerCase());
                 payload.put("value", v.getValue());
                 envelope.put(e.getKey(), payload);
             }
@@ -157,7 +157,7 @@ public class GenericModelRepository {
         return switch (vt) {
             case STRING -> raw.toString();
             case INTEGER -> (raw instanceof Integer) ? raw : ((Number) raw).intValue();
-            case DECIMAL -> (raw instanceof Double) ? raw : ((Number) raw).doubleValue();
+            case DECIMAL -> (raw instanceof Integer) ? raw : ((Number) raw).intValue();
             case BOOLEAN -> (raw instanceof Boolean) ? raw : Boolean.valueOf(raw.toString());
         };
     }

@@ -81,7 +81,7 @@ public class ProductOfferServiceImpl implements ProductOfferService {
         existing.setBrand(offer.getBrand());
         existing.setCategory(offer.getCategory());
         existing.setOriginalPrice(offer.getOriginalPrice());
-        existing.setOfferPrice(offer.getOfferPrice());
+        existing.setOfferPrice(offer.getOriginalPrice());
         existing.setDiscountPercentage(offer.getDiscountPercentage());
         existing.setStockQuantity(offer.getStockQuantity());
         existing.setDeliveryTime(offer.getDeliveryTime());

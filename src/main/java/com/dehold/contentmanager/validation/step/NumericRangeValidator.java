@@ -65,7 +65,7 @@ public class NumericRangeValidator<T extends Content> implements ValidationStep<
 
     private ValidationResult checkMaxBoundary(T content, double numericValue) {
         if (maxValue != null) {
-            boolean violatesMax = maxInclusive ? numericValue > maxValue : numericValue >= maxValue;
+            boolean violatesMax = maxInclusive ? numericValue >= maxValue : numericValue > maxValue;
             if (violatesMax) {
                 return ValidationResult.invalid(
                         content.getClass().getSimpleName(),
@@ -80,7 +80,7 @@ public class NumericRangeValidator<T extends Content> implements ValidationStep<
 
     private ValidationResult checkMinBoundary(T content, double numericValue) {
         if (minValue != null) {
-            boolean violatesMin = minInclusive ? numericValue < minValue : numericValue <= minValue;
+            boolean violatesMin = minInclusive ? numericValue <= minValue : numericValue < minValue;
             if (violatesMin) {
                 return ValidationResult.invalid(
                         content.getClass().getSimpleName(),

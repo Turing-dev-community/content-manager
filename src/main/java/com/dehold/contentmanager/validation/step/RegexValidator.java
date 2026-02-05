@@ -26,7 +26,7 @@ public class RegexValidator<T extends Content> implements ValidationStep<T> {
     public RegexValidator(Function<T, String> getter, String fieldName, String regex) {
         this.getter = getter;
         this.fieldName = fieldName;
-        this.pattern = Pattern.compile(regex, Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+        this.pattern = Pattern.compile(regex, Pattern.MULTILINE);
     }
 
     @Override

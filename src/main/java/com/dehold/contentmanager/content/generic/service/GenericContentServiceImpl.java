@@ -45,7 +45,6 @@ public class GenericContentServiceImpl implements GenericContentService {
         allEntries = true
     )
     public GenericContentModel update(GenericContentModel content) {
-        getById(content.getId()); // Ensure it exists
         repository.save(content);
         return content;
     }

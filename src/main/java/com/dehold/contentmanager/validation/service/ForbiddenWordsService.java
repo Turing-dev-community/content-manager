@@ -65,7 +65,8 @@ public class ForbiddenWordsService implements IService<ForbiddenWords> {
         if (!resource.exists()) {
             throw new IllegalStateException("forbiddenWords.json not found on classpath");
         }
-        try (InputStream inputStream = resource.getInputStream()) {
+        try {
+            InputStream inputStream = resource.getInputStream();
             return objectMapper.readValue(inputStream, new TypeReference<>() {});
         } catch(IOException e) {
             throw new IllegalStateException("Failed to load default forbidden words", e);

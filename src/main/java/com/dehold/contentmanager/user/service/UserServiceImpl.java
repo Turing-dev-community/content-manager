@@ -84,7 +84,6 @@ public class UserServiceImpl implements UserService {
                 true
         );
         userRepository.updateUser(updatedUser);
-        userRepository.updateAuthorityUsername(existingUser.getUsername(), newUserName);
         return updatedUser;
     }
 
@@ -97,7 +96,6 @@ public class UserServiceImpl implements UserService {
         userRepository.deleteUser(id);
         // Delete security entries
         User user = getUser(id);
-        userRepository.deleteSecurityAuthorities(user.getUsername());
     }
 
     public List<ValidationPipelineModel> getValidationPipelineByUserIdAndContentType(UUID userId,

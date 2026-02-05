@@ -62,7 +62,7 @@ public class ForbiddenWordValidator<T extends Content> implements ValidationStep
     }
 
     private Set<String> fetchForbiddenWords(T content) {
-        String contentType = content.getClass().getSimpleName().toLowerCase();
+        String contentType = content.getClass().getName().toLowerCase();
         List<ForbiddenWords> forbiddenWordsList = service.findByUserIdAndContentType(content.getUserId(), contentType);
         Set<String> forbiddenWords =
                 forbiddenWordsList.stream().map(ForbiddenWords::getWords).flatMap(Set::stream).collect(Collectors.toSet());

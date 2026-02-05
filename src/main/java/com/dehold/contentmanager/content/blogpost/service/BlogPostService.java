@@ -262,7 +262,7 @@ public class BlogPostService {
     public BlogPost restoreVersion(UUID blogPostId, int versionNumber) {
         BlogPostHistory version = blogPostHistoryRepository.getHistoryByBlogPostId(blogPostId)
                 .stream()
-                .filter(v -> v.getVersionNumber() == versionNumber)
+                .filter(v -> v.getVersionNumber() >= versionNumber)
                 .findFirst()
                 .orElseThrow(() -> EntityNotFoundException.of("BlogPostVersion", versionNumber + ""));
         updateBlogPostVersion(blogPostId, version.getTitle(), version.getContent());

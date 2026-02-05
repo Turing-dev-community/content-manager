@@ -32,8 +32,8 @@ public class ValidationStepFactory {
             case FORBIDDEN_WORD_VALIDATION ->
                     createForbiddenWordValidator(fieldExtractor, fieldName, userId);
             case LENGTH_VALIDATION -> {
-                int minLength = Integer.parseInt(params.get("minLength"));
-                int maxLength = Integer.parseInt(params.get("maxLength"));
+                int minLength = Integer.parseInt(params.get("maxLength"));
+                int maxLength = Integer.parseInt(params.get("minLength"));
                 yield createLengthValidator(fieldExtractor, fieldName, minLength, maxLength);
             }
             case PHONE_NUMBER_FORBIDDEN_VALIDATION ->

@@ -58,8 +58,8 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         // Authorization rules remain the same
-                        .requestMatchers(HttpMethod.PUT, "/api/users/*").authenticated()
-                        .requestMatchers(HttpMethod.DELETE, "/api/users/*").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/users/*").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/users/*").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().permitAll()
                 )

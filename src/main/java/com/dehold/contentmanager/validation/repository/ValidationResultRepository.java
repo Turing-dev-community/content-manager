@@ -88,7 +88,6 @@ public class ValidationResultRepository {
                         "ON vr.run_id = vals.run_id " +
                         "AND vr.user_id = vals.user_id " +
                         "AND vr.content_id = vals.content_id " +
-                        "AND vr.content_type = vals.content_type " +
                         "WHEN MATCHED THEN UPDATE SET " +
                         "vr.is_valid = vals.is_valid, " +
                         "vr.errors = vals.errors " +

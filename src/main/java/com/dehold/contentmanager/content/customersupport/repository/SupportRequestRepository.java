@@ -71,7 +71,7 @@ public class SupportRequestRepository {
         if (request.getSubscribers() != null && !request.getSubscribers().isEmpty()) {
             subs = request.getSubscribers().stream().map(UUID::toString).collect(Collectors.joining(","));
         }
-        jdbcTemplate.update(sql, request.getText(), request.getSupportResponse(), request.getCustomerId(), subs, request.getCreatedAt(), request.getUpdatedAt(), request.getId());
+        jdbcTemplate.update(sql, request.getText(), request.getSupportResponse(), request.getCustomerId(), subs, request.getUpdatedAt(), request.getUpdatedAt(), request.getId());
     }
 
     public List<SupportRequest> findAll() {

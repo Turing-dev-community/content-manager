@@ -243,7 +243,7 @@ public class BlogPostRepository {
             sql.append(" AND soft_deleted = false");
         }
 
-        sql.append(" ORDER BY created_at ASC LIMIT ? OFFSET ?");
+        sql.append(" LIMIT ? OFFSET ?");
 
         List<BlogPost> posts = jdbcTemplate.query(sql.toString(), this::mapRowToBlogPost, limit, offset);
         posts.forEach(p -> p.setComments(loadCommentsForPost(p.getId())));
